@@ -16,7 +16,7 @@ These 6 rules are absolute. Never violate them:
 | 2 | **NEVER add dependencies** | Use what exists. Explicit approval required for exceptions. |
 | 3 | **NEVER modify `.env`** | Or any file likely to contain secrets/credentials. |
 | 4 | **ALWAYS check `git log`** | Before making ANY changes. Understand context first. |
-| 5 | **NEVER modify `tests/`** | Use `.tests_sandbox/` for new tests (requires approval). |
+| 5 | **NEVER modify `tests/`** | Use `.meta.tests_sandbox/` for new tests (requires approval). |
 | 6 | **Use `uv` & `pyproject.toml`** | For all dependency management. Avoid pin drift. |
 
 ---
@@ -32,7 +32,7 @@ The **Meta Project Harness** is a structured development system optimized for AI
 
 ### Directory Structure
 
-```\nagent-x/\n├── META_HARNESS.md              # Master documentation\n├── AGENTS.md                    # This file - your rules\n├── .project_development/        # Development standards\n│   ├── META.md\n│   └── QUICK_REFERENCE.md\n├── .sandbox/                    # Your safe workspace\n│   └── META.md\n├── .experiments/                # Experimental features\n│   └── META.md\n├── .tests_sandbox/              # TDD workspace\n│   └── META.md\n└── .development_tools/          # Development utilities\n    └── META.md\n```\n\n**All harness directories start with `.` (dot)** and contain a `META.md` file you must read first.
+```\nagent-x/\n├── META_HARNESS.md              # Master documentation\n├── AGENTS.md                    # This file - your rules\n├── .meta.project_development/        # Development standards\n│   ├── META.md\n│   └── QUICK_REFERENCE.md\n├── .meta.sandbox/                    # Your safe workspace\n│   └── META.md\n├── .meta.experiments/                # Experimental features\n│   └── META.md\n├── .meta.tests_sandbox/              # TDD workspace\n│   └── META.md\n└── .meta.development_tools/          # Development utilities\n    └── META.md\n```\n\n**All harness directories start with `.meta.`** and contain a `META.md` file you must read first.
 
 ---
 
@@ -47,14 +47,14 @@ The **Meta Project Harness** is a structured development system optimized for AI
 
 2. **Read relevant META.md files** - Know the rules
    - `META_HARNESS.md` - Master guide
-   - `.project_development/META.md` - Development standards
+   - `.meta.project_development/META.md` - Development standards
    - Directory-specific META.md for your task
 
 3. **Identify correct directory** - Where to work
-   - Code changes → `.sandbox/`
-   - New tests → `.tests_sandbox/`
-   - Experiments → `.experiments/`
-   - Tools → `.development_tools/`
+- Code changes → `.meta.sandbox/`
+- New tests → `.meta.tests_sandbox/`
+- Experiments → `.meta.experiments/`
+- Tools → `.meta.development_tools/`
 
 ### During Task
 
@@ -64,11 +64,11 @@ The **Meta Project Harness** is a structured development system optimized for AI
    - Expected outcome
 
 5. **Execute in safe space** - Never production
-   - Copy production code to `.sandbox/`
-   - Make changes there
-   - Test thoroughly
+- Copy production code to `.meta.sandbox/`
+- Make changes there
+- Test thoroughly
 
-6. **Test using TDD** - In `.tests_sandbox/`
+6. **Test using TDD** - In `.meta.tests_sandbox/`
    - Write failing test first (RED)
    - Make it pass (GREEN)
    - Refactor (REFACTOR)
@@ -91,7 +91,7 @@ The **Meta Project Harness** is a structured development system optimized for AI
 
 ## Decision Tree
 
-```\nNeed to...\n├─ Modify code?\n│  └─→ Work in .sandbox/\n│\n├─ Write tests?\n│  └─→ Use .tests_sandbox/ (TDD)\n│\n├─ Test new idea?\n│  └─→ Use .experiments/\n│\n├─ Use/create tools?\n│  └─→ Check .development_tools/\n│\n└─ Understand rules?\n   └─→ Read META.md files first\n```\n\n---
+```\nNeed to...\n├─ Modify code?\n│ └─→ Work in .meta.sandbox/\n│\n├─ Write tests?\n│ └─→ Use .meta.tests_sandbox/ (TDD)\n│\n├─ Test new idea?\n│ └─→ Use .meta.experiments/\n│\n├─ Use/create tools?\n│ └─→ Check .meta.development_tools/\n│\n└─ Understand rules?\n └─→ Read META.md files first\n```\n\n---
 
 ## Quality Gates
 
@@ -124,11 +124,11 @@ Before reporting completion, verify:
 
 ### Scenario 1: "Add a new feature"
 
-```\n1. Read META_HARNESS.md\n2. Create experiment in .experiments/\n3. Write tests in .tests_sandbox/\n4. Implement in .sandbox/\n5. Validate & document\n6. Report to user\n```\n\n### Scenario 2: "Fix a bug"
+```\n1. Read META_HARNESS.md\n2. Create experiment in .meta.experiments/\n3. Write tests in .meta.tests_sandbox/\n4. Implement in .meta.sandbox/\n5. Validate & document\n6. Report to user\n```\n\n### Scenario 2: "Fix a bug"
 
-```\n1. Check git log\n2. Reproduce in .sandbox/\n3. Write failing test in .tests_sandbox/\n4. Fix in .sandbox/\n5. Verify test passes\n6. Document fix\n```\n\n### Scenario 3: "Refactor code"
+```\n1. Check git log\n2. Reproduce in .meta.sandbox/\n3. Write failing test in .meta.tests_sandbox/\n4. Fix in .meta.sandbox/\n5. Verify test passes\n6. Document fix\n```\n\n### Scenario 3: "Refactor code"
 
-```\n1. Copy to .sandbox/\n2. Write behavior tests\n3. Refactor\n4. Verify tests still pass\n5. Document improvements\n```\n\n### Scenario 4: "Monthly maintenance"
+```\n1. Copy to .meta.sandbox/\n2. Write behavior tests\n3. Refactor\n4. Verify tests still pass\n5. Document improvements\n```\n\n### Scenario 4: "Monthly maintenance"
 
 ```\n1. Run health check (see skill: optimize-meta-harness)\n2. Review all META.md files\n3. Update as needed\n4. Document changes\n```\n\n---
 
@@ -142,10 +142,11 @@ Use this skill to analyze and optimize the harness itself.
 
 ## When Things Go Wrong
 
-### If you're unsure:\n1. Stop\n2. Re-read META.md files\n3. Check examples in `.sandbox/.user/`\n4. Ask user for clarification\n\n### If you made a mistake:\n1. Document what happened\n2. Don't hide it\n3. Propose fix\n4. Learn from it\n\n### If production code is affected:\n1. Stop immediately\n2. Document the change\n3. Propose rollback plan\n4. Get user approval\n\n---
+### If you're unsure:\n1. Stop\n2. Re-read META.md files\n3. Check examples in `.meta.sandbox/.user/`\n4. Ask user for clarification\n\n### If you made a mistake:\n1. Document what happened\n2. Don't hide it\n3. Propose fix\n4. Learn from it\n\n### If production code is affected:\n1. Stop immediately\n2. Document the change\n3. Propose rollback plan\n4. Get user approval\n\n---
 
 ## Resources
 
-| Resource | Purpose |\n|----------|---------|  \n| `META_HARNESS.md` | Complete harness documentation |\n| `.project_development/META.md` | Development standards |\n| `.project_development/QUICK_REFERENCE.md` | Quick decision guide |\n| `.sandbox/META.md` | Safe workspace rules |\n| `.tests_sandbox/META.md` | TDD methodology (Kent Beck) |\n| `README.md` | Project overview |\n\n---
+| Resource | Purpose |\n|----------|---------| 
+| `META_HARNESS.md` | Complete harness documentation |\n| `.meta.project_development/META.md` | Development standards |\n| `.meta.project_development/QUICK_REFERENCE.md` | Quick decision guide |\n| `.meta.sandbox/META.md` | Safe workspace rules |\n| `.meta.tests_sandbox/META.md` | TDD methodology (Kent Beck) |\n| `README.md` | Project overview |\n\n---
 
 ## Remember\n\n> **READ META.md FIRST**  \n> **WORK IN SAFE SPACES**  \n> **TEST BEFORE PROPOSING**  \n> **DOCUMENT EVERYTHING**  \n> **NEVER COMMIT WITHOUT PERMISSION**\n\n---\n\n**Version**: 1.1.0 (2026-04-19)  \n**Maintained by**: opencode AI agent  \n**License**: Apache 2.0
