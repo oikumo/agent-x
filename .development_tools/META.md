@@ -73,9 +73,29 @@ Each MCP tool should have:
 
 ## Available Tools
 
-| Tool | Purpose | Location |
-|------|---------|----------|
-| (Add as tools are created) |
+To check for available tools, explore the directory structure:
+
+```bash
+# List all MCP tools
+ls .development_tools/mcp/
+
+# List all scripts
+ls .development_tools/scripts/
+```
+
+**Current tools**: *(Populate this table as tools are created)*
+
+| Tool | Purpose | Location | Status |
+|------|---------|----------|--------|
+| *(No tools registered yet)* | | | |
+
+### Tool Registration Template
+
+When creating a new tool, add it to this table:
+
+```markdown
+| tool-name | Brief description | `.development_tools/mcp/tool-name/` | ✅ Active |
+```
 
 ---
 
