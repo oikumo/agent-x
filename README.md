@@ -338,6 +338,87 @@ Set `OPENROUTER_API_KEY` in your `.env` file to avoid the interactive prompt.
 
 ---
 
+## Architecture Overview
+
+```
+main.py
+└── create_controller()
+    └── MainController (registers 14 commands)
+        └── ReplApp(controller).run()
+            ├── Model(session) - command history
+            ├── Loop: parse → find → run → apply → history
+            └── Exit on quit / Ctrl+C / Ctrl+D
+```
+
+### Design Patterns
+
+- **Command Pattern**: Every REPL command implements a consistent `run()` interface
+- **Factory Pattern**: Agents are created via factory functions, decoupling instantiation from usage
+- **Strategy Pattern**: LLM providers (OpenRouter, OpenAI, LlamaCpp) are interchangeable
+- **State Machine**: LangGraph workflows use `StateGraph` for multi-step reasoning
+
+---
+
+## Development with Meta Project Harness
+
+Agent-X uses the **Meta Project Harness** - a structured development system optimized for AI-assisted development.
+
+### Key Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `.project_development/` | Development rules and standards |
+| `.sandbox/` | Safe workspace for code modifications |
+| `.tests_sandbox/` | TDD workspace (Kent Beck methodology) |
+| `.experiments/` | Experimental features and prototyping |
+| `.development_tools/` | Development utilities and tools |
+
+### For AI Agents
+
+If you're an AI agent working on this project:
+1. Read `AGENTS.md` first - it contains mandatory rules
+2. Review `META_HARNESS.md` for complete harness documentation
+3. Always work in safe spaces (`.sandbox/`, `.experiments/`)
+4. Follow TDD in `.tests_sandbox/`
+5. Never modify production code directly
+
+### For Human Developers
+
+- **Getting Started**: See `META_HARNESS.md` for development workflows
+- **Quick Reference**: `.project_development/QUICK_REFERENCE.md`
+- **Standards**: `.project_development/CODING_STYLE.md`
+
+---
+
+## Session Management
+
+Each Agent-X session creates:
+- A timestamped directory under `local_sessions/`
+- A SQLite database for command history
+
+Sessions are isolated and command history is persisted per session.
+
+---
+
+## Troubleshooting
+
+### "Unknown command" error
+Check your spelling with `help`. Commands are case-sensitive.
+
+### API key prompt on startup
+Set `OPENROUTER_API_KEY` in your `.env` file to avoid the interactive prompt.
+
+### LLM connection errors
+- Verify your API key is valid
+- Check your internet connection
+- For local models, ensure Ollama or LlamaCpp is properly configured
+
+### RAG PDF errors
+- Ensure the PDF file exists at the configured path (`_resources/react.pdf` by default)
+- Check that required embeddings dependencies are installed
+
+---
+
 ## License
 
 Agent-X is provided as-is for educational and experimental purposes.
