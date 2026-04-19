@@ -1,25 +1,23 @@
 # AGENTS.md - Agent-X System Agent Rules
 
-Primary entry point for the system agent. Defines rules, commands, and navigation paths.
-You, the opencode coding agent must use the project meta directories to execute any task.
-The META project structure is optimized for opencode agent programming tasks and to produce code quality optimal code.
-Each Meta directory have a META.md file that must be read first to understand it purpose.
+* Primary entry point for the system agent opencode. Defines rules, commands, and navigation paths.
+* You, the opencode coding agent must use the `Meta Project Harness` to execute any task.
+* The `Meta Project Harness` structure is optimized for opencode agent programming tasks and to produce code quality optimal code.
+* Each `Meta Project Harness` directory have a META.md file that must be read first to understand it purpose. 
+* The `Meta Project Harness` directories name allways start with ´.´ (dot) character.
 
 ## Project Meta Directories
 
-.project_development/
-.experiments/
-.sanbox/
-.test_sandbox/
-
-
+* .project_development/
+* .experiments/
+* .sanbox/
+* .test_sandbox/
 
 ---
 
 ## Core Directives
 
 Non-negotiable rules the system agent must follow at all times.
-
 
 | # | Directive                       | Details                                                       |
 |---|---------------------------------|---------------------------------------------------------------|
@@ -36,8 +34,3 @@ Non-negotiable rules the system agent must follow at all times.
 |----------|------|-------------|
 
 ---
-
-## Project Navigation
-
-The agent should use `.project_development/ROUTES.md` as the primary map for understanding project structure.
-
