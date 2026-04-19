@@ -1,31 +1,38 @@
 # Optimize Meta Project Harness Skill
 
-**This skill has been consolidated.**
+**Load this skill**: `skill optimize-meta-harness`
 
-All documentation is now in **SKILL.md**.
+All documentation and workflows are in **[SKILL.md](SKILL.md)**.
+
+## What This Skill Does
+
+Analyzes and optimizes the Meta Project Harness structure, documentation, and workflows for AI-assisted development.
 
 ## Quick Start
 
-```bash
-skill optimize-meta-harness
-```
+1. **Load the skill**: `skill optimize-meta-harness`
+2. **Choose workflow**:
+   - Health Check → Assess current state (15-30 min)
+   - Documentation Analysis → Fix docs (30-45 min)
+   - Structure Optimization → Reorganize (1-2 hrs)
+   - Workflow Enhancement → Improve efficiency (1-2 hrs)
+   - Continuous Improvement → Ongoing monitoring
+3. **Follow steps**: Each workflow has clear instructions in SKILL.md
 
-Then read `SKILL.md` for complete workflows.
+## Files
 
-## What's Here
-
-- `SKILL.md` - Complete skill definition (all workflows)
+- `SKILL.md` - Complete skill definition and workflows
 - `templates/` - Reusable templates
 - `examples/` - Example reports
 
-## Workflows
+## When to Use
 
-1. **Health Check** (15-30 min) - Assess current state
-2. **Documentation Analysis** (30-45 min) - Score META.md files
-3. **Structure Optimization** (1-2 hrs) - Improve organization
-4. **Workflow Enhancement** (1-2 hrs) - Streamline processes
-5. **Continuous Improvement** (ongoing) - Monitor & maintain
+- Harness seems slow or confusing
+- Documentation needs updating
+- Agents struggle with navigation
+- Before major structural changes
+- Regular maintenance (monthly)
 
 ---
 
-**Start here**: Read `SKILL.md` → Choose workflow → Follow steps
+**Start here**: Read [SKILL.md](SKILL.md) → Choose workflow → Follow steps

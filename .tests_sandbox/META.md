@@ -3,7 +3,7 @@
 > **Purpose**: TDD strategy for AI-assisted development  
 > **Style**: Kent Beck's Test-Driven Development  
 > **Target**: AI agents (opencode) working on Agent-X
-> **MANDATORY** NEVER CALL CLOUD LLM MODEL, ALLWAYS USE MOCKS STRATEGY
+> **MANDATORY** NEVER CALL CLOUD LLM MODEL, ALWAYS USE MOCKS STRATEGY
 
 ---
 

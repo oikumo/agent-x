@@ -1,21 +1,22 @@
+---
+name: optimize-meta-harness
+description: >
+  Analyze and optimize the Meta Project Harness structure, documentation, and workflows.
+  Use this skill when the harness seems slow or confusing, documentation needs updating,
+  agents struggle with navigation, before major structural changes, or for regular maintenance.
+version: 1.1.0
+author: Agent-X
+---
+
 # Optimize Meta Project Harness Skill
 
-A specialized skill for analyzing, optimizing, and maintaining the Meta Project Harness structure for AI-assisted development.
+Systematic analysis and optimization of the Meta Project Harness for AI-assisted development.
 
 ## Quick Start
 
 **Load**: `skill optimize-meta-harness`  
 **First task**: Run Harness Health Check (Workflow 1)  
 **Time**: 15-30 minutes
-
-## Purpose
-
-This skill provides systematic workflows to:
-- Analyze harness effectiveness using agent tools
-- Identify bottlenecks in AI agent workflows
-- Optimize directory structure and documentation
-- Improve development velocity
-- Maintain harness health over time
 
 ## When to Use
 
@@ -25,18 +26,30 @@ This skill provides systematic workflows to:
 - Before major structural changes
 - Regular maintenance (monthly)
 
+## Decision Tree
+
+```
+Need to optimize?
+│
+├─ Don't know current state? → Health Check (Workflow 1)
+├─ Documentation unclear? → Documentation Analysis (Workflow 2)
+├─ Structure confusing? → Structure Optimization (Workflow 3)
+├─ Workflows slow? → Workflow Enhancement (Workflow 4)
+└─ Want ongoing improvement? → Continuous Improvement (Workflow 5)
+```
+
 ## Core Workflows
 
-### 1. Harness Health Check (15-30 min)
+### Workflow 1: Harness Health Check (15-30 min)
 
 **Use when**: Need overall assessment
 
 **Steps**:
-1. Read all META.md files
+1. Read all META.md files (META_HARNESS.md, .project_development/META.md, .experiments/META.md, .sandbox/META.md, .tests_sandbox/META.md, .development_tools/META.md)
 2. Check completeness (purpose, target, rules, structure)
 3. Verify directory structure matches documentation
 4. Identify missing or incomplete documentation
-5. Generate health report
+5. Generate health report using template below
 
 **Tools**: `read`, `glob`, `bash`
 
@@ -46,74 +59,98 @@ This skill provides systematic workflows to:
 - All required sections present
 - Structure matches documentation
 
-### 2. Documentation Quality Analysis (30-45 min)
+**Output**: Health report with scores and recommendations
+
+### Workflow 2: Documentation Quality Analysis (30-45 min)
 
 **Use when**: Documentation quality questionable
 
 **Steps**:
 1. Read each META.md file
 2. Score completeness (0-4 scale):
-   - Purpose statement
-   - Target audience
-   - Rules/guidelines
-   - Structure/workflow
-3. Check word count (minimum 100 words)
+   - Purpose statement (0-1)
+   - Target audience (0-1)
+   - Rules/guidelines (0-1)
+   - Structure/workflow (0-1)
+3. Check word count (minimum 100 words, target 100-500)
 4. Identify gaps
 5. Generate improvement recommendations
 
 **Scoring rubric**:
-- 4/4: Excellent (all sections, >200 words)
+- 4/4: Excellent (all sections, >200 words, examples)
 - 3/4: Good (all sections, 100-200 words)
 - 2/4: Fair (missing 1 section or <100 words)
 - 1/4: Poor (missing 2+ sections)
 - 0/4: Critical (file missing or empty)
 
-### 3. Structure Optimization (1-2 hrs)
+**Output**: Documentation quality report with specific improvements
+
+### Workflow 3: Structure Optimization (1-2 hrs)
 
 **Use when**: Navigation is confusing
 
 **Steps**:
 1. Map current directory structure
-2. Identify usage patterns (via git log, file dates)
-3. Find redundancies or overlaps
-4. Compare with best practices
-5. Propose structural improvements
-6. Implement changes (in sandbox)
-7. Validate improvements
+2. Identify all META directories
+3. Check naming consistency
+4. Analyze usage patterns (via git log, file dates)
+5. Find redundancies or overlaps
+6. Compare with best practices (directory depth ≤3, siblings ≤7)
+7. Propose structural improvements
+8. Implement changes (in sandbox)
+9. Validate improvements
+10. Update documentation
 
 **Metrics**: Directory depth, navigation clarity, naming consistency
 
-### 4. Workflow Efficiency Analysis (1-2 hrs)
+**Output**: Optimized structure with migration plan
+
+### Workflow 4: Workflow Efficiency Analysis (1-2 hrs)
 
 **Use when**: Workflows inefficient
 
 **Steps**:
 1. Review recent agent sessions
 2. Identify common task patterns
-3. Measure time-to-completion
-4. Find bottlenecks
-5. Analyze error patterns
-6. Propose workflow improvements
-7. Test optimized workflows
+3. Map decision paths
+4. Count steps per workflow
+5. Measure time-to-completion
+6. Find bottlenecks
+7. Analyze error patterns
+8. Propose workflow simplifications
+9. Create templates
+10. Add examples
+11. Test optimized workflows
 
-**Common bottlenecks**: Unclear directory choice, missing docs, complex navigation
+**Common bottlenecks**: Unclear directory choice, missing docs, complex navigation, missing templates
 
-### 5. Continuous Improvement (ongoing)
+**Output**: Streamlined workflows with templates
+
+### Workflow 5: Continuous Improvement (ongoing)
 
 **Use when**: Establishing ongoing optimization
 
 **Steps**:
 1. Schedule regular health checks (monthly)
 2. Collect agent feedback
-3. Track metrics over time
+3. Track metrics over time (documentation completeness, task completion time, error rate)
 4. Identify trends
 5. Implement incremental improvements
 6. Document changes
 7. Share learnings
 
+**Metrics to track**:
+- Documentation completeness score
+- Task completion time
+- Error rate
+- Agent satisfaction
+- Issue count
+
+**Output**: Continuous improvement system with scheduled reviews
+
 ## Templates
 
-### Health Check Report
+### Health Check Report Template
 
 ```markdown
 # Meta Harness Health Report
@@ -142,7 +179,7 @@ Date: YYYY-MM-DD
 - [ ] Action 2
 ```
 
-### Optimization Plan
+### Optimization Plan Template
 
 ```markdown
 # Optimization Plan
@@ -199,24 +236,6 @@ Date: YYYY-MM-DD
 - Collect feedback
 - Continuous improvement
 
-## Metrics
-
-### Documentation Metrics
-- Completeness score (0-4)
-- Word count (100-500)
-- Update frequency (monthly)
-- Example coverage (100%)
-
-### Structure Metrics
-- Directory depth (≤3 levels)
-- Naming consistency (100%)
-- Navigation time (<1 min)
-
-### Workflow Metrics
-- Task completion time (decreasing)
-- Error rate (0%)
-- Steps per workflow (≤7)
-
 ## Common Issues & Solutions
 
 | Issue | Solution |
@@ -240,33 +259,14 @@ Date: YYYY-MM-DD
 - `bash`: Structure analysis
 - `edit`: Update documentation
 
-## Getting Help
+## Resources
 
-**Resources**:
 - `META_HARNESS.md`: Master documentation
 - `AGENTS.md`: Entry point rules
 - `templates/`: Reusable templates
 - `examples/`: Real examples
 
-**Support**:
-1. Check examples in `examples/`
-2. Review templates in `templates/`
-3. Follow workflows above
-4. Consult metrics
-
 ## Version History
 
-- **1.0.0** (2026-04-19): Initial version
-  - Health check workflow
-  - Documentation analysis
-  - Structure optimization
-  - Workflow efficiency
-  - Templates and examples
-
-## License
-
-Apache 2.0 - Same as Agent-X project
-
----
-
-**Ready to optimize? Load this skill and start with Workflow 1: Harness Health Check!**
+- **1.1.0** (2026-04-19): Consolidated workflows, removed redundant files
+- **1.0.0** (2026-04-19): Initial version with health check, documentation analysis, structure optimization, workflow efficiency
