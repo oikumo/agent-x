@@ -15,7 +15,19 @@
   },
   "permission": {
     "edit": "ask",
-    "bash": "ask",
+     "bash": {
+        "*": "ask",
+        "git *": "allow",
+        "npm *": "allow",
+        "rm *": "deny",
+        "grep *": "allow",
+        "ls *": "allow"
+    },
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny"
+    },
     "webfetch": "deny",
     "grep": "allow",
     "glob": "allow",
@@ -26,7 +38,7 @@
   "mcp": {
     "products": {
       "type": "local",
-      "command": ["uv", "run", ".dev_tools/mcp/dummmy_products_server/server.py"],
+      "command": ["uv", "run", ".development_tools/mcp/dummy_products_server/server.py"],
       "enabled": true
     }
   }
