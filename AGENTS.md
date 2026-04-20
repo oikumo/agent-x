@@ -30,13 +30,13 @@ A structured development system optimized for AI-assisted development providing:
 agent-x/
 ├── META_HARNESS.md # Master documentation
 ├── AGENTS.md # This file
-├── .meta.project_development/ # Development standards
+├── .meta.project_development/ # Rules, standards, workflows
 ├── .meta.sandbox/ # Your safe workspace
 ├── .meta.experiments/ # Experimental features
 ├── .meta.tests_sandbox/ # TDD workspace
-├── .meta.development_tools/ # Development utilities
+├── .meta.development_tools/ # MCP tools, scripts
 ├── .meta.knowledge_base/ # RAG knowledge base
-└── .meta.reflection/ # Capability test logs
+└── .meta.reflection/ # Test logs & capability assessment
 ```
 
 **Rule:** All harness directories start with `.meta.` and contain a `META.md` file you must read first.
@@ -45,26 +45,27 @@ agent-x/
 
 ## Your Workflow
 
-### Before Any Task
-1. **Check `git log`** - `git log --oneline -10`
-2. **Read relevant META.md files** - Know the rules
-3. **Identify correct directory** - Where to work
-4. **Query knowledge base** - Use `kb_ask()` for guidance (optional)
-
-### During Task
-5. **Plan your approach** - Smallest viable change
-6. **Execute in safe space** - Copy production code to `.meta.sandbox/`
-7. **Test using TDD** - In `.meta.tests_sandbox/` (RED → GREEN → REFACTOR)
-
-### After Task
-8. **Document your changes** - Update META.md, add examples
-9. **Store knowledge** - Use `kb_add_entry()` to document patterns
-10. **Report to user** - What you did, test results, next steps
+### 5-Step Workflow
+```
+1. UNDERSTAND: Read task + git log + relevant META.md
+2. PLAN: Identify correct directory (see Decision Tree)
+3. EXECUTE: Work in safe space, test frequently
+4. VALIDATE: All tests pass, no production break
+5. REPORT: Summarize + document + cleanup
+```
 
 ---
 
 ## Decision Tree
 
+```
+Need to...
+├─ Understand rules? → Read relevant META.md
+├─ Modify code? → .meta.sandbox/
+├─ Test new idea? → .meta.experiments/
+├─ Write tests? → .meta.tests_sandbox/
+├─ Use/create tools? → .meta.development_tools/
+└─ Check workflows? → .meta.project_development/WORKFLOWS.md
 ```
 Need to...
 ├─ Modify code?       → Work in .meta.sandbox/
@@ -256,15 +257,12 @@ All tools return standardized JSON:
 
 | Resource | Purpose |
 |----------|---------|
-| `META_HARNESS.md` | Complete harness documentation |
-| `.meta.project_development/META.md` | Development standards |
-| `.meta.project_development/QUICK_REFERENCE.md` | Quick decision guide |
-| `.meta.sandbox/META.md` | Safe workspace rules |
-| `.meta.tests_sandbox/META.md` | TDD methodology (Kent Beck) |
-| `.meta.development_tools/mcp/README.md` | MCP KB tools documentation |
-| `.meta.development_tools/mcp/INTEGRATION.md` | KB integration guide |
-| `.meta.knowledge_base/META.md` | Knowledge base usage |
-| `.meta.reflection/README.md` | Reflection test documentation |
+| [`AGENTS.md`](AGENTS.md) | Entry point (this file) |
+| [`META_HARNESS.md`](META_HARNESS.md) | Complete harness documentation |
+| [`DIRECTIVES.md`](.meta.project_development/DIRECTIVES.md) | Core rules (6 directives) |
+| [`WORKFLOWS.md`](.meta.project_development/WORKFLOWS.md) | Workflow patterns |
+| [`QUICK_REFERENCE.md`](.meta.project_development/QUICK_REFERENCE.md) | Quick decision guide |
+| [`.meta.reflection/README.md`](.meta.reflection/README.md) | Reflection test documentation |
 | `README.md` | Project overview |
 
 ---
@@ -273,6 +271,6 @@ All tools return standardized JSON:
 
 ---
 
-**Version**: 1.4.0 (2026-04-19) - Added meta-harness-reflection skill
+**Version**: 2.1.0 (2026-04-19) - Synced with META_HARNESS.md v2.1.0
 **Maintained by**: opencode AI agent
 **License**: Apache 2.0
