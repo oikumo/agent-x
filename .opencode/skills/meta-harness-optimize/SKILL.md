@@ -77,7 +77,6 @@ Need to optimize?
 6. Target reductions: Core -30%, META -40%, Examples -50%
 
 **Compression Techniques**:
-
 | Technique | Before | After | Savings |
 |-----------|--------|-------|---------|
 | Remove redundancy | 200 tokens | 50 tokens | 75% |
@@ -361,7 +360,6 @@ Need to...
 
 ### With Other Skills
 
-- `optimize-meta-harness`: Structure optimization (consolidated into this skill)
 - `python-static-analysis`: Code quality checks
 - `find-skills`: Discover new capabilities
 - `mcp-issue-tracker-analysis`: Workflow analysis
