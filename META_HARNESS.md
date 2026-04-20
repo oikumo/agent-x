@@ -112,13 +112,17 @@ Before completion:
 | `.meta.sandbox/` | Modify code safely | [Link](.meta.sandbox/META.md) |
 | `.meta.tests_sandbox/` | TDD (Kent Beck) | [Link](.meta.tests_sandbox/META.md) |
 | `.meta.development_tools/` | MCP tools, scripts | [Link](.meta.development_tools/META.md) |
+| `.meta.knowledge_base/` | RAG knowledge storage | [Link](.meta.knowledge_base/META.md) |
+| `.meta.reflection/` | Test logs & capability assessment | [Link](.meta.reflection/README.md) |
 
 ---
 
 ## 9. Maintenance
 
-**Regular**: Clean old experiments, archive sessions, update META.md, remove unused tools  
-**Monthly**: Run health check (see skill: `optimize-meta-harness`)
+**Regular**: Clean old experiments, archive sessions, update META.md, remove unused tools
+**Monthly**: 
+- Run health check (see skill: `optimize-meta-harness`)
+- Run capability test (see skill: `meta-harness-reflection`)
 
 ---
 
@@ -131,8 +135,9 @@ Before completion:
 | [`DIRECTIVES.md`](.meta.project_development/DIRECTIVES.md) | Core rules (6 directives) |
 | [`WORKFLOWS.md`](.meta.project_development/WORKFLOWS.md) | Workflow patterns |
 | [`QUICK_REFERENCE.md`](.meta.project_development/QUICK_REFERENCE.md) | At-a-glance guide |
+| [`.meta.reflection/README.md`](.meta.reflection/README.md) | Reflection test documentation |
 
 ---
 
-**Version**: 2.0.0 (lazy-optimized) | **Lines**: 150 (reduced from 368, ~60% token savings)  
+**Version**: 2.1.0 (added reflection testing) | **Lines**: 155 (reduced from 368, ~60% token savings)
 **Last Updated**: 2026-04-19 | **Maintained By**: opencode AI agent

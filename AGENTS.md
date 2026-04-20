@@ -28,14 +28,15 @@ A structured development system optimized for AI-assisted development providing:
 ### Directory Structure
 ```
 agent-x/
-├── META_HARNESS.md              # Master documentation
-├── AGENTS.md                    # This file
-├── .meta.project_development/   # Development standards
-├── .meta.sandbox/               # Your safe workspace
-├── .meta.experiments/           # Experimental features
-├── .meta.tests_sandbox/         # TDD workspace
-├── .meta.development_tools/     # Development utilities
-└── .meta.knowledge_base/        # RAG knowledge base
+├── META_HARNESS.md # Master documentation
+├── AGENTS.md # This file
+├── .meta.project_development/ # Development standards
+├── .meta.sandbox/ # Your safe workspace
+├── .meta.experiments/ # Experimental features
+├── .meta.tests_sandbox/ # TDD workspace
+├── .meta.development_tools/ # Development utilities
+├── .meta.knowledge_base/ # RAG knowledge base
+└── .meta.reflection/ # Capability test logs
 ```
 
 **Rule:** All harness directories start with `.meta.` and contain a `META.md` file you must read first.
@@ -160,6 +161,15 @@ result = rag_add_entry(
 5. Document changes
 ```
 
+### Scenario 5: Capability Testing
+```bash
+1. Run reflection test: skill meta-harness-reflection
+2. Review generated log: .meta.reflection/<timestamp>_log.md
+3. Identify knowledge gaps
+4. Update KB if needed
+5. Re-test after improvements
+```
+
 ---
 
 ## Available Skills
@@ -170,6 +180,15 @@ Use to analyze and optimize the harness itself:
 skill optimize-meta-harness
 ```
 **Workflows:** Health Check → Documentation Analysis → Structure Optimization → Workflow Enhancement → Continuous Improvement
+
+### meta-harness-reflection
+Use to test agent's knowledge base usage and harness comprehension:
+```bash
+skill meta-harness-reflection
+```
+**Modes:** Interactive (manual answers) | Automated (KB search)
+**Output:** Timestamped logs in `.meta.reflection/`
+**Frequency:** Monthly or after KB updates
 
 ---
 
@@ -244,6 +263,8 @@ All tools return standardized JSON:
 | `.meta.tests_sandbox/META.md` | TDD methodology (Kent Beck) |
 | `.meta.development_tools/mcp/README.md` | MCP KB tools documentation |
 | `.meta.development_tools/mcp/INTEGRATION.md` | KB integration guide |
+| `.meta.knowledge_base/META.md` | Knowledge base usage |
+| `.meta.reflection/README.md` | Reflection test documentation |
 | `README.md` | Project overview |
 
 ---
@@ -252,6 +273,6 @@ All tools return standardized JSON:
 
 ---
 
-**Version**: 1.3.0 (2026-04-19)  
-**Maintained by**: opencode AI agent  
+**Version**: 1.4.0 (2026-04-19) - Added meta-harness-reflection skill
+**Maintained by**: opencode AI agent
 **License**: Apache 2.0
