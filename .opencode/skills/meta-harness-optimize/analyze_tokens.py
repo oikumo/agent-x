@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""
+Token Consumption Analyzer for Meta Project Harness
+
+Analyzes markdown files and calculates token consumption metrics.
+Provides before/after comparison and optimization recommendations.
+
+Usage:
+    python analyze_tokens.py [--output report.md]
+"""
+
+import os
+import sys
+from pathlib import Path
+from typing import Dict, List, Tuple
+from dataclasses import dataclass
+
+
+@dataclass
+class FileMetrics:
+    """Metrics for a single file."""
+    path: str
+    lines: int
+    words: int
+    tokens: int  # Estimated: words * 1.3
+    category: str
+
+
+def count_words(text: str) -> int:
+    """Count words in text."""
+    return len(text.split())
+
+
+def estimate_tokens(word_count: int) -> int:
+    """Estimate tokens from word count (English average: 1 word = 1.3 tokens)."""
+    return int(word_count * 1.3)
+
+
+def categorize_file(path: str) -> str:
+    """Categorize file based on path."""
+    path_lower = path.lower()
+    if 'agents.md' in path_lower:
+        return 'Core (AGENTS.md)'
+    elif 'meta_harness.md' in path_lower:
+        return 'Core (META_HARNESS.md)'
+    elif 'skill' in path_lower:
+        return 'Skills'
+    elif 'meta.md' in path_lower:
+        return 'META.md Files'
+    elif 'example' in path_lower or 'template' in path_lower:
+        return 'Examples/Templates'
+    else:
+        return 'Other'
+
+
+def analyze_directory(root_dir: str) -> List[FileMetrics]:
+    """Analyze all markdown files in directory."""
+    metrics = []
+    root_path = Path(root_dir)
+    
+    for md_file in root_path.rglob('*.md'):
+        # Skip virtual environments and node_modules
+        if '.venv' in str(md_file) or 'node_modules' in str(md_file):
+            continue
+        
+        try:
+            with open(md_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            lines = len(content.split('\n'))
+            words = count_words(content)
+            tokens = estimate_tokens(words)
+            category = categorize_file(str(md_file))
+            
+            metrics.append(FileMetrics(
+                path=str(md_file.relative_to(root_dir)),
+                lines=lines,
+                words=words,
+                tokens=tokens,
+                category=category
+            ))
+        except Exception as e:
+            print(f"Error processing {md_file}: {e}", file=sys.stderr)
+    
+    return sorted(metrics, key=lambda x: x.tokens, reverse=True)
+
+
+def print_report(metrics: List[FileMetrics], output_file: str = None):
+    """Print or save analysis report."""
+    total_tokens = sum(m.tokens for m in metrics)
+    total_words = sum(m.words for m in metrics)
+    total_lines = sum(m.lines for m in metrics)
+    
+    # Group by category
+    categories = {}
+    for m in metrics:
+        if m.category not in categories:
+            categories[m.category] = {'files': 0, 'tokens': 0, 'words': 0}
+        categories[m.category]['files'] += 1
+        categories[m.category]['tokens'] += m.tokens
+        categories[m.category]['words'] += m.words
+    
+    report = f"""# Token Consumption Analysis Report
+
+## Summary
+- **Total Files**: {len(metrics)}
+- **Total Lines**: {total_lines:,}
+- **Total Words**: {total_words:,}
+- **Total Tokens**: {total_tokens:,} (estimated)
+
+## Token Distribution by Category
+
+| Category | Files | Tokens | % of Total |
+|----------|-------|--------|------------|
+"""
+    
+    for cat, data in sorted(categories.items(), key=lambda x: x[1]['tokens'], reverse=True):
+        pct = (data['tokens'] / total_tokens * 100) if total_tokens > 0 else 0
+        report += f"| {cat} | {data['files']} | {data['tokens']:,} | {pct:.1f}% |\n"
+    
+    report += f"""
+## Top 10 Files by Token Count
+
+| Rank | File | Lines | Words | Tokens |
+|------|------|-------|-------|--------|
+"""
+    
+    for i, m in enumerate(metrics[:10], 1):
+        report += f"| {i} | {m.path} | {m.lines:,} | {m.words:,} | {m.tokens:,} |\n"
+    
+    if len(metrics) > 10:
+        report += f"\n... and {len(metrics) - 10} more files\n"
+    
+    report += f"""
+## Optimization Opportunities
+
+### High-Impact Targets (>500 tokens)
+"""
+    
+    high_impact = [m for m in metrics if m.tokens > 500]
+    if high_impact:
+        report += "\n| File | Tokens | Potential Savings (30%) |\n"
+        report += "|------|--------|------------------------|\n"
+        for m in high_impact[:10]:
+            savings = int(m.tokens * 0.3)
+            report += f"| {m.path} | {m.tokens:,} | ~{savings:,} |\n"
+    else:
+        report += "No files exceed 500 tokens.\n"
+    
+    report += f"""
+## Recommendations
+
+1. **Focus on large files** - Top 10 files account for {sum(m.tokens for m in metrics[:10]) / total_tokens * 100:.1f}% of tokens
+2. **Apply 30% compression** - Could save ~{int(total_tokens * 0.3):,} tokens
+3. **Target META.md files** - {categories.get('META.md Files', {'tokens': 0})['tokens']:,} tokens
+4. **Consolidate skills** - {categories.get('Skills', {'tokens': 0})['tokens']:,} tokens
+
+---
+*Generated by Token Consumption Analyzer*
+*Date: {__import__('datetime').datetime.now().strftime('%Y-%m-%d')}*
+"""
+    
+    if output_file:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(report)
+        print(f"Report saved to: {output_file}")
+    else:
+        print(report)
+    
+    return report
+
+
+def main():
+    """Main entry point."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Analyze token consumption')
+    parser.add_argument('--root', default='.', help='Root directory to analyze')
+    parser.add_argument('--output', help='Output file for report')
+    args = parser.parse_args()
+    
+    print(f"Analyzing markdown files in: {args.root}")
+    metrics = analyze_directory(args.root)
+    print_report(metrics, args.output)
+
+
+if __name__ == '__main__':
+    main()
