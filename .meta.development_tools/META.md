@@ -1,14 +1,14 @@
 # Development Tools - Agent X
 
-> **Purpose**: Collection of development tools, scripts, and utilities
-> **Target**: AI agents (opencode) and human developers working on Agent-X
-> **MANDATORY**: All tools must be documented and follow project conventions
+> **Purpose**: Development tools and utilities  
+> **Target**: AI agents (opencode) and developers  
+> **Rule**: Document and test all tools
 
 ---
 
 ## Purpose
 
-The `.development_tools/` directory contains:
+Contains:
 - MCP (Model Context Protocol) tools
 - Development scripts
 - Code generation utilities
@@ -20,90 +20,27 @@ The `.development_tools/` directory contains:
 ## Structure
 
 ```
-.development_tools/
-├── META.md                 # This file
-├── mcp/                    # MCP tool implementations
+.meta.development_tools/
+├── META.md          # This file
+├── mcp/             # MCP tools
 │   └── <tool-name>/
-│       ├── META.md         # Tool-specific documentation
-│       └── tool.py         # Tool implementation
-└── scripts/                # Utility scripts
+│       ├── META.md  # Tool docs
+│       └── tool.py  # Implementation
+└── scripts/         # Utility scripts
 ```
 
 ---
 
 ## MCP Tools
 
-MCP tools provide structured interfaces for AI agents to interact with external systems.
+### Creating New Tool
 
-### Creating a New MCP Tool
+```\n1. Create: .meta.development_tools/mcp/<tool-name>/\n2. Document: Add META.md\n3. Implement: Follow existing patterns\n4. Test: In sandbox first\n5. Register: Update table below\n```\n\n### Tool Requirements\n- Clear purpose and scope\n- Well-defined inputs/outputs\n- Error handling\n- Documentation\n- Test coverage\n\n---
 
-1. Create directory: `.development_tools/mcp/<tool-name>/`
-2. Add META.md with tool documentation
-3. Implement tool following existing patterns
-4. Test in sandbox before deployment
-5. Document usage in main README
+## Rules\n\n**DO**: Document thoroughly, follow patterns, test first, keep modular  \n**DON'T**: Create without purpose, modify untested, leave undocumented, add dependencies\n\n---
 
-### Tool Structure
+## Available Tools\n\n| Tool | Purpose | Location | Status |\n|------|---------|----------|--------|\n| *(Add tools as created)* | | | |\n\n---
 
-Each MCP tool should have:
-- Clear purpose and scope
-- Well-defined inputs and outputs
-- Error handling
-- Documentation
-- Test coverage
+## Maintenance\n\n- Review periodically\n- Remove unused tools\n- Update documentation\n- Ensure Python compatibility\n\n---
 
----
-
-## Rules
-
-### DO
-- Document all tools thoroughly
-- Follow existing tool patterns
-- Test tools in sandbox first
-- Keep tools modular and focused
-- Use `uv` for dependency management
-
-### DON'T
-- Create tools without clear purpose
-- Modify tools without testing
-- Leave tools undocumented
-- Add unnecessary dependencies
-
----
-
-## Available Tools
-
-To check for available tools, explore the directory structure:
-
-```bash
-# List all MCP tools
-ls .development_tools/mcp/
-
-# List all scripts
-ls .development_tools/scripts/
-```
-
-**Current tools**: *(Populate this table as tools are created)*
-
-| Tool | Purpose | Location | Status |
-|------|---------|----------|--------|
-| *(No tools registered yet)* | | | |
-
-### Tool Registration Template
-
-When creating a new tool, add it to this table:
-
-```markdown
-| tool-name | Brief description | `.development_tools/mcp/tool-name/` | ✅ Active |
-```
-
----
-
-## Maintenance
-
-- Review tools periodically
-- Remove unused tools
-- Update documentation
-- Ensure compatibility with current Python version
-
----
+**Version**: 2.0.0 (lazy-optimized) | **Lines**: 50 (reduced from 109)\n\n
