@@ -68,6 +68,14 @@ Need to...
 └─ Check workflows? → .meta.project_development/WORKFLOWS.md
 ```
 Need to...
+├─ Understand rules? → Read relevant META.md
+├─ Modify code? → .meta.sandbox/
+├─ Test new idea? → .meta.experiments/
+├─ Write tests? → .meta.tests_sandbox/
+├─ Use/create tools? → .meta.development_tools/
+└─ Check workflows? → .meta.project_development/WORKFLOWS.md
+```
+Need to...
 ├─ Modify code?       → Work in .meta.sandbox/
 ├─ Write tests?       → Use .meta.tests_sandbox/ (TDD)
 ├─ Test new idea?     → Use .meta.experiments/

@@ -1,7 +1,7 @@
 # Agent-X
 
-> **Version**: 0.2.0  
-> **Python**: 3.14+  
+> **Version**: 0.3.0
+> **Python**: 3.14+
 > **Package Manager**: uv
 
 ---
@@ -261,54 +261,6 @@ These commands demonstrate increasingly sophisticated graph-based reasoning patt
 
 ---
 
-## Architecture Overview
-
-```
-main.py
-  └── create_controller()
-        └── MainController (registers 14 commands)
-              └── ReplApp(controller).run()
-                    ├── Model(session) - command history
-                    ├── Loop: parse → find → run → apply → history
-                    └── Exit on quit / Ctrl+C / Ctrl+D
-```
-
-### Design Patterns
-
-- **Command Pattern**: Every REPL command implements a consistent `run()` interface
-- **Factory Pattern**: Agents are created via factory functions, decoupling instantiation from usage
-- **Strategy Pattern**: LLM providers (OpenRouter, OpenAI, LlamaCpp) are interchangeable
-- **State Machine**: LangGraph workflows use `StateGraph` for multi-step reasoning
-
----
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Purpose | Required For |
-|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | OpenRouter API access | Default chat |
-| `OPENAI_API_KEY` | OpenAI API access | OpenAI provider |
-| `TAVILY_API_KEY` | Tavily web search | `search` command |
-| `LANGSMITH_TRACING` | Enable LangSmith tracing | Debugging |
-| `LANGSMITH_API_KEY` | LangSmith API key | Tracing |
-
-### Local Models
-
-Agent-X supports local LLM inference via:
-
-- **LlamaCpp**: GGUF models (default: Qwen 2.5)
-- **Ollama**: Local model serving (function calling, embeddings)
-
-### Vector Stores
-
-- **FAISS**: Local vector store for RAG
-- **Pinecone**: Cloud vector store
-- **Chroma**: Alternative local/cloud vector store
-
----
-
 ## Session Management
 
 Each Agent-X session creates:
@@ -367,35 +319,32 @@ Agent-X uses the **Meta Project Harness** - a structured development system opti
 
 | Directory | Purpose |
 |-----------|---------|
-| `.project_development/` | Development rules and standards |
-| `.sandbox/` | Safe workspace for code modifications |
-| `.tests_sandbox/` | TDD workspace (Kent Beck methodology) |
-| `.experiments/` | Experimental features and prototyping |
-| `.development_tools/` | Development utilities and tools |
+| `.meta.project_development/` | Rules, standards, workflows |
+| `.meta.sandbox/` | Safe workspace for code modifications |
+| `.meta.tests_sandbox/` | TDD workspace (Kent Beck methodology) |
+| `.meta.experiments/` | Experimental features and prototyping |
+| `.meta.development_tools/` | Development utilities and MCP tools |
+| `.meta.knowledge_base/` | RAG knowledge storage |
+| `.meta.reflection/` | Test logs & capability assessment |
 
 ### Knowledge Base (MCP Tool)
 
 The project includes a **self-evolving knowledge base** accessible via MCP (Model Context Protocol):
 
-- **Location**: `.meta.knowledge_base/` and `.meta.development_tools/mcp-knowledge-base/`
+- **Location**: `.meta.knowledge_base/`
 - **Purpose**: Stores project patterns, findings, and decisions
 - **Features**: RAG-enabled, auto-correcting, confidence scoring
-- **For AI Agents**: Automatically activated via `opencode.jsonc`
+- **For AI Agents**: Automatically activated via MCP tools
 
-**Usage:**
-```bash
-# CLI access
-python .meta.knowledge_base/kb.py stats
-python .meta.knowledge_base/kb.py search "TDD"
+**MCP Tools:**
+- `kb_search`: Search knowledge base
+- `kb_ask`: Ask questions with RAG context
+- `kb_add_entry`: Document new patterns
+- `kb_correct`: Correct existing knowledge
+- `kb_evolve`: Run evolution cycle
+- `kb_stats`: Monitor KB health
 
-# MCP tools (for opencode)
-# - kb_search: Search knowledge base
-# - kb_ask: Ask questions with RAG context
-# - kb_add_entry: Document new patterns
-# - kb_correct: Correct existing knowledge
-```
-
-**Documentation**: See `.meta.knowledge_base/META.md` and `.meta.development_tools/mcp-knowledge-base/README.md`
+**Documentation**: See `.meta.knowledge_base/META.md`
 
 ### For AI Agents
 
@@ -403,46 +352,17 @@ If you're an AI agent working on this project:
 1. Read `AGENTS.md` first - it contains mandatory rules
 2. Review `META_HARNESS.md` for complete harness documentation
 3. **Use the Knowledge Base** - Query with `kb_ask` before starting work
-4. Always work in safe spaces (`.sandbox/`, `.experiments/`)
-5. Follow TDD in `.tests_sandbox/`
+4. Always work in safe spaces (`.meta.sandbox/`, `.meta.experiments/`)
+5. Follow TDD in `.meta.tests_sandbox/`
 6. Never modify production code directly
 7. **Document discoveries** - Add to knowledge base after completing tasks
 
 ### For Human Developers
 
 - **Getting Started**: See `META_HARNESS.md` for development workflows
-- **Quick Reference**: `.project_development/QUICK_REFERENCE.md`
-- **Standards**: `.project_development/CODING_STYLE.md`
+- **Quick Reference**: `.meta.project_development/QUICK_REFERENCE.md`
+- **Standards**: `.meta.project_development/` directory
 - **Knowledge Base**: `.meta.knowledge_base/META.md`
-
----
-
-## Session Management
-
-Each Agent-X session creates:
-- A timestamped directory under `local_sessions/`
-- A SQLite database for command history
-
-Sessions are isolated and command history is persisted per session.
-
----
-
-## Troubleshooting
-
-### "Unknown command" error
-Check your spelling with `help`. Commands are case-sensitive.
-
-### API key prompt on startup
-Set `OPENROUTER_API_KEY` in your `.env` file to avoid the interactive prompt.
-
-### LLM connection errors
-- Verify your API key is valid
-- Check your internet connection
-- For local models, ensure Ollama or LlamaCpp is properly configured
-
-### RAG PDF errors
-- Ensure the PDF file exists at the configured path (`_resources/react.pdf` by default)
-- Check that required embeddings dependencies are installed
 
 ---
 
