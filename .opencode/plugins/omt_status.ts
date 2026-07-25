@@ -364,3 +364,5 @@ const omt_status = tool({
 export default async () => ({
   tool: { omt_status },
 })
+
+// OMT_LIVE_PROBE_MARKER safe to remove

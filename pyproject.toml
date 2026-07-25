@@ -50,3 +50,6 @@ packages = ["src/agentx"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "opencode_live: slow tests that drive the REAL opencode binary (skipped when binary absent)",
+]

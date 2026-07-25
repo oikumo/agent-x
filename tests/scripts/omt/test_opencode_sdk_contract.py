@@ -6,7 +6,7 @@ F14 (analysis_001_f14_contract_pinning.md): the enforcer's tool.execute.after
 read `output.args` — a key that NEVER existed in ANY SDK version (1.1.12 …
 1.17.11) — so the read-injection AND the MVC++ post-edit gate were dead since
 shipment, while runner fixtures fabricated the same wrong shape and kept every
-test green. This module pins the three links that must never drift apart again:
+test green. This module pins the two links that must never drift apart again:
 
   1. Shape pin   — the INSTALLED SDK d.ts declares:
                      tool.execute.before: input={tool,sessionID,callID} (NO args),
@@ -16,10 +16,17 @@ test green. This module pins the three links that must never drift apart again:
   2. Version pin — .opencode/package.json's declared @opencode-ai/plugin
                    version == the installed node_modules version (drift alarm
                    on SDK upgrade).
-  3. Fixture pin — the two hook-fixture sites in feature_022 place "args" on
-                   the contract-correct side (after-hook fixtures: input;
-                   before-hook fixtures: output) — a source assertion, so a
-                   regression fails here even if behavior tests are skipped.
+
+The F14 meta-lesson (feature_023.test_refactor_live_only / REFACTOR_PLAN_v2):
+runner fixtures fabricate the SDK shapes the buggy code expects and stay green
+while the real runtime drifts. The deleted feature_022 fixture-pinning class
+(TestFixturePin) pinned the fixtures themselves; with the fixtures removed by
+the v2 refactor, that 3rd pin is obsolete. The after-hook contract is now
+pinned LIVE by test_omt_live_opencode_guards.py::test_nav_reminder_and_think_digest_on_first_tool_result
+(F14c live path — real opencode binary drives the hook). The before-hook
+contract is pinned LIVE by test_omt_live_opencode_guards.py::test_protected_file_edit_blocked_without_unlock
+(BUG-A regression). Both live tests fail on the real buggy runtime — the
+mechanization the fixture pins failed to provide.
 
 Runtime truth (ground the d.ts pin proxies): binary audit of the installed
 opencode-linux-x64 1.18.3 (`grep -ao 'trigger("[a-z._]*"'`) yields exactly 16
@@ -35,7 +42,6 @@ skipif: the whole module skips when node_modules is absent (CI without npm i)
 — the pin targets the installed environment, not a vendored snapshot.
 """
 
-import ast
 import json
 import re
 from pathlib import Path
@@ -46,9 +52,6 @@ REPO_ROOT = Path(__file__).parent.parent.parent.parent
 DTS = REPO_ROOT / ".opencode" / "node_modules" / "@opencode-ai" / "plugin" / "dist" / "index.d.ts"
 PKG = REPO_ROOT / ".opencode" / "package.json"
 INSTALLED_PKG = REPO_ROOT / ".opencode" / "node_modules" / "@opencode-ai" / "plugin" / "package.json"
-FEATURE_022 = REPO_ROOT / "tests" / "features" / "feature_022.meta_harness_think_anywhere_v2"
-TIER_BD = FEATURE_022 / "test_omt_think_v2_tier_bd.py"
-TIER_C = FEATURE_022 / "test_omt_think_v2_tier_c.py"
 
 pytestmark = pytest.mark.skipif(not DTS.exists(), reason="plugin SDK not installed (npm i not run)")
 
@@ -62,17 +65,6 @@ def _hook_blocks(hook: str) -> tuple[str, str]:
         dts, re.DOTALL)
     assert m, f'"{hook}" not found in installed d.ts — Hooks interface drifted?'
     return m.group("input"), m.group("output")
-
-
-def _fn_source(path: Path, name: str) -> str:
-    """Full source segment of a top-level function in a Python file."""
-    text = path.read_text(encoding="utf-8")
-    for node in ast.parse(text).body:
-        if isinstance(node, ast.FunctionDef) and node.name == name:
-            seg = ast.get_source_segment(text, node)
-            assert seg, f"could not extract source of {name} in {path.name}"
-            return seg
-    raise AssertionError(f"{name} not found in {path.name}")
 
 
 class TestHookShapePin:
@@ -109,24 +101,11 @@ class TestVersionPin:
             "re-review the tool.execute contract before bumping")
 
 
-class TestFixturePin:
-    def test_after_hook_fixture_places_args_on_input(self):
-        """tier_bd _read_call (drives tool.execute.after) must fabricate the
-        REAL after-hook shape: args on input; output={title,output,metadata}."""
-        body = _fn_source(TIER_BD, "_read_call")
-        assert re.search(r'"input":\s*\{[^}]*"args"', body, re.DOTALL), (
-            "_read_call must place args in the input dict (after-hook contract)")
-        assert not re.search(r'"output":\s*\{[^}]*"args"', body, re.DOTALL), (
-            "_read_call must NOT place args in the output dict (the F14 wrong shape)")
-
-    def test_before_hook_fixture_places_args_on_output(self):
-        """tier_c _edit_call (drives tool.execute.before) must fabricate the
-        REAL before-hook shape: args on output; input={tool,sessionID,...}."""
-        body = _fn_source(TIER_C, "_edit_call")
-        assert re.search(r'"output":\s*\{[^}]*"args"', body, re.DOTALL), (
-            "_edit_call must place args in the output dict (before-hook contract)")
-        assert not re.search(r'"input":\s*\{[^}]*"args"', body, re.DOTALL), (
-            "_edit_call must NOT place args in the input dict (before-hook has none)")
+# Note: TestFixturePin removed in feature_023.test_refactor_live_only (v2 refactor).
+# It pinned the deleted feature_022 fixture files (test_omt_think_v2_tier_{bd,c}.py)
+# which fabricated SDK hook shapes — exactly the F14 meta-lesson: runner fixtures
+# stay green while the real runtime drifts. The after/before-hook contracts are
+# now pinned LIVE by test_omt_live_opencode_guards.py (F14c + BUG-A tests).
 
 
 if __name__ == "__main__":

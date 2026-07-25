@@ -106,7 +106,7 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "const omt_skip = tool" in enforcer
     assert "const omt_complete = tool" in enforcer
     assert "getActiveFeaturePhase(feature, session)" in enforcer
-    assert "ARTIFACT_REQUIRED.has(phaseRecord.task_type || \"\")" in enforcer
+    assert 'ARTIFACT_REQUIRED.has(phaseRecord.task_type || "")' in enforcer
     assert "checkPhaseExitArtifacts(directory, feature, currentPhase)" in enforcer
     checks.append("omt_phase/omt_complete tool chain is wired and scoped")
 
@@ -134,7 +134,7 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     # 5. The guide contract and plugin gate agree on adaptive rigor.
     assert "Essential vs. Optional" in guide
     assert "Bug Fix" in guide and "Minor Feature" in guide and "Major Feature" in guide
-    assert "ARTIFACT_REQUIRED = new Set([\"major_feature\", \"new_screen\"])" in enforcer
+    assert 'ARTIFACT_REQUIRED = new Set(["major_feature", "new_screen"])' in enforcer
     assert "PHASE_EXIT_REQUIREMENTS" in enforcer
     assert "operation_spec_*.md" in enforcer
     checks.append("guide §12 and plugin artifact matrix stay aligned")
