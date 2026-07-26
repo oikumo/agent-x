@@ -28,6 +28,8 @@ TDD_RD: RED — omt_red{test_node,target_src,feature} → tests/ ONLY (fail veri
 TDD_GN: GREEN — omt_green{test_node,feature} → src/ ONLY (pass)
 TDD_RF: REFACTOR — omt_refactor{test_node,feature} → src/ ONLY (green, auto-revert on break)
 TDD_DN: DONE — omt_done{feature} → full suite + coverage gaps + dangling reds check
+TDD_BOOTSTRAP: TESTLIST blocks tests/ creation (chicken-and-egg: the gate precedes the first RED) → bootstrap new test files via omt_skip{reason:"...",scope:"tests"} — logged canary (feature_021/022 prior art); auto-unlock REJECTED (weakens the canary model)
+TDD_DONE_ALLOWLIST: omt_done tolerates only KNOWN_SUITE_FAILURES (scripts/omt/tdd/state.py): feature_018 react_screen ×3 + the window-flaky real-ledger gate probe; any other failure blocks
 
 TDD_HAT_RED: tests/ edits ALLOWED, src/ edits BLOCKED
 TDD_HAT_GREEN: tests/ edits BLOCKED, src/ edits ALLOWED

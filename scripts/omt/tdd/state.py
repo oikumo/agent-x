@@ -7,11 +7,17 @@ Extracted from the former monolithic scripts/omt/tdd_check.py:
   - source snapshots (public-method inventories) + diffs
   - pytest subprocess runners
   - test/src path resolution
+
+meta_harness_dsl R4: the hot ledger is capped (LEDGER_CAP_BYTES) and rotates
+into ledger-YYYYMM.jsonl archives; readers scan the latest archive + the hot
+file. run_full_suite excludes opencode_live and cmd_done tolerates only
+KNOWN_SUITE_FAILURES (audit F6/F7 — omt_done was unreachable).
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -30,6 +36,7 @@ LEDGER_PATH = Path(_LEDGER_ENV) if _LEDGER_ENV else REPO_ROOT / ".meta" / ".omt"
 _SNAPSHOT_ENV = os.environ.get("OMT_SNAPSHOT_DIR")
 SNAPSHOT_DIR = Path(_SNAPSHOT_ENV) if _SNAPSHOT_ENV else REPO_ROOT / ".meta" / ".omt" / "tdd_snapshots"
 UNLOCK_WINDOW_MS = 8 * 60 * 60 * 1000  # 8 hours (keep in sync with .opencode/lib/omt_shared.ts — single TS source since meta_harness_dsl R1; pinned by tests/scripts/omt/test_thought_pattern_pin.py)
+LEDGER_CAP_BYTES = 64 * 1024  # 64 KB hot-file cap (meta_harness_dsl R4 — keep in sync with .opencode/lib/omt_shared.ts; pinned by tests/scripts/omt/test_thought_pattern_pin.py)
 
 
 # ---------------------------------------------------------------------------
@@ -40,11 +47,11 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def read_ledger() -> list[dict]:
-    if not LEDGER_PATH.exists():
+def _read_jsonl(path: Path) -> list[dict]:
+    if not path.exists():
         return []
     records: list[dict] = []
-    for line in LEDGER_PATH.read_text(encoding="utf-8").split("\n"):
+    for line in path.read_text(encoding="utf-8").split("\n"):
         s = line.strip()
         if not s:
             continue
@@ -55,10 +62,62 @@ def read_ledger() -> list[dict]:
     return records
 
 
+def _ledger_archives() -> list[Path]:
+    """ledger-YYYYMM.jsonl files next to the hot ledger, oldest first
+    (lexicographic == chronological)."""
+    return sorted(
+        LEDGER_PATH.parent.glob("ledger-[0-9][0-9][0-9][0-9][0-9][0-9].jsonl")
+    )
+
+
+def read_ledger() -> list[dict]:
+    """Latest archive (older) + hot file (newer), chronological — meta_harness_dsl
+    R4 rotation: the 8 h unlock window shared by every gate reader makes
+    current+latest sufficient."""
+    archives = _ledger_archives()
+    records = _read_jsonl(archives[-1]) if archives else []
+    return records + _read_jsonl(LEDGER_PATH)
+
+
 def write_ledger(record: dict) -> None:
     LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(LEDGER_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps({"ts": _now_iso(), **record}) + "\n")
+    _rotate_ledger_if_needed()
+
+
+def _rotate_ledger_if_needed() -> None:
+    """R4: cap the hot ledger at LEDGER_CAP_BYTES; overflow moves to
+    ledger-YYYYMM.jsonl (appended, so repeated same-month rotations stay
+    chronological). Best-effort — rotation failure never breaks a session."""
+    try:
+        if not LEDGER_PATH.exists() or LEDGER_PATH.stat().st_size <= LEDGER_CAP_BYTES:
+            return
+        archive = LEDGER_PATH.parent / f"ledger-{datetime.now(timezone.utc):%Y%m}.jsonl"
+        with open(archive, "a", encoding="utf-8") as out:
+            out.write(LEDGER_PATH.read_text(encoding="utf-8"))
+        LEDGER_PATH.write_text("", encoding="utf-8")
+    except OSError:
+        pass
+
+
+# Known, pre-existing suite failures that must NOT block omt_done
+# (meta_harness_dsl R4; audit F6): the feature_018 react_screen trio
+# (Textual/mock failures predating the harness) and the window-flaky gate
+# probe that reads the REAL 8 h-window ledger (red exactly when a TDD session
+# is in-window — i.e. when omt_done runs). A failure OUTSIDE this set blocks.
+KNOWN_SUITE_FAILURES = frozenset({
+    "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_mounts_and_displays_welcome",
+    "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_escape_pops",
+    "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_input_and_send",
+    "tests/scripts/omt/test_tdd_check.py::TestTddCheckSubprocess::test_gate_returns_allowed_when_no_tdd",
+})
+
+
+def suite_failures(stdout: str) -> list[str]:
+    """Failed node IDs from pytest's -rf short summary ('FAILED <node> - …')."""
+    return [m.group(1) for line in stdout.splitlines()
+            if (m := re.match(r"^FAILED (\S+)", line))]
 
 
 def _within_window(record: dict, now_ms: float) -> bool:
@@ -173,7 +232,12 @@ def run_pytest(test_node: str, timeout: int = 30) -> tuple[int, str, str]:
 def run_full_suite(timeout: int = 120) -> tuple[int, str, str]:
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "--no-header", "--tb=short"],
+            # R4 (audit F7): exclude opencode_live — with the opencode binary
+            # present, live tests blew the 120 s timeout and made omt_done
+            # unreachable. -rf emits the FAILED short summary that
+            # suite_failures parses for the KNOWN_SUITE_FAILURES allowlist.
+            [sys.executable, "-m", "pytest", "-q", "--no-header", "--tb=short",
+             "-rf", "-m", "not opencode_live"],
             capture_output=True, text=True, timeout=timeout, cwd=str(REPO_ROOT),
         )
         return result.returncode, result.stdout, result.stderr

@@ -19,7 +19,7 @@
 // to the process working directory (hermetic test imports never run the
 // factory).
 
-import { appendFileSync, mkdirSync, existsSync, readFileSync, readdirSync, statSync } from "node:fs"
+import { appendFileSync, mkdirSync, existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { join, relative, isAbsolute, dirname } from "node:path"
 import { execFileSync } from "node:child_process"
 
@@ -137,6 +137,53 @@ export function appendJsonl(path: string, record: Record<string, unknown>): void
     mkdirSync(dirname(path), { recursive: true })
     appendFileSync(path, JSON.stringify({ ts: new Date().toISOString(), ...record }) + "\n")
   } catch { /* best-effort */ }
+}
+
+// --- ledger rotation (meta_harness_dsl R4; audit F21/C10) -------------------
+// The ledger grew unbounded (~124 KB and counting) and the think-gate parses
+// it on EVERY gated edit (hasConsultedThoughts), so gate latency grew with
+// history. Cap the hot file: when an append pushes it past LEDGER_CAP_BYTES,
+// its content moves to `ledger-YYYYMM.jsonl` (appended — repeated same-month
+// rotations stay chronological) and a fresh hot file starts. Readers scan the
+// LATEST archive + the hot file; the 8 h unlock window shared by every gate
+// reader makes current+latest sufficient. scripts/omt/tdd/state.py keeps its
+// own copy of the cap (cross-language) — keep in sync; pinned by
+// tests/scripts/omt/test_thought_pattern_pin.py.
+export const LEDGER_CAP_BYTES = 64 * 1024
+
+export function latestLedgerArchive(root?: string): string | null {
+  try {
+    const dir = dirname(ledgerPath(root))
+    const names = readdirSync(dir)
+      .filter((n) => /^ledger-\d{6}\.jsonl$/.test(n))
+      .sort()
+    return names.length ? join(dir, names[names.length - 1]) : null
+  } catch { return null }
+}
+
+// Rotation-aware ledger read: latest archive (older) followed by the hot file
+// (newer) — chronological order preserved. Fail-open [] per readJsonl.
+export function readLedger(root?: string): any[] {
+  const archive = latestLedgerArchive(root)
+  const older = archive ? readJsonl(archive) : []
+  return [...older, ...readJsonl(ledgerPath(root))]
+}
+
+// Append one record, then rotate the hot file if it exceeded the cap.
+export function appendLedger(record: Record<string, unknown>, root?: string): void {
+  appendJsonl(ledgerPath(root), record)
+  rotateLedgerIfNeeded(root)
+}
+
+export function rotateLedgerIfNeeded(root?: string): void {
+  try {
+    const hot = ledgerPath(root)
+    if (!existsSync(hot) || statSync(hot).size <= LEDGER_CAP_BYTES) return
+    const now = new Date()
+    const ym = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}`
+    appendFileSync(join(dirname(hot), `ledger-${ym}.jsonl`), readFileSync(hot))
+    writeFileSync(hot, "")
+  } catch { /* best-effort — rotation failure never breaks a session */ }
 }
 
 // --- e2e receipt status check (the OMT-harness second-edit guard) -----------

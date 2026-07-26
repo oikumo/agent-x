@@ -126,3 +126,37 @@ def test_digest_stale_join_is_text_keyed() -> None:
     src = (REPO_ROOT / LIB).read_text(encoding="utf-8")
     assert "latestVerifyByText.get(p.text)" in src
     assert "latestAddTsByText.get(p.text)" in src
+
+
+# --- meta_harness_dsl R4 pins: ledger rotation -------------------------------
+
+
+def test_ledger_cap_bytes_agrees_across_languages() -> None:
+    """R4: the ledger hot-file cap lives in omt_shared.ts (TS) and
+    tdd/state.py (Python) — the two copies must agree (mirrors the
+    UNLOCK_WINDOW_MS pin above)."""
+    lib_src = (REPO_ROOT / LIB).read_text(encoding="utf-8")
+    py_src = (REPO_ROOT / TDD_CHECK).read_text(encoding="utf-8")
+    m_ts = re.search(r"LEDGER_CAP_BYTES\s*=\s*([0-9 *]+)", lib_src)
+    m_py = re.search(r"LEDGER_CAP_BYTES\s*=\s*([0-9 *]+)", py_src)
+    assert m_ts, f"LEDGER_CAP_BYTES definition not found in {LIB}"
+    assert m_py, f"LEDGER_CAP_BYTES definition not found in {TDD_CHECK}"
+    ts_val, py_val = _eval_int_expr(m_ts.group(1)), _eval_int_expr(m_py.group(1))
+    assert ts_val == py_val == 64 * 1024, (
+        f"LEDGER_CAP_BYTES drift: {LIB}={ts_val} {TDD_CHECK}={py_val}")
+
+
+def test_ledger_access_goes_through_rotation_aware_helpers() -> None:
+    """R4: every plugin/enforcer-module ledger read/append must go through the
+    rotation-aware readLedger/appendLedger — raw readJsonl(ledgerPath… or
+    appendJsonl(ledgerPath… bypasses rotation (and silently un-caps the
+    think-gate's per-edit parse, F21). The shared lib itself is exempt: those
+    two wrappers ARE the sanctioned implementation."""
+    offenders: list[str] = []
+    for pattern in (".opencode/plugins/omt_*.ts", ".opencode/lib/enforcer/*.ts"):
+        for path in sorted(REPO_ROOT.glob(pattern)):
+            src = path.read_text(encoding="utf-8")
+            if re.search(r"(?:readJsonl|appendJsonl)\(\s*ledgerPath", src):
+                offenders.append(str(path.relative_to(REPO_ROOT)))
+    assert not offenders, (
+        f"raw ledger access bypassing the R4 rotation helpers: {offenders}")

@@ -15,7 +15,7 @@
 import { existsSync } from "node:fs"
 import { execFileSync } from "node:child_process"
 import {
-  ledgerPath, thoughtsIndexPath, readJsonl, relOf,
+  thoughtsIndexPath, readJsonl, readLedger, relOf,
   UNLOCK_WINDOW_MS, THOUGHT_PATTERN,
 } from "../omt_shared"
 import { OmtBlock, type EnforcerEnv } from "./session_state"
@@ -51,7 +51,7 @@ export function hasConsultedThoughts(
   rel?: string,
   opts?: { risk?: boolean; root?: string },
 ): boolean {
-  const recs = readJsonl(ledgerPath(opts?.root))
+  const recs = readLedger(opts?.root)
   const consults = recs.filter((r) => r && r.kind === "think_consult")
   if (!consults.length) return false
   const covered = (r: any): boolean => {

@@ -15,7 +15,7 @@
 // The ledger helpers are pure functions over the shared lib's lazy state
 // paths (initOmtShared has run by the time any hook calls them).
 
-import { ledgerPath, readJsonl, appendJsonl, UNLOCK_WINDOW_MS } from "../omt_shared"
+import { readLedger as sharedReadLedger, appendLedger, UNLOCK_WINDOW_MS } from "../omt_shared"
 
 // Intentional gate block: the only error a hook may propagate (everything
 // else fails OPEN — never brick a working session).
@@ -66,13 +66,14 @@ export function makeNotify(client: any, safeLog: SafeLog): Notify {
   }
 }
 
-// --- ledger helpers (shared lib: append adds ts; reads fail-open) ---------
+// --- ledger helpers (shared lib: append adds ts + rotates at cap (R4); reads
+// scan the latest archive + hot file and fail-open) --------------------------
 export function writeLedger(record: any): void {
-  appendJsonl(ledgerPath(), record)
+  appendLedger(record)
 }
 
 export function readLedger(): any[] {
-  return readJsonl(ledgerPath())
+  return sharedReadLedger()
 }
 
 // Latest phase/skip unlocking edits for this session (exact match preferred,

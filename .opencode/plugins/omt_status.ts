@@ -9,8 +9,8 @@ import { execSync } from "node:child_process"
 // Single source (meta_harness_dsl R1): state paths, JSONL IO, UNLOCK_WINDOW_MS
 // and repo-root live in the shared lib (root injected at plugin-init, F2/F17).
 import {
-  initOmtShared, repoRoot, ledgerPath, workMdPath, designRoot,
-  readJsonl, resolveFeatureDir, globToRegex, UNLOCK_WINDOW_MS,
+  initOmtShared, repoRoot, workMdPath, designRoot,
+  readLedger as sharedReadLedger, resolveFeatureDir, globToRegex, UNLOCK_WINDOW_MS,
 } from "../lib/omt_shared"
 
 const VALID_PHASES = ["Analysis", "Design", "Programming", "Testing"]
@@ -38,7 +38,7 @@ interface LedgerRecord {
 }
 
 function readLedger(): LedgerRecord[] {
-  return readJsonl(ledgerPath()) as LedgerRecord[]
+  return sharedReadLedger() as LedgerRecord[]
 }
 
 function getActiveUnlock(sessionId?: string): LedgerRecord | null {

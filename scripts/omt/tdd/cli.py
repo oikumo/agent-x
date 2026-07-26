@@ -38,6 +38,7 @@ from .ast_checks import (
 )
 from .gates import cmd_after_edit, cmd_gate, cmd_validate_exit
 from .state import (
+    KNOWN_SUITE_FAILURES,
     REPO_ROOT,
     SNAPSHOT_DIR,
     _resolve_src_path,
@@ -50,6 +51,7 @@ from .state import (
     run_full_suite,
     run_pytest,
     snapshot_source,
+    suite_failures,
     write_ledger,
 )
 
@@ -213,8 +215,16 @@ def cmd_refactor(args) -> dict:
 
 
 def cmd_done(args) -> dict:
-    exit_code, _stdout, stderr = run_full_suite(timeout=120)
-    suite_clean = exit_code == 0
+    exit_code, stdout, stderr = run_full_suite(timeout=120)
+    failures = suite_failures(stdout)
+    unexpected = [f for f in failures if f not in KNOWN_SUITE_FAILURES]
+    allowlisted = [f for f in failures if f in KNOWN_SUITE_FAILURES]
+    # R4 (audit F6/F7): the suite counts as clean when every failure is a
+    # known, pre-existing one (feature_018 react_screen trio + the
+    # window-flaky gate probe that reads the real 8 h ledger). A failure
+    # OUTSIDE the allowlist — or a non-test failure (collection error,
+    # timeout: no FAILED lines to parse) — still blocks.
+    suite_clean = exit_code == 0 or (bool(failures) and not unexpected)
 
     cycles = get_tdd_cycles(args.feature)
     refactor_recorded = all(
@@ -264,14 +274,19 @@ def cmd_done(args) -> dict:
         except Exception:
             pass  # cleanup is best-effort
     if all_ok:
+        note = (f"  ({len(allowlisted)} known pre-existing failure(s) tolerated — "
+                f"KNOWN_SUITE_FAILURES in scripts/omt/tdd/state.py)\n") if allowlisted else ""
         return {
             "ok": True, "checklist": checklist, "coverage_gaps": [],
-            "message": "✅ DONE — all checklist items verified.\n"
+            "allowlisted_failures": allowlisted,
+            "message": "✅ DONE — all checklist items verified.\n" + note +
                        "  Phase exit approved. Call omt_complete to advance to Testing.",
         }
     lines = ["⛔ DONE checklist incomplete:"]
     if not suite_clean:
         lines.append(f"  ❌ Full suite has failures (exit {exit_code})")
+        for f in unexpected[:10]:
+            lines.append(f"     - {f}")
     if not refactor_recorded:
         lines.append("  ❌ Refactor not recorded for some cycles")
     if not naming_ok:

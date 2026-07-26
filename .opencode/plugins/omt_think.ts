@@ -37,8 +37,8 @@ import { execFileSync } from "node:child_process"
 // R2 S6: the grep/fold/parse thought machinery lives there too, shared with
 // the enforcer's session-bootstrap digest.
 import {
-  initOmtShared, ledgerPath, thoughtsIndexPath,
-  relOf as sharedRelOf, toAbs, appendJsonl, THOUGHT_PATTERN,
+  initOmtShared, thoughtsIndexPath,
+  relOf as sharedRelOf, toAbs, appendJsonl, appendLedger, THOUGHT_PATTERN,
   grepThoughts, parseThoughtLine, foldThoughtEvents, readThoughtsIndex,
 } from "../lib/omt_shared"
 
@@ -99,7 +99,7 @@ function appendIndex(record: Record<string, unknown>): void {
 // a truncated record covers only listed files — safe direction). Empty result
 // → files: [] (covers nothing; no clearance granted).
 function recordConsult(session: string | undefined, files: string[]): void {
-  appendJsonl(ledgerPath(), {
+  appendLedger({
     kind: "think_consult", session: session || "",
     files: files.slice(0, 200),
     ...(files.length > 200 ? { files_truncated: true } : {}),
