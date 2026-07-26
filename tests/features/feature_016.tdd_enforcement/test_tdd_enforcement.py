@@ -91,26 +91,30 @@ class TestTddCheckGateRules:
 
 
 class TestTddCheckEnforcerIntegration:
-    """Verify the enforcer plugin source has TDD integration."""
+    """Verify the enforcer plugin source has TDD integration.
+
+    Post meta_harness_dsl R2: omt_enforcer.ts is a thin composition root;
+    the TDD machinery lives in .opencode/lib/enforcer/ modules.
+    """
 
     def test_enforcer_has_tdd_tools(self):
-        enforcer = (REPO_ROOT / ".opencode" / "plugins" / "omt_enforcer.ts").read_text()
-        assert "const omt_testlist" in enforcer
-        assert "const omt_red" in enforcer
-        assert "const omt_green" in enforcer
-        assert "const omt_refactor" in enforcer
-        assert "const omt_done" in enforcer
+        tdd_hats = (REPO_ROOT / ".opencode" / "lib" / "enforcer" / "tdd_hats.ts").read_text()
+        assert "const omt_testlist" in tdd_hats
+        assert "const omt_red" in tdd_hats
+        assert "const omt_green" in tdd_hats
+        assert "const omt_refactor" in tdd_hats
+        assert "const omt_done" in tdd_hats
 
     def test_enforcer_has_tdd_gate(self):
-        enforcer = (REPO_ROOT / ".opencode" / "plugins" / "omt_enforcer.ts").read_text()
-        assert "tdd_check.py gate" in enforcer
-        assert "tdd_mode" in enforcer
-        assert "refactorSnapshots" in enforcer
-        assert "revert_needed" in enforcer
+        tdd_hats = (REPO_ROOT / ".opencode" / "lib" / "enforcer" / "tdd_hats.ts").read_text()
+        assert "tdd_check.py gate" in tdd_hats
+        assert "tdd_mode" in tdd_hats
+        assert "refactorSnapshots" in tdd_hats
+        assert "revert_needed" in tdd_hats
 
     def test_enforcer_has_validate_exit(self):
-        enforcer = (REPO_ROOT / ".opencode" / "plugins" / "omt_enforcer.ts").read_text()
-        assert "tdd_check.py validate-exit" in enforcer
+        phase_gate = (REPO_ROOT / ".opencode" / "lib" / "enforcer" / "phase_gate.ts").read_text()
+        assert "tdd_check.py validate-exit" in phase_gate
 
     def test_status_has_tdd_section(self):
         status = (REPO_ROOT / ".opencode" / "plugins" / "omt_status.ts").read_text()

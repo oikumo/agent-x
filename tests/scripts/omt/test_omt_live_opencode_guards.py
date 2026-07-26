@@ -12,9 +12,10 @@ What this proves, live, per the OpenCode plugin architecture
      per plugin (omt_status / omt_list_sections / omt_think_list / omt_skip)
      registers and executes to completion. No npm distribution involved.
   2. tool.execute.after hooks fire: the FIRST tool result of the session
-     carries the omt_enforcer NAVIGATION TIP and the omt_think TA digest
-     (feature_023 F14c live path; both hooks inject on the first result of
-     ANY tool, no exclusions — enforcer :938, omt_think :719).
+     carries the NAVIGATION TIP and the 💡 TA: digest (feature_023 F14c live
+     path; post meta_harness_dsl R2 both are emitted from ONE sessionBootstrap
+     in the enforcer composition root, digest machinery in omt_shared.ts,
+     injected on the first result of ANY tool, no exclusions).
 
 Scope history: this suite previously pinned 13 guard behaviors live (BUG-A/BUG-B
 before-hook edit guards, think-gate, TDD two-hats, MVC++ gate, phase
