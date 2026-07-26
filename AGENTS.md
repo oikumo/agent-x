@@ -37,7 +37,7 @@ omt_testlist → omt_red → omt_green → omt_refactor → omt_done
 | Lint/Scaffold | `mvc_check.py`, `new_feature.py`, `tdd_check.py` |
 | Status | `omt_status` |
 | **Navigation** | `omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref` |
-| **Think Anywhere** | `omt_think`, `omt_think_list`, `omt_think_remove` |
+| **Think Anywhere** | `omt_think`, `omt_think_list`, `omt_think_remove`, `omt_think_verify`, `omt_think_suggest` |
 
 ## Navigation Enforcement (feature_020)
 **MANDATORY:** Before answering ANY question about the project (classes, components, features, architecture, codebase structure, workflows, etc.), agents MUST:
@@ -51,21 +51,21 @@ omt_testlist → omt_red → omt_green → omt_refactor → omt_done
 
 **Escape hatch:** `omt_skip{reason:"...", scope:"nav"}` (logged) bypasses the nav gate for the session.
 
-**Rationale:** Navigation tools provide structured, grep-based retrieval with proper section context and cross-references.
-
 ## Think Anywhere (feature_021)
-Persistent, grep-friendly `TA:` thought-tags dropped **inline in any non-protected file** so hard-won context (gotchas, "why this is here", risks, xrefs) survives across sessions. Token-minimal: retrieval is O(hits) via `grep`/`omt_think_list`, never whole-file reads.
+Persistent `TA:` thought-tags inline in any non-protected file — hard-won context (gotchas, why, risks, xrefs) survives sessions. Retrieval O(hits) via `grep`/`omt_think_list`, never whole-file reads.
 
 **Tools:**
 - `omt_think{path, thought, line?, category?}` — insert a language-aware `TA:` comment (annotation; bypasses phase/canary gates). Denied on `.env*`, `README.md`, `uv.lock`, `LICENSE`, `.json`.
 - `omt_think_list{path?, category?, query?}` — grep-backed retrieval; **marks the session consulted** (clears the think-gate).
-- `omt_think_remove{path, line}` — remove a `TA:` line + reconcile the index.
+- `omt_think_remove{path, line}` — remove a `TA:` line + append a remove-tombstone (R6: index is append-only).
+- `omt_think_verify{path, line}` — re-check a thought's placement integrity (drift → stale).
+- `omt_think_suggest{path, top?}` — rank candidate TA: insertion sites (.py).
 
 **Tag format:** `<comment> TA: [<category>: ] <thought>` — e.g. `# TA: gotcha: mutates history`, `// TA: why: legacy compat`, `<!-- TA: risk: breaks if x -->`.
 
 **Think-gate (blocking):** editing a file that carries `TA:` thoughts is **blocked** until the session consults via `omt_think_list`. The block surfaces the file's own thoughts. **NOT bypassable by `omt_skip`** — thoughts are safety-relevant; only `omt_think_list` (active consult) clears it.
 
-**Session digest:** the first tool result of each session carries a compact TA: digest (counts + per-file counts + stale ⚠️ + pointer; full texts via `omt_think_list` and per-file injection on read). Emitted on `tool.execute.after` (feature_023 Tier 1c; the inert `session.start` hook was deleted in meta_harness_dsl R6 — never dispatched: audited 1.18.3, re-verified 1.18.5). The index is append-only (add/verify/remove-tombstone; `omt_think_reindex` deleted R6).
+**Session digest:** the first tool result of each session carries a compact TA: digest (counts + per-file counts + stale ⚠️ + pointer; full texts via `omt_think_list` and per-file injection on read). Emitted on `tool.execute.after` (R6: the inert `session.start` hook was deleted). The index is append-only (add/verify/remove-tombstone).
 
 ## Quick Reference
 - **Declare phase:** `omt_phase{task_type:"bug_fix|minor_feature|major_feature|new_screen|refactor|test|docs", phase:"Analysis|Design|Programming|Testing", scope:"done definition"}`

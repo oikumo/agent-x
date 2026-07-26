@@ -1,14 +1,17 @@
 // OMT++ enforcer session state (meta_harness_dsl R2; audit P5/F20).
 //
-// The FIVE process-lifetime state containers extracted from the enforcer
-// monolith behind one factory, plus the ledger-derived session state
-// (active unlock / nav unlock / per-feature phase) and the OmtBlock gate
-// signal shared by every gate module:
+// The process-lifetime state containers extracted from the enforcer monolith
+// behind one factory, plus the ledger-derived session state (active unlock /
+// nav unlock / per-feature phase) and the OmtBlock gate signal shared by every
+// gate module:
 //   • nav               — feature_020 per-session nav-vs-search tracking
 //   • injected          — feature_022 D1 read-time thought-injection dedup
 //   • bootstrapped      — R6 S6: ONE session-bootstrap Set (consolidates the
 //                         old navRemindedSessions + omt_think's digestSessions;
 //                         single emission site in the enforcer after-hook)
+//   • navReminded       — R7 T3 (F31): nav-reminder delivery, tracked apart
+//                         from bootstrapped so a nav-first session gets the
+//                         reminder on its first NON-nav tool result instead
 //   • hardSnapshot      — MVC++ pre-edit hard-error counts (delta gate)
 //   • refactorSnapshots — TDD REFACTOR pre-edit file contents (revert)
 //
@@ -29,6 +32,9 @@ export function createSessionState() {
     injected: new Map<string, Set<string>>(),
     // R6 S6: sessions that already received the bootstrap injection (nav tip + TA digest)
     bootstrapped: new Set<string>(),
+    // R7 T3 (F31): sessions already shown the nav reminder — tracked apart from
+    // bootstrapped so a nav-first session gets it on its first NON-nav result
+    navReminded: new Set<string>(),
     // MVC++ delta gate: abs path -> {rule: errorCount} captured pre-edit
     hardSnapshot: new Map<string, Record<string, number>>(),
     // TDD REFACTOR: abs path -> file content captured pre-edit (revert source)

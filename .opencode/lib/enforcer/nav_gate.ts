@@ -130,19 +130,29 @@ export async function navGateBefore(
   }
 }
 
-// After-hook branch (R6 S6): the session bootstrap — nav reminder + compact TA
-// digest appended ONCE per session to the FIRST tool result (any tool; the
+// After-hook branch (R6 S6): the session bootstrap — compact TA digest
+// appended ONCE per session to the FIRST tool result (any tool; the
 // guaranteed agent-visible channel, headless or not — the F14c Tier-1c path,
 // kept as the R6 S3 fallback because no agent-visible delivery channel from
 // event hooks is verified on 1.18.5). Fail-open — never blocks a tool result.
+// R7 T3 (F31): if the session's FIRST tool is already a nav tool, the agent is
+// demonstrably compliant — skip the reminder WITHOUT marking navReminded, so
+// it lands on the first NON-nav tool result instead (stops teaching the
+// already-taught; saves ~120 tok × N turns in nav-first sessions). The digest
+// still fires on the very first result regardless.
 export async function sessionBootstrap(env: EnforcerEnv, input: any, output: any): Promise<void> {
   try {
     const session = input?.sessionID || ""
-    if (!env.state.bootstrapped.has(session)) {
-      env.state.bootstrapped.add(session)
-      if (typeof output?.output === "string") {
-        output.output += "\n\n" + navReminderMsg() + "\n\n" + thinkDigest()
-      }
+    const firstEver = !env.state.bootstrapped.has(session)
+    const sendReminder = !NAV_TOOLS.has(input?.tool) && !env.state.navReminded.has(session)
+    if (!firstEver && !sendReminder) return
+    if (firstEver) env.state.bootstrapped.add(session)
+    if (sendReminder) env.state.navReminded.add(session)
+    if (typeof output?.output === "string") {
+      const parts: string[] = []
+      if (sendReminder) parts.push(navReminderMsg())
+      if (firstEver) parts.push(thinkDigest())
+      if (parts.length) output.output += "\n\n" + parts.join("\n\n")
     }
   } catch (e: any) {
     env.safeLog("warn", "session bootstrap failed open: " + (e?.message || e))

@@ -12,10 +12,13 @@ What this proves, live, per the OpenCode plugin architecture
      per plugin (omt_status / omt_list_sections / omt_think_list / omt_skip)
      registers and executes to completion. No npm distribution involved.
   2. tool.execute.after hooks fire: the FIRST tool result of the session
-     carries the NAVIGATION TIP and the 💡 TA: digest (feature_023 F14c live
-     path; post meta_harness_dsl R2 both are emitted from ONE sessionBootstrap
-     in the enforcer composition root, digest machinery in omt_shared.ts,
-     injected on the first result of ANY tool, no exclusions).
+     carries the 💡 TA: digest (feature_023 F14c live path; post meta_harness_dsl
+     R2 both injections are emitted from ONE sessionBootstrap in the enforcer
+     composition root, digest machinery in omt_shared.ts).
+  3. R7 T3 (F31): the NAVIGATION TIP is DEFERRED when the session's first tool
+     is already a nav tool (the agent is demonstrably compliant — teaching the
+     already-taught wastes ~120 tok × N turns); it lands on the first NON-nav
+     tool result instead.
 
 Scope history: this suite previously pinned 13 guard behaviors live (BUG-A/BUG-B
 before-hook edit guards, think-gate, TDD two-hats, MVC++ gate, phase
@@ -28,8 +31,8 @@ real-binary probing recipes (BUG-B git-dirty-first receipt-guard probe,
 --pure A/B control, --print-logs bootstrap audit) are preserved in the WORK.md
 agent scratchpad should a full live guard pass ever be needed again.
 
-Cost: ONE real LLM round-trip (~30–60 s). Marked `opencode_live`; skipped when
-the opencode binary is absent. The prompt forbids edits, so the run is
+Cost: TWO real LLM round-trips (~1–2 min). Marked `opencode_live`; skipped when
+the opencode binary is absent. The prompts forbid edits, so the runs are
 side-effect free (omt_skip scope=nav affects only the throwaway session).
 """
 
@@ -91,8 +94,8 @@ def test_plugins_load_and_tools_execute():
     Proves plugins auto-load and register their tools in the real runtime,
     the tools execute to completion, omt_status returns its real banner, and
     the tool.execute.after hooks inject the nav reminder + TA digest into the
-    first tool result (F14c live path — injection is on the first result of
-    ANY tool, so whatever the agent happens to call first carries both).
+    first tool result (F14c live path — the first tool here is omt_status, a
+    NON-nav tool, so both injections land on it).
     """
     code, events, stderr = _run_opencode(
         "Call exactly these 4 tools in order, then reply DONE: "
@@ -126,6 +129,41 @@ def test_plugins_load_and_tools_execute():
     assert "💡 TA:" in first_out, (
         "omt_think after-hook TA digest missing from the first tool "
         f"result ({uses[0].get('tool')}): {first_out[:300]!r}")
+
+
+def test_nav_reminder_deferred_after_nav_first():
+    """R7 T3 (F31): when the session's FIRST tool is already a nav tool, the
+    agent is demonstrably compliant — the nav reminder is skipped there
+    (without being marked sent) and lands on the first NON-nav tool result
+    instead. The TA digest still fires on the very first result regardless.
+    """
+    code, events, stderr = _run_opencode(
+        "Call exactly these 2 tools in order, then reply DONE: "
+        "1) omt_list_sections 2) omt_status. "
+        "Do not edit any files. Do not call any other tool.")
+    assert code == 0, f"opencode run failed (exit {code}): {stderr[-500:]!r}"
+
+    uses = _tool_uses(events)
+    assert uses and uses[0].get("tool") == "omt_list_sections", (
+        f"expected omt_list_sections as the first tool; seen: "
+        f"{[p.get('tool') for p in uses]}")
+    nav_calls = [p for p in uses if p.get("tool") == "omt_list_sections"]
+    status_calls = [p for p in uses if p.get("tool") == "omt_status"]
+    assert status_calls, "omt_status was never called"
+
+    # First result is a nav tool: digest present, reminder DEFERRED.
+    nav_out = _tool_output(nav_calls[0])
+    assert "💡 TA:" in nav_out, (
+        f"TA digest missing from the first (nav) tool result: {nav_out[:300]!r}")
+    assert "NAVIGATION TIP" not in nav_out, (
+        "nav reminder must be deferred when the first tool is already a nav "
+        f"tool (R7 T3): {nav_out[:300]!r}")
+
+    # ...and lands on the first NON-nav result instead.
+    status_out = _tool_output(status_calls[0])
+    assert "NAVIGATION TIP" in status_out, (
+        "nav reminder missing from the first non-nav tool result "
+        f"(R7 T3 deferral target): {status_out[:300]!r}")
 
 
 if __name__ == "__main__":

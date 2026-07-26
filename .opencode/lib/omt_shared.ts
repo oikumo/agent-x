@@ -367,6 +367,10 @@ export function foldThoughtEvents(recs: any[]): {
 // by D1 on file read and are one omt_think_list call away.
 // R2 S6: emitted by the enforcer's session bootstrap (nav_gate), once per
 // session on the first tool result.
+// R7 T5: hard byte cap as the last line of defense under the structural caps
+// (top-6 files, top-5 stale) — source-pinned by
+// tests/scripts/omt/test_omt_docs_drift_pins.py (token budget pins).
+export const DIGEST_CAP_BYTES = 1024
 export function thinkDigest(): string {
   const hits = grepThoughts(THOUGHT_PATTERN, ".")
   if (hits.length === 0) {
@@ -394,5 +398,5 @@ export function thinkDigest(): string {
     (top.length > 6 ? ` … (+${top.length - 6} files)` : "") +
     (stale.length ? `\n⚠️ ${stale.length} stale: ${stale.slice(0, 5).join(", ")}${stale.length > 5 ? " …" : ""} — re-check with omt_think_verify{path, line}.` : "")
   out += `\nFull texts: omt_think_list (auto-injected per thought-carrying file on read; think-gate applies).`
-  return out
+  return out.length > DIGEST_CAP_BYTES ? out.slice(0, DIGEST_CAP_BYTES - 1) + "…" : out
 }

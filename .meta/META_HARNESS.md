@@ -43,12 +43,13 @@ TDD_DANGLING_REDS: tests declared RED never turned GREEN → blocks phase exit
 # ============================================================
 # SECTION:COMPONENTS — Enforcement Components (grep:COMP_)
 # ============================================================
-COMP_ENF: .opencode/plugins/omt_enforcer.ts — gate plugin (tool.execute.before/after)
+COMP_ENF: .opencode/plugins/omt_enforcer.ts — gate plugin composition root (tool.execute.before/after); gate logic in .opencode/lib/enforcer/ (R2: phase_gate, tdd_hats, think_gate, nav_gate, receipt_guard, mvc_after, session_state)
+COMP_LIB: .opencode/lib/omt_shared.ts — shared single source (R1: repo-root, state paths, THOUGHT_PATTERN, ledger IO+rotation, receipt check, thinkDigest)
 COMP_STS: .opencode/plugins/omt_status.ts — omt_status tool
 COMP_NAV: .opencode/plugins/omt_nav.ts — feature_020 navigation tools (omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref)
-COMP_THINK: .opencode/plugins/omt_think.ts — feature_021 think-anywhere tools (omt_think, omt_think_list, omt_think_remove)
+COMP_THINK: .opencode/plugins/omt_think.ts — feature_021 think-anywhere tools (omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest)
 COMP_LNT: scripts/omt/mvc_check.py — MVC++ linter
-COMP_TDD: scripts/omt/tdd_check.py — TDD engine (9 subcommands)
+COMP_TDD: scripts/omt/tdd_check.py — TDD engine (9 subcommands; R3: compat shim over scripts/omt/tdd/ package — state.py, ast_checks.py, gates.py, cli.py)
 COMP_SCAF: scripts/omt/new_feature.py — feature scaffolder
 COMP_LG: .meta/.omt/ledger.jsonl — audit log (phase/skip/complete records)
 COMP_RUL: opencode.jsonc, AGENTS.md — config + system rules
@@ -90,7 +91,7 @@ EXT_COMPLETE: omt_complete{feature,advance_to:Design|Programming|Testing|Done}
 # ============================================================
 # SECTION:STATUS — Status Check (grep:STS_)
 # ============================================================
-STS_CMD: uv run scripts/omt/tdd_check.py status{--check.py status
+STS_CMD: omt_status tool (or: uv run scripts/omt/tdd_check.py status)
 STS_OUT: phase, TDD_state, pending_items, unlock_expiry
 
 # ============================================================
@@ -153,7 +154,9 @@ CMD_CROSS_REF: omt_cross_ref{xref} — resolve XREF_ cross-references
 CMD_QUICK_REF: omt_quick_ref{workflow?} — get QUICK_ workflow patterns
 CMD_THINK: omt_think{path,thought,line?,category?} — insert inline TA: thought-tag (feature_021)
 CMD_THINK_LIST: omt_think_list{path?,category?,query?} — grep TA: retrieval + clears think-gate
-CMD_THINK_REMOVE: omt_think_remove{path,line} — remove a TA: line + reconcile index
+CMD_THINK_REMOVE: omt_think_remove{path,line} — remove a TA: line + append remove-tombstone (R6: index append-only)
+CMD_THINK_VERIFY: omt_think_verify{path,line} — re-check a thought's placement integrity (feature_022 C1)
+CMD_THINK_SUGGEST: omt_think_suggest{path,top?} — rank candidate TA: insertion sites (feature_022 B2, .py only)
 
 # ============================================================
 # SECTION:PHASES — Phase Names (grep:PHASE_)
@@ -201,8 +204,8 @@ XREF_SCAFFOLD: new_feature.py creates: FEATURE.md, plan/PLAN.md under .meta/.../
 XREF_LEDGER: .meta/.omt/ledger.jsonl — JSONL lines: {ts,kind:phase|skip|complete,session,task_type,phase,scope,feature,design_doc,tdd_mode}
 XREF_WORK: WORK.md — task list with [x]/[~]/[ ]/![], auto-synced by omt_complete
 XREF_NAV: .opencode/plugins/omt_nav.ts — feature_020 navigation tools (omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref)
-XREF_NAV_ENF: .opencode/plugins/omt_enforcer.ts — first-tool-result nav reminder (session.start retained, inert in opencode 1.18.3; feature_023 Tier 1c moved the live path to tool.execute.after), AGENTS.md mandatory requirement
-XREF_THINK: .opencode/plugins/omt_think.ts — feature_021 think-anywhere tools (omt_think, omt_think_list, omt_think_remove)
+XREF_NAV_ENF: .opencode/plugins/omt_enforcer.ts — first-tool-result nav reminder (R6: dead session.start hook deleted — never dispatched on 1.18.3/1.18.5; live path is tool.execute.after via ONE sessionBootstrap in lib/enforcer/nav_gate.ts; R7 T3: reminder deferred when the first tool is already a nav tool), AGENTS.md mandatory requirement
+XREF_THINK: .opencode/plugins/omt_think.ts — feature_021 think-anywhere tools (omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest)
 XREF_THINK_GATE: .opencode/plugins/omt_enforcer.ts — thinkGateDecision + hasConsultedThoughts + before-hook think-gate
 
 # ============================================================
