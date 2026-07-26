@@ -1,0 +1,300 @@
+# META_HARNESS.omt — OMT-HDL v1 single source of truth (meta_harness_dsl R8).
+# GUID:META_HARNESS | VERSION:3.0 | FOR:opencode-plugins + llm-agent
+#
+# Consumers: the opencode plugins (via .meta/.omt/harness.ir.json) and the LLM
+# agent (via the GENERATED AGENTS.md projection + omt_nav index answers).
+# NEVER hand-edit projections: AGENTS.md, opencode.jsonc harnessc blocks,
+# .meta/.omt/harness.ir.json, .meta/.omt/nav.index.jsonl.
+# Workflow: edit THIS file → uv run scripts/omt/harnessc.py check → build.
+# Grammar: @kind id k=v k="v v" : payload   (# comments; refs = @kind.id)
+
+@version omt_hdl n=1
+
+# ============================================================
+# VAR — single-sourced constants (audit P1; F2/F17 root is ctx-derived)
+# ============================================================
+@var unlock_window_ms : 28800000
+@var ledger_cap_bytes : 65536
+@var ledger_path : .meta/.omt/ledger.jsonl
+@var thoughts_path : .meta/.omt/thoughts.jsonl
+@var receipt_path : .meta/.omt/omt_harness_e2e_last_run.json
+@var ir_path : .meta/.omt/harness.ir.json
+@var nav_index_path : .meta/.omt/nav.index.jsonl
+@var e2e_test : tests/scripts/omt/test_omt_harness_e2e.py
+@var e2e_cmd : uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q
+@var thought_pattern : ^\s*(#|//|/\*|<!--|--)\s*TA:
+@var doc_paths : .meta/,AGENTS.md,WORK.md
+@var process_root : .meta/software_development_process
+@var design_features : .meta/software_development_process/4.design/features
+@var plugin_dir : .opencode/plugins/
+@var enforcer_lib : .opencode/lib/enforcer/
+@var shared_lib : .opencode/lib/omt_shared.ts
+@var mvc_check : uv run scripts/omt/mvc_check.py
+@var tdd_check : uv run scripts/omt/tdd_check.py
+@var scaffold : uv run scripts/omt/new_feature.py
+@var harnessc : uv run scripts/omt/harnessc.py
+@var edit_tools : edit|write|patch|multiedit
+@var search_tools : grep|glob|rg|find
+@var harness_paths : AGENTS.md,opencode.jsonc,.meta/META_HARNESS.omt,.meta/software_development_process/omt_agent_guide.md,.opencode/plugins/omt_,.opencode/lib/omt_,.opencode/lib/enforcer/,scripts/omt/,.meta/templates/,tests/scripts/omt/
+
+# ============================================================
+# DENY — NEVER command rules (→ opencode.jsonc generated blocks)
+# ============================================================
+@deny bash.git_commit scope=bash match="git commit *" msg=@msg.deny_git : NEVER commit without explicit user request (Core Directive #1)
+@deny bash.git_push scope=bash match="git push *" msg=@msg.deny_git : NEVER push without explicit user request
+@deny bash.python scope=bash match="python *" msg=@msg.deny_uv : Python runs through uv only
+@deny bash.python3 scope=bash match="python3 *" msg=@msg.deny_uv : Python runs through uv only
+@deny bash.pip scope=bash match="pip *" msg=@msg.deny_uv : pip via uv only
+@deny bash.pip3 scope=bash match="pip3 *" msg=@msg.deny_uv : pip via uv only
+@deny bash.pytest scope=bash match="pytest *" msg=@msg.deny_uv : pytest via uv run only
+@deny read.env scope=read match="*.env" msg=@msg.deny_env : .env reads denied
+@deny read.env_star scope=read match="*.env.*" msg=@msg.deny_env : .env.* reads denied
+@deny net.webfetch scope=toplevel match="webfetch" msg=@msg.deny_webfetch : webfetch denied
+
+# ============================================================
+# PROTECT — NEVER path rules (receipt_guard.isProtected)
+# ============================================================
+@protect core.env path=".env" hard=true msg=@msg.protect_env : .env never editable — no override exists
+@protect core.env_dot path=".env.*" hard=true msg=@msg.protect_env : .env.* never editable — no override exists
+@protect core.readme path="README.md" hard=false msg=@msg.protect_file : editable ONLY under omt_skip{scope:all} (AGENTS.md #5: unless explicitly asked)
+@protect core.uvlock path="uv.lock" hard=false msg=@msg.protect_file : editable ONLY under omt_skip{scope:all}
+@protect core.license path="LICENSE" hard=false msg=@msg.protect_file : editable ONLY under omt_skip{scope:all}
+
+# ============================================================
+# ALWAYS — standing rules
+# ============================================================
+@always git_status run="git status" : run git log/status before and during work
+@always meta_md glob="META.md" : consult META.md per directory on demand
+@always phase_first run="omt_phase" : omt_phase{task_type,phase,scope} before any src/ edit
+@always artifacts run="omt_complete" : produce phase artifacts per the §12 matrix
+@always tests_green run="uv run pytest" : tests must pass before phase completion
+
+# ============================================================
+# PHASE — §12 artifact matrix + lifecycle FSM
+# ============================================================
+@phase decl_only applies="bug_fix,minor_feature,refactor,test" requires="decl" : phase declaration only
+@phase design_req applies="major_feature,new_screen" requires="decl,design" : phase + design doc on disk (auto-detected under 4.design/features/feature_<n>/ or design_doc= arg)
+@phase docs_none applies="docs" requires="none" : no phase required
+@fsm phase states="Analysis,Design,Programming,Testing,Done" initial="Analysis" transitions="Analysis>Design,Testing;Design>Programming,Analysis;Programming>Testing,Design,Analysis;Testing>Analysis,Design,Programming,Done" : OMT++ phase lifecycle (guide §12)
+
+# ============================================================
+# TDD — two-hats state machine (feature_016)
+# ============================================================
+@fsm tdd states="TESTLIST,RED,GREEN,REFACTOR,DONE" initial="TESTLIST" auto_on="major_feature@Programming,new_screen@Programming" : TDD cycle omt_testlist → omt_red → omt_green → omt_refactor → omt_done
+@hat tdd.testlist allow="" : no edits — behavior list only (JSON array)
+@hat tdd.red allow="tests/" revert_on="" : tests/ edits ALLOWED, src/ BLOCKED (fail verified true-RED: imports target, fails on missing behavior)
+@hat tdd.green allow="src/" revert_on="" : tests/ BLOCKED, src/ ALLOWED (pass verified)
+@hat tdd.refactor allow="src/" revert_on="tests_break" : src/ ALLOWED, auto-revert if tests break
+@hat tdd.done allow="" : validation only (full suite + coverage gaps + dangling reds)
+
+# ============================================================
+# PRED — closed gate-condition vocabulary (HDL-1: data only; TS owns builtins)
+# ============================================================
+@pred path_in : path_in(glob|@var) — repo-relative path matches glob/prefix set
+@pred cmd_match : cmd_match(@deny.*) — bash command matches a deny pattern
+@pred ledger_has : ledger_has(kind,k=v,window) — ledger record of kind within window ms
+@pred session_flag : session_flag(name) | !session_flag(name) — per-session container flag
+@pred file_has : file_has("lit") — target file content carries literal
+@pred receipt_fresh : receipt_fresh() — e2e receipt timestamp >= target mtime
+@pred fsm_allows : fsm_allows(@fsm.tdd,path) — current TDD hat allows the path
+@pred risk_high : risk_high() — target file carries a TA: risk: thought (drops cross-session window)
+
+# ============================================================
+# GATE — the enforcer concerns as data (guard order pinned; LOGIC stays TS in HDL-1)
+# ============================================================
+@gate g.nav on=before tools="grep|glob|rg|find" paths=@var.doc_paths when=path_in(@var.doc_paths) requires=session_flag(nav_used) msg=@msg.nav_required hard=true skip_ok=true order=0 : nav tools before doc searches (feature_020); read + src/non-doc exempt
+@gate g.protect on=before tools=@var.edit_tools when=path_in(@protect.*) msg=@msg.protect_file hard=true skip_ok=true order=10 : NEVER paths; .env* hard (no skip), README/uv.lock/LICENSE via scope=all
+@gate g.receipt on=before tools=@var.edit_tools when=path_in(@var.harness_paths) requires=receipt_fresh() msg=@msg.receipt_stale hard=true skip_ok=false order=20 : second-edit guard on the harness surface (git-dirty + mtime vs receipt)
+@gate g.tests on=before tools=@var.edit_tools when=path_in(tests/) requires=ledger_has(skip,tests_approved=true,@var.unlock_window_ms) msg=@msg.tests_canary hard=true skip_ok=true order=30 : canary approval; TDD hat decides when tdd_mode active
+@gate g.phase on=before tools=@var.edit_tools when=path_in(src/) requires=ledger_has(phase|skip) msg=@msg.no_phase hard=true skip_ok=true order=40 : declared phase; design artifact also required for major_feature/new_screen
+@gate g.think on=before tools=@var.edit_tools when=file_has("TA:") requires=ledger_has(think_consult) msg=@msg.think_gate hard=true skip_ok=false order=50 : consult via omt_think_list{path} — NOT skip-bypassable; risk: thoughts drop the cross-session window
+@gate g.tdd_after on=after tools=@var.edit_tools when=path_in(src/) requires=fsm_allows(@fsm.tdd,path) msg=@msg.tdd_revert hard=false skip_ok=false order=60 : REFACTOR auto-revert when tests break + advisories
+@gate g.mvc on=after tools=@var.edit_tools when=path_in(src/**/*.py) run=@var.mvc_check msg=@msg.mvc_new_hard hard=true skip_ok=false order=70 : block NEWLY introduced hard MVC++ violations (delta vs pre-edit snapshot; correct-forward)
+
+# ============================================================
+# MSG — block/warn text (ERR_/WRN_ + enforcer literals; TS renders in HDL-1)
+# ============================================================
+@msg deny_git sev=block see=@doc.rule.r1 : git commit/push is NEVER without an explicit user request (Core Directive #1)
+@msg deny_uv sev=block : Python must run through uv — never bare python/pip/pytest
+@msg deny_env sev=block : .env files are denied (secrets)
+@msg deny_webfetch sev=block : webfetch is denied in this repo
+@msg protect_env sev=block : '{rel}' is protected (.env / secrets) — NEVER editable, no override (Core Directives #2)
+@msg protect_file sev=block : '{rel}' is protected (README.md / uv.lock / LICENSE). Edit refused; if truly intended ask the user, then omt_skip{scope:"all"}
+@msg tests_canary sev=block : editing '{rel}' requires explicit canary-test approval (Stop Point #4). Unlock: omt_skip{reason:"approved canary test", scope:"tests"}
+@msg no_phase sev=block see=@doc.rule.r1 : declare your OMT++ phase before editing src/ ('{rel}'): omt_phase{task_type, scope}. Trivial fix? task_type:"bug_fix" is enough. Override: omt_skip{reason:"..."}
+@msg artifact sev=block see=@doc.rule.r2 : task_type '{tt}' may not edit src/ until a design artifact exists (guide §12); auto-detected under 4.design/features/ from the feature slug, or design_doc=; scaffold: uv run scripts/omt/new_feature.py "<name>" --type {tt}
+@msg nav_required sev=block see=@doc.nav.enforcement : before grep/glob on META HARNESS docs use omt_nav / omt_list_sections / omt_cross_ref / omt_quick_ref first; read and src/non-doc searches exempt; override omt_skip{scope:"nav"}
+@msg think_gate sev=block see=@doc.think.gate : '{rel}' carries TA: thoughts — review then clear with omt_think_list{path:"{rel}"} (the block already shows the thoughts; the call records the consult)
+@msg receipt_stale sev=block : '{rel}' is part of the META HARNESS surface and already has unverified changes — run the harness e2e before editing again: uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q
+@msg mvc_new_hard sev=block see=@doc.err.v2m : your edit introduced a hard MVC++ violation in {rel} (guide §16) — fix it forward now
+@msg tdd_revert sev=block : REFACTOR broke tests — edit reverted
+@msg mvc_warn sev=warn : MVC++ advisory warnings on {rel} — run uv run scripts/omt/mvc_check.py {rel}
+@msg err_v2m sev=block : View imports Model (ui/ ← model.*) — BLOCK
+@msg err_m2v sev=block : Model imports View/UI (model/ ← ui.*) — BLOCK
+@msg err_prt_abc sev=block : Abstract Partner not ABC+@abstractmethod — BLOCK
+@msg wrn_sql_dp sev=warn : SQL outside DP classes (non-*_db.py has SQL) — TOAST
+@msg wrn_god_ctl sev=warn : Controller >300 lines — TOAST
+@msg wrn_ctl_ui sev=warn : print()/console in Controller — TOAST
+
+# ============================================================
+# STATE — runtime state files (mode: append|rotate|rewrite)
+# ============================================================
+@state ledger path=@var.ledger_path mode=rotate cap=65536 window=28800000 truth="ledger.jsonl hot + latest ledger-YYYYMM.jsonl archive" : audit log {ts,kind:phase|skip|complete|think_consult,...}; 8h unlock window
+@state thoughts path=@var.thoughts_path mode=append truth="grep TA:" : append-only sidecar (add/verify/remove-tombstone; latest-wins fold; verdicts join on normalized text F28); inline TA: is the source of truth — the index is NEVER rewritten (R6 S1)
+@state receipt path=@var.receipt_path mode=rewrite truth="json passed_at + mtime" : harness e2e receipt; refreshed by @var.e2e_cmd
+
+# ============================================================
+# INJECT — conversation-resident injections (ONE per trigger — R6 S6; budgets = the F32 ×N-turn control knob)
+# ============================================================
+@inject session_bootstrap on=first_tool_result budget=1536 : ONE emission per session (nav tip ≤512B deferred when nav-first R7 T3; compact TA digest ≤1024B DIGEST_CAP_BYTES — counts + per-file counts + stale ⚠️ + pointer, full texts via omt_think_list / D1)
+@inject file_thoughts on=file_read budget=1024 : first read of a TA:-carrying file per session appends the file's thoughts (feature_022 D1 point-of-use; awareness ≠ consult — no think_consult record)
+
+# ============================================================
+# DOC — harness knowledge corpus (nav-indexed; app-doc tags are scraped at build)
+# ============================================================
+@doc startup tags="STARTUP" : Read `WORK.md` (only) at session start; summarize current state in ≤ 15 lines (in-progress / blocked / next). All other docs on demand via nav tools (`omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`).
+@doc runtime tags="RUNTIME" : `uv` only (no bare `python`/`pip`/`pytest`). `src/` edits → `omt_phase` first.
+@doc enforcement tags="ENF" : enforcement is mechanical via .opencode/plugins/omt_enforcer.ts (composition root) + .opencode/lib/enforcer/ ×7 + opencode.jsonc; reference = THIS file (.meta/META_HARNESS.omt) queried via omt_nav
+@doc rule.r1 tags="RULE_R1" : src/ edit REQUIRES omt_phase{task_type,phase,scope} — task_type: bug_fix|minor_feature|major_feature|new_screen|refactor|test|docs; phase: Analysis|Design|Programming|Testing; scope: one-sentence done definition
+@doc rule.r2 tags="RULE_R2" : major_feature|new_screen REQUIRES design_*.md on disk — scaffold: uv run scripts/omt/new_feature.py "<name>" --type major_feature|new_screen
+@doc rule.r3 tags="RULE_R3" : TDD AUTO-ACTIVATES for major_feature|new_screen in Programming — omt_testlist → omt_red → omt_green → omt_refactor → omt_done
+@doc rule.rigor tags="RULE_RIGOR" : artifact requirements by task_type — bug_fix|minor_feature|refactor|test → declaration ONLY; major_feature|new_screen → phase + design doc; docs → none
+@doc tdd.bootstrap tags="TDD_BOOTSTRAP" : TESTLIST blocks tests/ creation (the gate precedes the first RED) → bootstrap new test files via omt_skip{reason:"...",scope:"tests"} — logged canary; auto-unlock REJECTED (weakens the canary model)
+@doc tdd.done_allowlist tags="TDD_DONE_ALLOWLIST" : omt_done tolerates only KNOWN_SUITE_FAILURES (scripts/omt/tdd/state.py): feature_018 react_screen ×3 + the window-flaky real-ledger gate probe; any other failure blocks
+@doc tdd.true_red tags="TDD_TRUE_RED" : AST+pytest verify — must import target src, fail on missing behavior (not syntax)
+@doc tdd.coverage tags="TDD_COVERAGE_GAPS" : public src/ methods without test calls → blocks phase exit
+@doc tdd.dangling tags="TDD_DANGLING_REDS" : tests declared RED never turned GREEN → blocks phase exit
+@doc comp.enf tags="COMP_ENF" : .opencode/plugins/omt_enforcer.ts — gate plugin composition root; gate logic in .opencode/lib/enforcer/ (phase_gate, tdd_hats, think_gate, nav_gate, receipt_guard, mvc_after, session_state)
+@doc comp.lib tags="COMP_LIB" : .opencode/lib/omt_shared.ts — shared single source (repo-root, state paths, THOUGHT_PATTERN, ledger IO+rotation, receipt check, thinkDigest, IR loader)
+@doc comp.sts tags="COMP_STS" : .opencode/plugins/omt_status.ts — omt_status tool
+@doc comp.nav tags="COMP_NAV" : .opencode/plugins/omt_nav.ts — navigation tools (omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref) answering from .meta/.omt/nav.index.jsonl
+@doc comp.think tags="COMP_THINK" : .opencode/plugins/omt_think.ts — think-anywhere tools (omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest)
+@doc comp.lnt tags="COMP_LNT" : scripts/omt/mvc_check.py — MVC++ linter
+@doc comp.tdd tags="COMP_TDD" : scripts/omt/tdd_check.py — TDD engine (9 subcommands; compat shim over scripts/omt/tdd/ package: state.py, ast_checks.py, gates.py, cli.py)
+@doc comp.scaf tags="COMP_SCAF" : scripts/omt/new_feature.py — feature scaffolder
+@doc comp.lg tags="COMP_LG" : .meta/.omt/ledger.jsonl — audit log (phase/skip/complete records)
+@doc comp.rul tags="COMP_RUL" : opencode.jsonc, AGENTS.md (GENERATED) — config + system rules
+@doc comp.hdl tags="COMP_HDL" : .meta/META_HARNESS.omt + scripts/omt/harnessc.py — THIS source + its compiler (projections: harness.ir.json, AGENTS.md, nav.index.jsonl, opencode.jsonc blocks, harness.report)
+@doc prot.files tags="PROT_FILES" : protected — README.md, uv.lock, LICENSE (skip scope=all), .env* (no override), tests/ (omt_skip{scope:tests} canary)
+@doc esc.skip tags="ESC_SKIP" : omt_skip{reason,scope:src|tests|nav|all} → logged to ledger
+@doc esc.src tags="ESC_SCOPE_SRC" : scope=src unlocks src/ edits without phase
+@doc esc.tests tags="ESC_SCOPE_TESTS" : scope=tests unlocks tests/ edits (canary approval)
+@doc esc.nav tags="ESC_SCOPE_NAV" : scope=nav unlocks the feature_020 nav gate
+@doc esc.all tags="ESC_SCOPE_ALL" : scope=all unlocks all incl. PROT_FILES except .env*
+@doc ext.complete tags="EXT_COMPLETE" : omt_complete{feature,advance_to:Design|Programming|Testing|Done} → verifies phase artifacts + TDD validate-exit + syncs WORK.md [x]
+@doc sts.cmd tags="STS_CMD" : omt_status tool (or: uv run scripts/omt/tdd_check.py status)
+@doc sts.out tags="STS_OUT" : phase, TDD state, pending items, unlock expiry, lint baseline, WORK.md next task
+@doc nav.020 tags="NAV_020" : feature_020.meta_harness_navigation — mandatory doc navigation before grep/glob on docs
+@doc nav.tools tags="NAV_TOOLS" : omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref
+@doc nav.enforcement tags="NAV_ENFORCEMENT" : scoped gate in lib/enforcer/nav_gate.ts — blocks grep/glob on doc paths until nav used; read & src/non-doc exempt; omt_skip{scope:nav} escape
+@doc nav.tags tags="NAV_TAGS" : SECTION:, RULE_, ERR_, WRN_, CMD_, QUICK_, XREF_, TT_, PHASE_, FEAT_ (legacy markdown tags — now compiled index records)
+@doc nav.workflow tags="NAV_WORKFLOW" : omt_nav{query} → omt_list_sections → omt_cross_ref → omt_quick_ref (fallback to grep only if no results)
+@doc think.021 tags="THINK_021" : feature_021.meta_harness_think_anywhere — persistent inline TA: thought-tags
+@doc think.format tags="THINK_FORMAT" : <comment> TA: [<category>: ] <thought> — e.g. # TA: gotcha: mutates history
+@doc think.syntax tags="THINK_SYNTAX" : .py/.toml/.sh/.yml → # | .ts/.js/.mjs/.jsonc → // | .md/.mdx → <!-- --> | .css → /* */ | .json → DENIED
+@doc think.protected tags="THINK_PROTECTED" : TA: refused on .env*, README.md, uv.lock, LICENSE, .json (no comments)
+@doc think.index tags="THINK_INDEX" : .meta/.omt/thoughts.jsonl — append-only sidecar {ts,path,line,category,thought}; inline TA: is truth
+@doc think.gate tags="THINK_GATE" : thinkGateDecision({hasThoughts,consulted}) → block edits to TA:-carrying files until omt_think_list consulted
+@doc think.gate_not_skip tags="THINK_GATE_NOT_SKIP" : think-gate NOT bypassable by omt_skip (safety-relevant); only omt_think_list clears it
+@doc think.digest tags="THINK_DIGEST" : first tool result of each session carries the compact TA: digest (counts + per-file counts + stale ⚠️ + pointer — R6 S7; live path tool.execute.after)
+@doc think.consult tags="THINK_CONSULT" : omt_think_list writes {kind:"think_consult"} to ledger → clears think-gate (feature_022 C2 per-file)
+@doc pth.guide tags="PTH_GUIDE" : .meta/software_development_process/omt_agent_guide.md
+@doc pth.design tags="PTH_DESIGN" : .meta/software_development_process/4.design/features/feature_XXX/
+@doc pth.test tags="PTH_TEST" : .meta/software_development_process/6.testing/features/feature_XXX/
+@doc pth.work tags="PTH_WORK" : WORK.md
+@doc pth.rules tags="PTH_RULES" : AGENTS.md (GENERATED from .meta/META_HARNESS.omt)
+@doc tree.src tags="TREE_SRC" : src edit? → omt_phase → (major|new_screen)? → design_*.md → (Programming)? → TDD(RD→GN→RF→DN)
+@doc tree.tst tags="TREE_TST" : tests edit? → canary | TDD_RED
+@doc tree.doc tags="TREE_DOC" : docs edit? → no phase
+@doc ph.analysis tags="PHASE_ANALYSIS" : Analysis
+@doc ph.design tags="PHASE_DESIGN" : Design
+@doc ph.programming tags="PHASE_PROGRAMMING" : Programming
+@doc ph.testing tags="PHASE_TESTING" : Testing
+@doc ph.done tags="PHASE_DONE" : Done
+@doc tt.bug_fix tags="TT_BUG_FIX" : bug_fix
+@doc tt.minor_feature tags="TT_MINOR_FEATURE" : minor_feature
+@doc tt.major_feature tags="TT_MAJOR_FEATURE" : major_feature
+@doc tt.new_screen tags="TT_NEW_SCREEN" : new_screen
+@doc tt.refactor tags="TT_REFACTOR" : refactor
+@doc tt.test tags="TT_TEST" : test
+@doc tt.docs tags="TT_DOCS" : docs
+@doc sec.rules tags="SECTION" : RULES — Core Enforcement Rules (grep:RULE_)
+@doc sec.tdd tags="SECTION" : TDD — TDD State Machine (grep:TDD_)
+@doc sec.components tags="SECTION" : COMPONENTS — Enforcement Components (grep:COMP_)
+@doc sec.errors tags="SECTION" : ERRORS — Hard Blocks (grep:ERR_)
+@doc sec.warnings tags="SECTION" : WARNINGS — Soft Alerts (grep:WRN_)
+@doc sec.protected tags="SECTION" : PROTECTED — Gate-Protected Files (grep:PROT_)
+@doc sec.escape tags="SECTION" : ESCAPE — Override Hatch (grep:ESC_)
+@doc sec.exit tags="SECTION" : EXIT — Phase Completion (grep:EXT_)
+@doc sec.status tags="SECTION" : STATUS — Status Check (grep:STS_)
+@doc sec.nav tags="SECTION" : NAV — Navigation Enforcement (grep:NAV_)
+@doc sec.think tags="SECTION" : THINK — Think Anywhere (feature_021) (grep:THINK_)
+@doc sec.paths tags="SECTION" : PATHS — Key Filesystem Paths (grep:PTH_)
+@doc sec.tree tags="SECTION" : TREE — Decision Tree (grep:TREE_)
+@doc sec.cmds tags="SECTION" : CMDS — All Tools (grep:CMD_)
+@doc sec.phases tags="SECTION" : PHASES — Phase Names (grep:PHASE_)
+@doc sec.task_types tags="SECTION" : TASK_TYPES — Task Type Values (grep:TT_)
+@doc sec.quick tags="SECTION" : QUICK — Common Agent Queries (grep:QUICK_)
+@doc sec.xref tags="SECTION" : XREF — Cross-Reference Map (grep:XREF_)
+
+# ============================================================
+# BUDGET — compile-enforced token budgets (R7 T5/T8 → build errors; F32/F33)
+# ============================================================
+@budget agents_md max=5120 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33)
+@budget work_md max=14336 : WORK.md bytes — read at every session startup (C1)
+@budget work_scratchpad max=6144 : WORK.md Agent Scratchpad section bytes (T2: CURRENT/RECURRING only)
+@budget nav_tip max=512 : session-bootstrap nav-tip bytes (C5, conversation-resident, re-paid per turn F32)
+@budget digest_cap max=1024 : TA digest hard cap (C4, conversation-resident, re-paid per turn F32)
+@budget tool_schemas max=2560 : sum of @tool one-line descriptions (C11, rides the system prompt every turn F33)
+
+# ============================================================
+# TOOL — registry (perms → jsonc block; one-line schema text → IR; CMD_ tags)
+# ============================================================
+@tool omt_phase perm=allow args="task_type,scope,phase?,feature?,design_doc?,tdd?" tags="CMD_OMT_PHASE" : Declare your OMT++ phase before editing src/ (task_type/phase/scope → ledger; unlocks per the §12 matrix).
+@tool omt_skip perm=allow args="reason,scope?" tags="CMD_OMT_SKIP" : Logged escape hatch: unlock edits/nav without a phase declaration. Scopes: src | tests | nav | all (default all).
+@tool omt_complete perm=allow args="feature,advance_to?" tags="CMD_OMT_COMPLETE" : Verify the current phase's artifacts, then optionally advance (Design | Programming | Testing | Done).
+@tool omt_status perm=allow args="include_ledger?" tags="CMD_STATUS" : OMT++ process context: phase, unlock, artifacts, lint baseline, valid next phases, WORK.md next task.
+@tool omt_testlist perm=allow args="behaviors,feature" tags="CMD_TDD_LIST" : Record the TDD behavior list (JSON array); sets state TESTLIST.
+@tool omt_red perm=allow args="test_node,target_src,feature" tags="CMD_TDD_RED" : Declare a failing test (verified true RED); state RED — tests/ edits only.
+@tool omt_green perm=allow args="test_node,feature" tags="CMD_TDD_GREEN" : Declare a passing test (verified); state GREEN — src/ edits only.
+@tool omt_refactor perm=allow args="test_node,feature" tags="CMD_TDD_REFACTOR" : Declare refactor state (tests verified green); src/ only, auto-revert on break.
+@tool omt_done perm=allow args="feature" tags="CMD_TDD_DONE" : Declare TDD completion; runs full suite + checklist; state DONE.
+@tool omt_nav perm=allow args="query,file?,tag_type?,include_context?" tags="CMD_NAV" : Navigate META HARNESS docs by structured tag (SECTION:/CMD_/ERR_/XREF_) or keyword.
+@tool omt_list_sections perm=allow args="file?" tags="CMD_LIST_SECTIONS" : List all SECTION: headers across the META HARNESS corpus.
+@tool omt_cross_ref perm=allow args="xref" tags="CMD_CROSS_REF" : Resolve an XREF_ cross-reference to related doc sections.
+@tool omt_quick_ref perm=allow args="workflow?" tags="CMD_QUICK_REF" : Get QUICK_ workflow patterns for common agent tasks.
+@tool omt_think perm=allow args="path,thought,line?,after?,symbol?,category?" tags="CMD_THINK" : Add a persistent inline TA: thought-tag (language-valid comment; survives sessions; grep-retrievable). Bypasses phase/canary gates. Address by line | after | symbol (at most one).
+@tool omt_think_list perm=allow args="path?,category?,query?" tags="CMD_THINK_LIST" : List TA: thought-tags (grep is truth); records the consult that clears the think-gate for matched files.
+@tool omt_think_remove perm=allow args="path,line" tags="CMD_THINK_REMOVE" : Remove a TA: line; appends a remove-tombstone (index append-only).
+@tool omt_think_verify perm=allow args="path,line" tags="CMD_THINK_VERIFY" : Re-check a TA: thought's placement integrity (drift → stale).
+@tool omt_think_suggest perm=allow args="path,top?" tags="CMD_THINK_SUGGEST" : Rank candidate TA: insertion sites in a .py file.
+
+# ============================================================
+# FLOW — QUICK_ workflows
+# ============================================================
+@flow start_major tags="QUICK_START_MAJOR" : omt_phase{tt:major_feature,ph:Analysis,sc:"..."} → new_feature.py → design → omt_complete{advance_to:Design} → omt_phase{ph:Programming} → TDD cycle
+@flow start_minor tags="QUICK_START_MINOR" : omt_phase{tt:minor_feature,ph:Design,sc:"..."} → code → omt_complete{advance_to:Testing}
+@flow start_bug tags="QUICK_START_BUG" : omt_phase{tt:bug_fix,ph:Programming,sc:"..."} → fix → test → omt_complete{advance_to:Testing}
+@flow tdd_red tags="QUICK_TDD_RED" : omt_red → write failing test in tests/ → gate verifies true RED
+@flow tdd_green tags="QUICK_TDD_GREEN" : omt_green → write minimal src/ code → test passes
+@flow tdd_refactor tags="QUICK_TDD_REFACTOR" : omt_refactor → improve src/ → auto-revert if tests break
+@flow tdd_done tags="QUICK_TDD_DONE" : omt_done → full suite + coverage check
+@flow skip_src tags="QUICK_SKIP_SRC" : omt_skip{reason:"emergency",scope:"src"} (logged)
+@flow skip_tests tags="QUICK_SKIP_TESTS" : omt_skip{reason:"canary approved",scope:"tests"} (logged)
+@flow status tags="QUICK_STATUS" : omt_status → phase, unlock, artifacts, lint, next phases, WORK.md next
+@flow lint tags="QUICK_LINT" : uv run scripts/omt/mvc_check.py [file|dir]
+@flow nav_docs tags="QUICK_NAV_DOCS" : omt_nav{query:"SECTION:"} → omt_list_sections → omt_cross_ref{xref} → omt_quick_ref{workflow} (mandatory before grep/glob on docs)
+
+# ============================================================
+# XREF — cross-reference map
+# ============================================================
+@xref guide tags="XREF_GUIDE" : .meta/software_development_process/omt_agent_guide.md §2(Phase), §11.4(TDD), §12(Artifacts), §13(Checklist), §14(Do/Don't), §16(Mistakes)
+@xref mvc tags="XREF_MVC" : mvc_check.py validates err_v2m, err_m2v, err_prt_abc, wrn_sql_dp, wrn_god_ctl, wrn_ctl_ui (@msg mvc.*)
+@xref tdd tags="XREF_TDD" : tdd_check.py subcommands: testlist,start,green,refactor,done,gate,after-edit,status,validate-exit
+@xref scaffold tags="XREF_SCAFFOLD" : new_feature.py creates FEATURE.md, plan/PLAN.md under .meta/.../2.requirements/features/feature_XXX.<slug>/
+@xref ledger tags="XREF_LEDGER" : .meta/.omt/ledger.jsonl — JSONL {ts,kind:phase|skip|complete,session,task_type,phase,scope,feature,design_doc,tdd_mode}
+@xref work tags="XREF_WORK" : WORK.md — task list [x]/[~]/[ ]/[!], auto-synced by omt_complete
+@xref nav tags="XREF_NAV" : .opencode/plugins/omt_nav.ts — navigation tools answering from the compiled index
+@xref nav_enf tags="XREF_NAV_ENF" : lib/enforcer/nav_gate.ts — nav gate + ONE sessionBootstrap (nav tip deferred when nav-first R7 T3; dead session.start hook deleted R6)
+@xref think tags="XREF_THINK" : .opencode/plugins/omt_think.ts — think-anywhere tools
+@xref think_gate tags="XREF_THINK_GATE" : lib/enforcer/think_gate.ts — thinkGateDecision + hasConsultedThoughts + before-hook think-gate

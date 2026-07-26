@@ -89,13 +89,13 @@ RECURRING GOTCHAS (new this session):
 - **Plugin factory ctx (verified in installed d.ts):** `{project, client, $, directory, worktree}`; repo root = `worktree ?? directory`. Post-R1 every plugin factory calls `initOmtShared(worktree ?? directory)`; shared-lib path getters are LAZY functions. `tool()` in the SDK is identity — direct `.execute(args, ctx)` in probes hits the real function.
 
 R7 MEASUREMENT (2026-07-26, plan Appendix C re-census):
-- AGENTS.md 5.0 KB · WORK.md ≤14 KiB (scratchpad ≤6 KiB) · nav tip 489 B · digest ≤1 KiB (DIGEST_CAP_BYTES) · startup single-sourced AGENTS.md↔build.md (T1) · ≤15-line summary (T7 live) · schema diet (T8) → R8.
+- budgets all pinned (T5) — single source now the @budget records in `.meta/META_HARNESS.omt` + test_omt_docs_drift_pins.py; schema diet (T8) lands via R8 IR tool descriptions.
 
 PENDING FEATURES (next work):
 - feature_001.session_user_objectives_driven_by_Petri_Net — scope & success criteria unset.
 - feature_002.rag_retrieval_augmented_generation — scope & success criteria unset.
 
 IN PROGRESS (resume here):
-- **META HARNESS DSL — R8 (OMT-HDL-1)** per `.sandbox/meta_harness_refactor_plan.md` App D; phase declared (refactor/Analysis). ANALYSIS DONE: plan §3-R8/§4/App B/D + harness sources surveyed (omt_shared, lib/enforcer ×7, omt_nav, opencode.jsonc, AGENTS.md, META_HARNESS.md). NEXT: (1) read omt_status/omt_think (think-gated → omt_think_list first); (2) survey guide tags → @doc corpus; (3) author .meta/META_HARNESS.omt v1; (4) scripts/omt/harnessc.py (check + build → IR, GENERATED AGENTS.md, nav.index, jsonc perms, report); (5) plugins read IR (gate logic stays TS); (6) verify-projections = sole drift test; (7) live-verify App B6 + nav-from-index; (8) budget report → WORK.md. HDL-2 NOT approved.
-- **SANDBOX MOVE 2026-07-26:** .ws/sandbox → .sandbox (staged rename R; drift-pin FROZEN_PREFIXES updated; receipt fresh). Uncommitted: rename + WORK.md + test_omt_docs_drift_pins.py — commit on explicit request only.
+- **META HARNESS DSL — R8 (OMT-HDL-1)** per plan App D — **RESUME SPEC v2: `.sandbox/r8_resume_2026-07-26.md` (read it FIRST — supersedes v1).** State (session-2 pause, e2e GREEN, receipt FRESH): opencode.jsonc CLEAN at HEAD (marker edit reverted to re-green e2e — RE-APPLY per spec §3.1); harnessc.py untracked, fsm-guard landed, 1 free edit (spec §2A parser fix L161 — fixes empty @var/@pred payloads); .omt untracked, UNGUARDED (spec §2B/C fixes L129+L134). Root-caused: main() masks check errors behind projection SystemExit; parse errors silently dropped (L569). NEXT: spec §3 steps 1–7 (markers → parser fix → .omt fixes → check → build → e2e → v1 steps 4–9).
+- **SANDBOX MOVE 2026-07-26:** .ws/sandbox → .sandbox — COMMITTED (6e74386; FROZEN_PREFIXES updated).
 ```
