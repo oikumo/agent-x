@@ -233,6 +233,15 @@ export function loadNavIndex(root?: string): any[] | null {
 }
 
 export function isOmtHarness(rel: string): boolean {
+  // meta_harness_dsl R8 follow-up (F9 class killed): the compiled IR is the
+  // FUNCTIONAL source (.omt @var harness_paths → harnessc exact/prefix
+  // classification); the literal below is only the fallback when the
+  // projection is missing/corrupt — the guard must never die open. The two
+  // are pinned in sync by test_omt_enforcer_guard_source_pins.py.
+  const hp = loadIr()?.harness_paths
+  if (Array.isArray(hp?.exact) && Array.isArray(hp?.prefix)) {
+    return hp.exact.includes(rel) || hp.prefix.some((p: string) => rel.startsWith(p))
+  }
   return rel === "AGENTS.md" || rel === "opencode.jsonc" ||
     rel === ".meta/META_HARNESS.omt" ||
     rel === ".meta/software_development_process/omt_agent_guide.md" ||

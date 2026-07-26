@@ -141,5 +141,47 @@ def test_splice_config_missing_end_marker_raises() -> None:
         harnessc.splice_config(bad, _BLOCKS)
 
 
+# --- 8. harness_paths classification + stale-entry compile check -------------
+
+
+def test_ir_harness_paths_classification_and_coverage() -> None:
+    c = harnessc.Corpus(harnessc.parse(
+        harnessc.OMT_PATH.read_text(encoding="utf-8"), []))
+    lists = harnessc.harness_path_lists(c)
+    assert "AGENTS.md" in lists["exact"], "files classify as exact"
+    assert ".opencode/plugins/omt_" in lists["prefix"], "non-existent → prefix"
+    assert any(e.startswith(".meta/software_development_process/2.requirements/"
+                           "features/feature_006") for e in lists["prefix"]), (
+        "feature_006 requirements dir must stay receipt-guarded")
+    harnessc.check_harness_paths(c)
+    assert c.errors == [], f"stale harness_paths entries: {c.errors}"
+
+
+def test_check_harness_paths_flags_stale_entry() -> None:
+    c = _corpus("@var harness_paths : AGENTS.md,no/such/dir/\n")
+    harnessc.check_harness_paths(c)
+    assert any("no/such/dir/" in e and "matches no real repo path" in e
+               for e in c.errors), f"stale entry not flagged: {c.errors}"
+
+
+# --- 9. missing/invalid @version is a clean error, never a traceback ---------
+
+
+def test_build_ir_missing_version_is_clean_error() -> None:
+    """T-024 fix 4: build_ir runs before the checks in main() and used to
+    index c.of("version")[0] — a missing @version record crashed with an
+    IndexError traceback. It now exits with a clean harnessc error (the
+    render_agents/splice_config SystemExit style)."""
+    c = _corpus("@var x : 1\n")
+    with pytest.raises(SystemExit, match="@version"):
+        harnessc.build_ir(c)
+
+
+def test_build_ir_non_integer_version_is_clean_error() -> None:
+    c = _corpus("@version omt_hdl n=abc\n")
+    with pytest.raises(SystemExit, match="@version"):
+        harnessc.build_ir(c)
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

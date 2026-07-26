@@ -392,6 +392,22 @@ def render_agents(c: Corpus) -> str:
 """
 
 
+def harness_path_entries(c: Corpus) -> list[str]:
+    """@var harness_paths comma entries (empty-safe)."""
+    r = c.get("var", "harness_paths")
+    return [] if r is None else [e.strip() for e in r.payload.split(",") if e.strip()]
+
+
+def harness_path_lists(c: Corpus) -> dict[str, list[str]]:
+    """Classify @var harness_paths entries: an existing FILE is an exact match,
+    anything else a prefix (`.opencode/plugins/omt_` never exists on disk).
+    Entries matching NOTHING on disk are compile errors — check_harness_paths."""
+    lists: dict[str, list[str]] = {"exact": [], "prefix": []}
+    for e in harness_path_entries(c):
+        lists["exact" if (REPO_ROOT / e).is_file() else "prefix"].append(e)
+    return lists
+
+
 def build_ir(c: Corpus) -> dict:
     vars_: dict[str, object] = {}
     for r in c.of("var"):
@@ -402,10 +418,16 @@ def build_ir(c: Corpus) -> dict:
         m = re.fullmatch(r"@var\.([a-z0-9_]+)", val or "")
         return vars_.get(m.group(1), val) if m else val
 
+    ver = c.of("version")
+    if not ver or not ver[0].attrs.get("n", "").isdigit():
+        raise SystemExit(
+            "harnessc: error: @version record with integer n= is required "
+            "(the IR projection carries version=n)")
     return {
-        "version": int(c.of("version")[0].attrs["n"]),
+        "version": int(ver[0].attrs["n"]),
         "generated_from": OMT_REL,
         "vars": vars_,
+        "harness_paths": harness_path_lists(c),
         "deny": [{"id": r.rid, "scope": r.attrs["scope"], "match": r.attrs["match"],
                   "msg": r.attrs["msg"].removeprefix("@msg.")} for r in c.of("deny")],
         "protect": [{"id": r.rid, "path": r.attrs["path"], "hard": r.attrs["hard"] == "true",
@@ -539,6 +561,22 @@ def measure_budgets(c: Corpus, agents_md: str) -> dict[str, tuple[int, int | Non
     return sizes
 
 
+def check_harness_paths(c: Corpus) -> None:
+    """Every @var harness_paths entry must match >=1 real repo path — the
+    compile-time BUG-B pin: a renamed dir leaves a stale prefix that silently
+    un-guards files (the TS-side source pin covers the fallback literal)."""
+    r = c.get("var", "harness_paths")
+    if r is None:
+        return  # ref closure already reports the missing var
+    for e in harness_path_entries(c):
+        p = REPO_ROOT / e
+        if p.exists() or any(REPO_ROOT.glob(e + "*")) \
+                or any(REPO_ROOT.glob(e.rstrip("/") + "/*")):
+            continue
+        c.errors.append(f"{OMT_REL}:{r.line}: @var harness_paths: entry '{e}' "
+                        "matches no real repo path (stale guard)")
+
+
 def run_all_checks(c: Corpus, agents_md: str) -> dict[str, tuple[int, int | None]]:
     check_schema(c)
     check_ids(c)
@@ -547,6 +585,7 @@ def run_all_checks(c: Corpus, agents_md: str) -> dict[str, tuple[int, int | None
     check_fsm_hats(c)
     check_comp_paths(c)
     check_gate_never_coverage(c)
+    check_harness_paths(c)
     sizes = measure_budgets(c, agents_md)
     for rid, (size, cap) in sizes.items():
         if size >= 0 and cap is not None and size > cap:

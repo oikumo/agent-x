@@ -13,10 +13,9 @@ the shared lib itself (R2 S6). These pins assert the single-source contract:
 
 1. exactly ONE THOUGHT_PATTERN definition repo-wide, in the lib; both
    consuming modules import it (no local redefinition);
-2. UNLOCK_WINDOW_MS agrees across the TS/Python language boundary
-   (the tdd package's state.py keeps its own copy — cross-language,
-   comment-pinned both sides per plan R1; R3: tdd_check.py split into
-   scripts/omt/tdd/, the constant lives in state.py).
+2. UNLOCK_WINDOW_MS / LEDGER_CAP_BYTES agree across the TS/Python language
+   boundary AND with the .omt @var single source (T-024 fix 3: the expected
+   values used to be hard-coded here — a third, unpinned copy).
 
 Grep-based (no hard-coded line numbers) so it survives refactors that shift
 lines but not the definitions themselves.
@@ -35,6 +34,8 @@ THINK_GATE = ".opencode/lib/enforcer/think_gate.ts"
 # R3: tdd_check.py split into the tdd/ package (compat shim re-exports the
 # API); the Python copy of UNLOCK_WINDOW_MS lives in state.py.
 TDD_CHECK = "scripts/omt/tdd/state.py"
+# OMT-HDL-1: the numeric single source every language copy must agree with.
+OMT = ".meta/META_HARNESS.omt"
 
 
 def _definition_lines(rel: str) -> list[str]:
@@ -71,9 +72,19 @@ def _eval_int_expr(expr: str) -> int:
     return int(eval(expr))  # input regex-pinned to digits, spaces and '*'
 
 
+def _omt_var_int(name: str) -> int:
+    """Parse `@var <name> : <int>` from .meta/META_HARNESS.omt — the numeric
+    single source every language copy must agree with."""
+    src = (REPO_ROOT / OMT).read_text(encoding="utf-8")
+    m = re.search(rf"^@var {name} : (\d+)\s*$", src, re.MULTILINE)
+    assert m, f"@var {name} not found in {OMT}"
+    return int(m.group(1))
+
+
 def test_unlock_window_ms_agrees_across_languages() -> None:
     """Plan R1: UNLOCK_WINDOW_MS deduped across the TS plugins into the lib;
-    the tdd package keeps its own copy (cross-language) — the two must agree."""
+    the tdd package keeps its own copy (cross-language) — the two must agree
+    with each other AND with .omt @var unlock_window_ms (T-024 fix 3)."""
     lib_src = (REPO_ROOT / LIB).read_text(encoding="utf-8")
     py_src = (REPO_ROOT / TDD_CHECK).read_text(encoding="utf-8")
     m_ts = re.search(r"UNLOCK_WINDOW_MS\s*=\s*([0-9 *]+)", lib_src)
@@ -81,8 +92,10 @@ def test_unlock_window_ms_agrees_across_languages() -> None:
     assert m_ts, f"UNLOCK_WINDOW_MS definition not found in {LIB}"
     assert m_py, f"UNLOCK_WINDOW_MS definition not found in {TDD_CHECK}"
     ts_val, py_val = _eval_int_expr(m_ts.group(1)), _eval_int_expr(m_py.group(1))
-    assert ts_val == py_val == 8 * 60 * 60 * 1000, (
-        f"UNLOCK_WINDOW_MS drift: {LIB}={ts_val} {TDD_CHECK}={py_val}")
+    omt_val = _omt_var_int("unlock_window_ms")
+    assert ts_val == py_val == omt_val, (
+        f"UNLOCK_WINDOW_MS drift: {LIB}={ts_val} {TDD_CHECK}={py_val} "
+        f"{OMT}={omt_val}")
 
 
 # --- meta_harness_dsl R6 S1 pins: the index rewrite class is DELETED ---------
@@ -133,8 +146,9 @@ def test_digest_stale_join_is_text_keyed() -> None:
 
 def test_ledger_cap_bytes_agrees_across_languages() -> None:
     """R4: the ledger hot-file cap lives in omt_shared.ts (TS) and
-    tdd/state.py (Python) — the two copies must agree (mirrors the
-    UNLOCK_WINDOW_MS pin above)."""
+    tdd/state.py (Python) — the two copies must agree with each other AND
+    with .omt @var ledger_cap_bytes (mirrors the UNLOCK_WINDOW_MS pin above;
+    T-024 fix 3)."""
     lib_src = (REPO_ROOT / LIB).read_text(encoding="utf-8")
     py_src = (REPO_ROOT / TDD_CHECK).read_text(encoding="utf-8")
     m_ts = re.search(r"LEDGER_CAP_BYTES\s*=\s*([0-9 *]+)", lib_src)
@@ -142,8 +156,10 @@ def test_ledger_cap_bytes_agrees_across_languages() -> None:
     assert m_ts, f"LEDGER_CAP_BYTES definition not found in {LIB}"
     assert m_py, f"LEDGER_CAP_BYTES definition not found in {TDD_CHECK}"
     ts_val, py_val = _eval_int_expr(m_ts.group(1)), _eval_int_expr(m_py.group(1))
-    assert ts_val == py_val == 64 * 1024, (
-        f"LEDGER_CAP_BYTES drift: {LIB}={ts_val} {TDD_CHECK}={py_val}")
+    omt_val = _omt_var_int("ledger_cap_bytes")
+    assert ts_val == py_val == omt_val, (
+        f"LEDGER_CAP_BYTES drift: {LIB}={ts_val} {TDD_CHECK}={py_val} "
+        f"{OMT}={omt_val}")
 
 
 def test_ledger_access_goes_through_rotation_aware_helpers() -> None:

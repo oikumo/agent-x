@@ -10,7 +10,7 @@
 //                       omt_think's digestSessions Tier-1c hook — load-order
 //                       independent, single Set in session_state).
 
-import { relOf, thinkDigest } from "../omt_shared"
+import { loadIr, relOf, thinkDigest } from "../omt_shared"
 import { OmtBlock, hasNavUnlock, type EnforcerEnv } from "./session_state"
 
 const NAV_TOOLS = new Set(["omt_nav", "omt_list_sections", "omt_cross_ref", "omt_quick_ref"])
@@ -21,8 +21,20 @@ const SEARCH_TOOLS = new Set(["grep", "glob", "read", "rg", "find"])
 // doc-scoped searches.
 // Defensive (DEFECT B): opencode's real tool-call shape can pass arrays/objects
 // here, not just strings; guard so a non-string never reaches .startsWith.
+// meta_harness_dsl R8 follow-up (F9 class, the @var harness_paths sibling):
+// the compiled IR is the FUNCTIONAL source (.omt @var doc_paths — comma
+// string, trailing "/" = prefix else exact); the literal below is only the
+// fallback when the projection is missing/corrupt — the gate must never die
+// open. The two are pinned in sync by test_omt_enforcer_guard_source_pins.py.
 export function isDocPath(rel: string): boolean {
   if (typeof rel !== "string") return false
+  const dp = loadIr()?.vars?.doc_paths
+  if (typeof dp === "string" && dp) {
+    return dp.split(",").some((e) => {
+      const entry = e.trim()
+      return entry.endsWith("/") ? rel.startsWith(entry) : rel === entry
+    })
+  }
   return rel === "AGENTS.md" || rel === "WORK.md" || rel.startsWith(".meta/")
 }
 

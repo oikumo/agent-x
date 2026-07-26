@@ -165,7 +165,7 @@
       "id": "g.tdd_after",
       "msg": "tdd_revert",
       "on": "after",
-      "order": 60,
+      "order": 70,
       "paths": "",
       "requires": "fsm_allows(@fsm.tdd,path)",
       "skip_ok": false,
@@ -178,7 +178,7 @@
       "id": "g.mvc",
       "msg": "mvc_new_hard",
       "on": "after",
-      "order": 70,
+      "order": 60,
       "paths": "",
       "requires": "",
       "run": "uv run scripts/omt/mvc_check.py",
@@ -189,6 +189,23 @@
     }
   ],
   "generated_from": ".meta/META_HARNESS.omt",
+  "harness_paths": {
+    "exact": [
+      "AGENTS.md",
+      "opencode.jsonc",
+      ".meta/META_HARNESS.omt",
+      ".meta/software_development_process/omt_agent_guide.md"
+    ],
+    "prefix": [
+      ".opencode/plugins/omt_",
+      ".opencode/lib/omt_",
+      ".opencode/lib/enforcer/",
+      "scripts/omt/",
+      ".meta/templates/",
+      ".meta/software_development_process/2.requirements/features/feature_006.opencode_process_enforcement/",
+      "tests/scripts/omt/"
+    ]
+  },
   "hats": {
     "tdd.done": {
       "allow": "",
@@ -527,7 +544,7 @@
     "e2e_test": "tests/scripts/omt/test_omt_harness_e2e.py",
     "edit_tools": "edit|write|patch|multiedit",
     "enforcer_lib": ".opencode/lib/enforcer/",
-    "harness_paths": "AGENTS.md,opencode.jsonc,.meta/META_HARNESS.omt,.meta/software_development_process/omt_agent_guide.md,.opencode/plugins/omt_,.opencode/lib/omt_,.opencode/lib/enforcer/,scripts/omt/,.meta/templates/,tests/scripts/omt/",
+    "harness_paths": "AGENTS.md,opencode.jsonc,.meta/META_HARNESS.omt,.meta/software_development_process/omt_agent_guide.md,.opencode/plugins/omt_,.opencode/lib/omt_,.opencode/lib/enforcer/,scripts/omt/,.meta/templates/,.meta/software_development_process/2.requirements/features/feature_006.opencode_process_enforcement/,tests/scripts/omt/",
     "harnessc": "uv run scripts/omt/harnessc.py",
     "ir_path": ".meta/.omt/harness.ir.json",
     "ledger_cap_bytes": 65536,

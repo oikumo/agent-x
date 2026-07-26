@@ -143,5 +143,119 @@ class TestE2EHarnessFileListPin:
             f"receipt then guards nothing): {missing}")
 
 
+IR = REPO_ROOT / ".meta" / ".omt" / "harness.ir.json"
+
+
+class TestHarnessPathsIrSyncPin:
+    """meta_harness_dsl R8 follow-up: isOmtHarness's TS fallback literal and
+    the compiled IR `harness_paths` (.omt @var harness_paths → harnessc
+    exact/prefix classification) must be the SAME set. The IR is the
+    functional source at runtime; the literal only keeps the guard alive when
+    the projection is missing — drift between them silently un-guards files
+    (F9 alignment class, the BUG-B sibling)."""
+
+    def test_ts_fallback_literal_matches_ir_harness_paths(self):
+        import json
+        src = SHARED_LIB.read_text(encoding="utf-8")
+        body = src[src.index("export function isOmtHarness"):src.index("export function receiptTimestampMs")]
+        ts_set = set(re.findall(r'rel === "([^"]+)"', body)) | set(
+            re.findall(r'rel\.startsWith\("([^"]+)"\)', body))
+        hp = json.loads(IR.read_text(encoding="utf-8"))["harness_paths"]
+        ir_set = set(hp["exact"]) | set(hp["prefix"])
+        assert ts_set == ir_set, (
+            "isOmtHarness fallback literal drifted from IR harness_paths "
+            "(source: .meta/META_HARNESS.omt @var harness_paths): "
+            f"only-in-TS={sorted(ts_set - ir_set)} "
+            f"only-in-IR={sorted(ir_set - ts_set)} — edit the .omt, run "
+            "harnessc.py build, and update the fallback in the same commit")
+
+
+NAV_GATE = REPO_ROOT / ".opencode" / "lib" / "enforcer" / "nav_gate.ts"
+
+
+class TestGateOrderIrPin:
+    """meta_harness_dsl R8 follow-up (T-024 fix 1): the .omt @gate order=
+    attributes (compiled into IR gates[].order) must match the omt_enforcer.ts
+    hook call sequence — before: navGateBefore → guardProtectedPath →
+    guardHarnessReceipt → guardTestsPath → guardSrcPath → guardThoughts;
+    after: mvcAfterEdit → tddAfterEdit. A manual order fix in the IR (the
+    g.mvc/g.tdd_after 60/70 swap) can otherwise regress silently."""
+
+    # gate id -> the composition-root function implementing it. The mapping is
+    # deliberate domain knowledge; the set-equality pin below forces it to be
+    # extended the moment a gate is added/removed in the .omt.
+    GATE_IMPL = {
+        "g.nav": "navGateBefore",
+        "g.protect": "guardProtectedPath",
+        "g.receipt": "guardHarnessReceipt",
+        "g.tests": "guardTestsPath",
+        "g.phase": "guardSrcPath",
+        "g.think": "guardThoughts",
+        "g.mvc": "mvcAfterEdit",
+        "g.tdd_after": "tddAfterEdit",
+    }
+
+    def test_gate_impl_map_covers_exactly_the_ir_gates(self):
+        import json
+        ids = {g["id"] for g in json.loads(IR.read_text(encoding="utf-8"))["gates"]}
+        assert set(self.GATE_IMPL) == ids, (
+            "GATE_IMPL drifted from IR gates: "
+            f"only-in-map={sorted(set(self.GATE_IMPL) - ids)} "
+            f"only-in-IR={sorted(ids - set(self.GATE_IMPL))}")
+
+    def test_hook_call_order_matches_ir_gate_order(self):
+        import json
+        gates = json.loads(IR.read_text(encoding="utf-8"))["gates"]
+        src = ENFORCER.read_text(encoding="utf-8")
+        for on, hook in (("before", "tool.execute.before"),
+                         ("after", "tool.execute.after")):
+            group = sorted((g for g in gates if g["on"] == on),
+                           key=lambda g: g["order"])
+            orders = [g["order"] for g in group]
+            assert len(set(orders)) == len(orders), (
+                f"on={on}: duplicate gate order values {orders} — sort ambiguous")
+            body = _hook_body(src, hook)
+            positions: list[int] = []
+            for g in group:
+                fn = self.GATE_IMPL[g["id"]]
+                pos = body.find(fn + "(")
+                assert pos >= 0, f"{hook}: {fn} (gate {g['id']}) is never called"
+                positions.append(pos)
+            sequence = [self.GATE_IMPL[g["id"]] for g in group]
+            assert positions == sorted(positions), (
+                f"{hook} call order drifted from IR gates[].order — expected "
+                f"{sequence} (ascending order={orders}); reorder the hook calls "
+                "or fix the .omt order= attributes, never one without the other")
+
+
+class TestDocPathsIrSyncPin:
+    """meta_harness_dsl R8 follow-up (T-024 fix 2, the @var harness_paths F9
+    sibling): nav_gate.ts isDocPath's fallback literal and the compiled IR
+    `vars.doc_paths` (.omt @var doc_paths — comma string; a trailing "/"
+    entry is a prefix, anything else exact) must be the SAME set. The IR is
+    the functional source at runtime; the literal only keeps the nav gate
+    alive when the projection is missing — drift silently un-gates doc
+    searches."""
+
+    def test_ts_fallback_literal_matches_ir_doc_paths(self):
+        import json
+        src = NAV_GATE.read_text(encoding="utf-8")
+        body = src[src.index("export function isDocPath"):src.index("export function navGateDecision")]
+        ts_exact = set(re.findall(r'rel === "([^"]+)"', body))
+        ts_prefix = set(re.findall(r'rel\.startsWith\("([^"]+)"\)', body))
+        dp = json.loads(IR.read_text(encoding="utf-8"))["vars"]["doc_paths"]
+        entries = [e.strip() for e in dp.split(",") if e.strip()]
+        ir_exact = {e for e in entries if not e.endswith("/")}
+        ir_prefix = {e for e in entries if e.endswith("/")}
+        assert ts_exact == ir_exact and ts_prefix == ir_prefix, (
+            "isDocPath fallback literal drifted from IR vars.doc_paths "
+            "(source: .meta/META_HARNESS.omt @var doc_paths): "
+            f"exact only-in-TS={sorted(ts_exact - ir_exact)} "
+            f"only-in-IR={sorted(ir_exact - ts_exact)}; "
+            f"prefix only-in-TS={sorted(ts_prefix - ir_prefix)} "
+            f"only-in-IR={sorted(ir_prefix - ts_prefix)} — edit the .omt, run "
+            "harnessc.py build, and update the fallback in the same commit")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
