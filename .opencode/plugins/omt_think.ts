@@ -15,22 +15,31 @@
 // per-session digest surfaces accumulated thoughts; a blocking think-gate
 // (in omt_enforcer.ts) refuses to edit thought-carrying files until consulted.
 //
+// meta_harness_dsl R2 S6: this plugin is TOOLS-ONLY now. The TA digest
+// machinery (grepThoughts/parseThoughtLine/foldThoughtEvents/readThoughtsIndex/
+// thinkDigest) moved to the shared lib (imported below) and the first-result
+// emission moved into the enforcer's session bootstrap (lib/enforcer/
+// nav_gate.ts) — ONE bootstrap Set, one emission site, load-order independent.
+//
 // Contract (mirrors omt_nav.ts / omt_status.ts — feature_020 defect-free):
 //   • import { tool } from "@opencode-ai/plugin"; args + tool.schema.* (DEFECT-C safe)
 //   • async execute(args, context) returns a plain string (DEFECT-D safe)
-//   • default export async () => ({ tool, "tool.execute.after" })
+//   • default export async () => ({ tool })
 //   • NO named tool-object exports (DEFECT-A safe); only the default factory
 //   • file ops via execFileSync/readFileSync/writeFileSync (no shell — H3 safe)
 
 import { tool } from "@opencode-ai/plugin"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
-import { join, relative, isAbsolute, extname } from "node:path"
+import { extname } from "node:path"
 import { execFileSync } from "node:child_process"
 // Single source (meta_harness_dsl R1): THOUGHT_PATTERN, state paths, JSONL IO
 // and repo-root live in the shared lib (root injected at plugin-init, F2/F17).
+// R2 S6: the grep/fold/parse thought machinery lives there too, shared with
+// the enforcer's session-bootstrap digest.
 import {
-  initOmtShared, repoRoot, ledgerPath, thoughtsIndexPath,
-  relOf as sharedRelOf, toAbs, readJsonl, appendJsonl, THOUGHT_PATTERN,
+  initOmtShared, ledgerPath, thoughtsIndexPath,
+  relOf as sharedRelOf, toAbs, appendJsonl, THOUGHT_PATTERN,
+  grepThoughts, parseThoughtLine, foldThoughtEvents, readThoughtsIndex,
 } from "../lib/omt_shared"
 
 // Protected files: TA: tags are NEVER written here (AGENTS.md NEVER set + JSON).
@@ -84,53 +93,6 @@ function appendIndex(record: Record<string, unknown>): void {
   appendJsonl(thoughtsIndexPath(), record)
 }
 
-// Read the JSONL index (append-only event log: add / verify / remove records).
-// Skips corrupt lines, fail-open [].
-function readThoughtsIndex(): any[] {
-  return readJsonl(thoughtsIndexPath())
-}
-
-// Append-only event fold (meta_harness_dsl R6 S1): the index is NEVER rewritten
-// (the reconcile/reindex rewrite-by-filter class was deleted — grep is truth,
-// audit P8/F12). Records are add (no kind) / verify / remove-tombstone events;
-// the fold is latest-wins. A slot (path:line) is ALIVE when its newest
-// add/remove event is an add — a tombstoned slot reads as absent, and a
-// re-added thought (newer add-record) starts unverified (feature_022 C1
-// semantics, zero rewrites). Verify verdicts join by normalized thought TEXT
-// (identity), never path:line (audit F28: line drift must not re-attach a
-// verdict to the wrong thought; path:line is a display key only).
-function foldThoughtEvents(recs: any[]): {
-  aliveAdds: any[]
-  latestAddTsByText: Map<string, number>
-  latestVerifyByText: Map<string, { status: string; ts: number }>
-} {
-  const slotLatest = new Map<string, { kind: string; r: any }>()
-  const latestAddTsByText = new Map<string, number>()
-  const latestVerifyByText = new Map<string, { status: string; ts: number }>()
-  for (const r of recs) {
-    if (!r || typeof r.path !== "string") continue
-    const ts = Date.parse(r.ts || "") || 0
-    if (r.kind === "verify") {
-      if (typeof r.thought === "string" && r.thought) {
-        const cur = latestVerifyByText.get(r.thought)
-        if (!cur || ts >= cur.ts) latestVerifyByText.set(r.thought, { status: String(r.status || ""), ts })
-      }
-      continue
-    }
-    if (r.kind === "remove") {
-      slotLatest.set(`${r.path}:${r.line}`, { kind: "remove", r })
-      continue
-    }
-    // add-record (no kind field)
-    slotLatest.set(`${r.path}:${r.line}`, { kind: "add", r })
-    if (typeof r.thought === "string" && r.thought) {
-      if (ts >= (latestAddTsByText.get(r.thought) || 0)) latestAddTsByText.set(r.thought, ts)
-    }
-  }
-  const aliveAdds = [...slotLatest.values()].filter(e => e.kind === "add").map(e => e.r)
-  return { aliveAdds, latestAddTsByText, latestVerifyByText }
-}
-
 // Record a think_consult in the shared ledger so the enforcer's think-gate
 // clears. C2: per-file granularity — files = rel paths the listing actually
 // matched (what the agent was shown), capped at 200 (+ files_truncated flag;
@@ -144,38 +106,6 @@ function recordConsult(session: string | undefined, files: string[]): void {
   })
 }
 
-// grep thought lines across a target (file or dir), honoring excludes. Returns
-// parsed {file,line,content} hits. Uses execFileSync (array argv — no shell,
-// H3 safe). -E: callers pass ERE patterns (THOUGHT_PATTERN-based, feature_022
-// A1). A1b: .venv/__pycache__ excluded (noise dirs that polluted the digest).
-function grepThoughts(pattern: string, target: string): { file: string; line: number; content: string }[] {
-  const results: { file: string; line: number; content: string }[] = []
-  const absTarget = isAbsolute(target) ? target : join(repoRoot(), target)
-  if (!existsSync(absTarget)) return results
-  try {
-    const output = execFileSync("grep", [
-      "-rnHE",
-      "--exclude-dir=.git", "--exclude-dir=node_modules", "--exclude-dir=.omt",
-      "--exclude-dir=.venv", "--exclude-dir=__pycache__",
-      "--exclude=*.env*",
-      "--", pattern, absTarget,
-    ], { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] })
-    for (const line of output.trim().split("\n")) {
-      if (!line) continue
-      const match = line.match(/^(.+?):(\d+):(.*)$/)
-      if (match) {
-        const [, file, lineNum, content] = match
-        results.push({
-          file: relative(repoRoot(), file).split("\\").join("/"),
-          line: parseInt(lineNum, 10),
-          content: content.trim(),
-        })
-      }
-    }
-  } catch { /* grep returns non-zero when no matches — fine */ }
-  return results
-}
-
 // Build the rendered TA: line for a given extension/category/thought.
 function buildThoughtLine(ext: string, category: string | undefined, thought: string): string | null {
   const wrap = commentSyntaxFor(ext)
@@ -187,22 +117,6 @@ function buildThoughtLine(ext: string, category: string | undefined, thought: st
   const cat = category ? `${category.trim().toLowerCase()}: ` : ""
   const tail = wrap.close ? ` ${wrap.close}` : ""
   return `${wrap.open} TA: ${cat}${t}${tail}`
-}
-
-// Parse a rendered thought line into {cat, text} for dedup comparison (A4).
-// Returns null for non-thought lines (anchored-pattern test first), so prose
-// mentions never collide with real thoughts.
-function parseThoughtLine(line: string): { cat: string; text: string } | null {
-  if (!new RegExp(THOUGHT_PATTERN).test(line)) return null
-  let t = line.trim()
-  t = t.replace(/^(#|\/\/|\/\*|<!--|--)\s*/, "") // comment opener
-  t = t.replace(/^TA:\s*/, "") // marker
-  t = t.replace(/\s*(-->|\*\/)$/, "") // trailing html/block closer
-  t = t.replace(/\s+/g, " ").trim()
-  let cat = ""
-  const m = t.match(/^([a-z0-9_-]+):\s+(.*)$/)
-  if (m) { cat = m[1]; t = m[2] }
-  return { cat, text: t.trim() }
 }
 
 // A3: naïve parity guard — is the insertion point (0-based index into lines)
@@ -654,80 +568,17 @@ const omt_think_suggest = tool({
   },
 })
 
-// (meta_harness_dsl R6 S1: omt_think_reindex DELETED — grep-is-truth made the
-// reconcile/rewrite class redundant AND destructive-prone on an untracked,
-// backup-less index; audit P8/F12. Append-only events + latest-wins fold
-// deliver identical semantics — incl. C1 re-added-starts-unverified — with
-// zero rewrites. thoughts.jsonl.bak snapshot retained for the historical record.)
-
-// --- per-session digest (R6 S7 compact form) --------------------------------
-// Compact by design (audit F32/C4: a conversation-resident injection is re-paid
-// EVERY model turn — full texts × ~30 turns ≈ 10k tok/session). Counts +
-// per-file counts + stale ⚠️ survive; full texts are re-injected point-of-use
-// by D1 on file read and are one omt_think_list call away.
-function thinkDigest(): string {
-  const hits = grepThoughts(THOUGHT_PATTERN, ".")
-  if (hits.length === 0) {
-    return "💡 TA: 0 thoughts indexed. Drop one with omt_think{path, thought} when you learn a gotcha."
-  }
-  const files = new Set(hits.map(h => h.file))
-  // Stale join (C1/F28): verdicts matched to live hits by normalized TEXT, and
-  // only when the verdict is newer than the thought's latest add (a re-added
-  // thought starts unverified). Index unreadable/corrupt → 0 stale (fail-open
-  // — the digest never breaks a session).
-  const { latestAddTsByText, latestVerifyByText } = foldThoughtEvents(readThoughtsIndex())
-  const stale: string[] = []
-  for (const h of hits) {
-    const p = parseThoughtLine(h.content)
-    if (!p) continue
-    const v = latestVerifyByText.get(p.text)
-    if (!v || v.status !== "stale") continue
-    if (v.ts >= (latestAddTsByText.get(p.text) || 0)) stale.push(`${h.file}:${h.line}`)
-  }
-  const perFile = new Map<string, number>()
-  for (const h of hits) perFile.set(h.file, (perFile.get(h.file) || 0) + 1)
-  const top = [...perFile.entries()].sort((a, b) => b[1] - a[1])
-  const shown = top.slice(0, 6).map(([f, n]) => `${f}(${n})`).join(" ")
-  let out = `💡 TA: ${hits.length} thought${hits.length === 1 ? "" : "s"} across ${files.size} file${files.size === 1 ? "" : "s"} — ${shown}` +
-    (top.length > 6 ? ` … (+${top.length - 6} files)` : "") +
-    (stale.length ? `\n⚠️ ${stale.length} stale: ${stale.slice(0, 5).join(", ")}${stale.length > 5 ? " …" : ""} — re-check with omt_think_verify{path, line}.` : "")
-  out += `\nFull texts: omt_think_list (auto-injected per thought-carrying file on read; think-gate applies).`
-  return out
-}
-
-// feature_023 Tier 1c (kept as the R6 S3 FALLBACK): the digest rides the FIRST
-// tool.execute.after per session (mutating output.output — the guaranteed
-// agent-visible channel, headless or not). The inert "session.start" hook was
-// DELETED in R6 (never dispatched: audited 1.18.3, re-verified 1.18.5; the
-// official event list has no session.start). Moving the trigger to the
-// documented `event` hook on session.created is DEFERRED — no agent-visible
-// delivery channel from event hooks is verified on 1.18.5 headless (plan R6
-// S3 hard GATE; fallback recorded in WORK.md). Process-lifetime Set, bounded
-// by distinct sessionIDs; R2 moves it into enforcer session_state (S6).
-const digestSessions = new Set<string>()
-
 // Standalone opencode plugin (mirrors omt_nav.ts / omt_status.ts).
 // NO named tool-object exports — opencode's loader requires every export to be a
 // function (DEFECT-A safe). Only the default factory is exported.
 // R1 (F2/F17): repo root = worktree ?? directory, injected into the shared lib
 // before any hook runs (all lib path getters are lazy — see lib header).
+// R2 S6: tools-only — the TA digest rides the enforcer's session bootstrap
+// (lib/enforcer/nav_gate.ts), so this plugin returns no hooks.
 export default async ({ directory, worktree }) => {
   initOmtShared(worktree ?? directory)
   return {
     tool: { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest },
-    "tool.execute.after": async (input, output) => {
-      // Tier 1c: append the TA digest to the FIRST tool result per session.
-      // Fail-open — the digest never blocks tool results.
-      try {
-        const session = input?.sessionID || ""
-        if (!digestSessions.has(session)) {
-          digestSessions.add(session)
-          if (typeof output?.output === "string") {
-            output.output += "\n\n" + thinkDigest()
-          }
-        }
-      } catch { /* fail-open */ }
-    },
   }
 }
 // TA: xref: feature_022.meta_harness_think_anywhere_v2 FEATURE.md catalogs 13 flaws of this v1 (string-unaware insertion F1, unsafe # default F2, gate substring false-positives F3) + tiered fixes A-E — read before modifying

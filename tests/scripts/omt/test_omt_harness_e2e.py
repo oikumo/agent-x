@@ -36,6 +36,13 @@ HARNESS_FILES = [
     ".opencode/plugins/omt_think.ts",
     ".opencode/plugins/omt_nav.ts",
     ".opencode/lib/omt_shared.ts",
+    ".opencode/lib/enforcer/session_state.ts",
+    ".opencode/lib/enforcer/nav_gate.ts",
+    ".opencode/lib/enforcer/receipt_guard.ts",
+    ".opencode/lib/enforcer/phase_gate.ts",
+    ".opencode/lib/enforcer/tdd_hats.ts",
+    ".opencode/lib/enforcer/think_gate.ts",
+    ".opencode/lib/enforcer/mvc_after.ts",
     "opencode.jsonc",
     "AGENTS.md",
     ".meta/software_development_process/omt_agent_guide.md",
@@ -104,27 +111,31 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
 
     # 2. Phase declarations and completions are real opencode tools, scoped to
     # feature phases, with lightweight task types excluded from major-feature
-    # artifact over-enforcement.
-    assert "const omt_phase = tool" in enforcer
-    assert "const omt_skip = tool" in enforcer
-    assert "const omt_complete = tool" in enforcer
-    assert "getActiveFeaturePhase(feature, session)" in enforcer
-    assert 'ARTIFACT_REQUIRED.has(phaseRecord.task_type || "")' in enforcer
-    assert "checkPhaseExitArtifacts(directory, feature, currentPhase)" in enforcer
+    # artifact over-enforcement. R2: the tools live in lib/enforcer/phase_gate.ts;
+    # the composition root wires them via createPhaseTools.
+    phase_gate = _read(".opencode/lib/enforcer/phase_gate.ts")
+    assert "const omt_phase = tool" in phase_gate
+    assert "const omt_skip = tool" in phase_gate
+    assert "const omt_complete = tool" in phase_gate
+    assert "getActiveFeaturePhase(feature, session)" in phase_gate
+    assert 'ARTIFACT_REQUIRED.has(phaseRecord.task_type || "")' in phase_gate
+    assert "checkPhaseExitArtifacts(directory, feature, currentPhase)" in phase_gate
+    assert "createPhaseTools" in enforcer
     checks.append("omt_phase/omt_complete tool chain is wired and scoped")
 
     # 3. The harness now enforces this e2e test for repeated edits to the OMT
     # enforcement surface. R1: the receipt-guard machinery (constants +
-    # isOmtHarness + omtHarnessE2eStatus) lives in the shared lib; the
-    # enforcer keeps the call site.
+    # isOmtHarness + omtHarnessE2eStatus) lives in the shared lib; R2: the
+    # before-hook call site lives in lib/enforcer/receipt_guard.ts.
     shared = _read(".opencode/lib/omt_shared.ts")
     assert "OMT_HARNESS_E2E_COMMAND" in shared
     assert E2E_COMMAND in shared
     assert "omtHarnessE2eStatus" in shared
     assert "OMT_HARNESS_E2E_RECEIPT" in shared
     assert ".meta/software_development_process/omt_agent_guide.md" in shared
-    assert "omtHarnessE2eStatus" in enforcer  # before-hook call site
-    checks.append("OMT harness edit guard requires this e2e receipt (shared lib + enforcer call site)")
+    receipt_guard = _read(".opencode/lib/enforcer/receipt_guard.ts")
+    assert "omtHarnessE2eStatus" in receipt_guard  # R2: before-hook call site
+    checks.append("OMT harness edit guard requires this e2e receipt (shared lib + receipt_guard call site)")
 
     # 4. Coarse permissions still force uv and deny the risky actions the meta
     # harness is meant to prevent.
@@ -139,11 +150,12 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     checks.append("opencode config enforces uv and denies risky actions")
 
     # 5. The guide contract and plugin gate agree on adaptive rigor.
+    # R2: the §12 artifact matrix lives in lib/enforcer/phase_gate.ts.
     assert "Essential vs. Optional" in guide
     assert "Bug Fix" in guide and "Minor Feature" in guide and "Major Feature" in guide
-    assert 'ARTIFACT_REQUIRED = new Set(["major_feature", "new_screen"])' in enforcer
-    assert "PHASE_EXIT_REQUIREMENTS" in enforcer
-    assert "operation_spec_*.md" in enforcer
+    assert 'ARTIFACT_REQUIRED = new Set(["major_feature", "new_screen"])' in phase_gate
+    assert "PHASE_EXIT_REQUIREMENTS" in phase_gate
+    assert "operation_spec_*.md" in phase_gate
     checks.append("guide §12 and plugin artifact matrix stay aligned")
 
     # 6. Python OMT helper scripts execute successfully through uv.
@@ -171,17 +183,20 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "plan/PLAN.md" in scaffolder.stdout
     checks.append("new_feature scaffolder dry-run succeeds")
 
-    # 7. TDD enforcement tools are wired in the enforcer (feature_016).
-    assert "const omt_testlist" in enforcer
-    assert "const omt_red" in enforcer
-    assert "const omt_green" in enforcer
-    assert "const omt_refactor" in enforcer
-    assert "const omt_done" in enforcer
-    assert "tdd_check.py" in enforcer
-    assert "tdd_mode" in enforcer
-    assert "refactorSnapshots" in enforcer
-    assert "revert_needed" in enforcer
-    checks.append("TDD tools and gate are wired in omt_enforcer")
+    # 7. TDD enforcement tools are wired (feature_016). R2: the two-hats gate
+    # and tools live in lib/enforcer/tdd_hats.ts; snapshots in session_state.ts.
+    tdd_hats = _read(".opencode/lib/enforcer/tdd_hats.ts")
+    session_state = _read(".opencode/lib/enforcer/session_state.ts")
+    assert "const omt_testlist" in tdd_hats
+    assert "const omt_red" in tdd_hats
+    assert "const omt_green" in tdd_hats
+    assert "const omt_refactor" in tdd_hats
+    assert "const omt_done" in tdd_hats
+    assert "tdd_check.py" in tdd_hats
+    assert "tdd_mode" in tdd_hats
+    assert "refactorSnapshots" in session_state
+    assert "revert_needed" in tdd_hats
+    checks.append("TDD tools and gate are wired in tdd_hats/session_state")
 
     # 8. tdd_check.py runs successfully through uv.
     tdd = _run(["uv", "run", "scripts/omt/tdd_check.py", "status", "--session", ""])
@@ -191,7 +206,8 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "state" in tdd_data
     checks.append("tdd_check.py status subcommand returns valid JSON")
 
-    # 9. feature_021 think-anywhere: standalone plugin + think-gate in enforcer.
+    # 9. feature_021 think-anywhere: standalone plugin + think-gate (R2: the
+    # gate lives in lib/enforcer/think_gate.ts; the plugin is tools-only).
     think = _read(".opencode/plugins/omt_think.ts")
     assert "export default async ({" in think
     assert "initOmtShared(" in think  # R1: ctx root injected
@@ -199,9 +215,10 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "commentSyntaxFor" in think
     # meta_harness_dsl R6 S1: reindex tool deleted (append-only index, grep-is-truth).
     assert "const omt_think_reindex" not in think
-    assert "thinkGateDecision" in enforcer
-    assert "hasConsultedThoughts" in enforcer
-    assert "think_consult" in enforcer
+    think_gate = _read(".opencode/lib/enforcer/think_gate.ts")
+    assert "thinkGateDecision" in think_gate
+    assert "hasConsultedThoughts" in think_gate
+    assert "think_consult" in think_gate
     assert '"omt_think": "allow"' in config
     assert '"omt_think_list": "allow"' in config
     assert '"omt_think_remove": "allow"' in config
@@ -227,6 +244,28 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
         assert "process.cwd()" not in src, (
             f"{name} must not resolve repo paths from the process cwd (R1 F2/F17)")
     checks.append("meta_harness_dsl R1: shared lib imported + initialized by all four plugins")
+
+    # 11. meta_harness_dsl R2: the enforcer is a THIN COMPOSITION ROOT (single
+    # default export per Appendix B2 — hook registration + dispatch only); all
+    # gate logic lives in lib/enforcer/* modules, which are themselves covered
+    # by the receipt guard. R6 S6: the session bootstrap (nav tip + compact TA
+    # digest) has ONE emission site in the enforcer after-hook; the think
+    # plugin's Tier-1c hook is deleted and the digest builder is shared-lib.
+    assert "export default async ({" in enforcer
+    assert "\nexport function" not in enforcer
+    assert "\nexport const" not in enforcer
+    for mod in ("session_state", "nav_gate", "receipt_guard", "phase_gate",
+                "tdd_hats", "think_gate", "mvc_after"):
+        assert f'from "../lib/enforcer/{mod}"' in enforcer, (
+            f"composition root must import lib/enforcer/{mod} (R2 split)")
+    assert ".opencode/lib/enforcer/" in shared, (
+        "isOmtHarness must cover lib/enforcer/ (R2 modules are the "
+        "enforcement surface — an unguarded enforcer is a BUG-B-class hole)")
+    assert "sessionBootstrap" in enforcer
+    assert "thinkDigest" in shared
+    assert "digestSessions" not in think  # R2 S6: Tier-1c hook deleted
+    assert '"tool.execute.after"' not in think  # tools-only plugin now
+    checks.append("meta_harness_dsl R2: composition root + guarded lib/enforcer modules + S6 single bootstrap")
 
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Shared-lib single-source pins (meta_harness_dsl R1).
+"""Shared-lib single-source pins (meta_harness_dsl R1; R2 retargets).
 
 Pre-R1 the enforcer and the think plugin each defined their own
 THOUGHT_PATTERN (byte-identical pair, drifting unprotected after the
 structural test was deleted in a7163df — audit F10; the R0 interim pin
 asserted that byte-identity). R1 moved the pattern — plus UNLOCK_WINDOW_MS,
 state paths, JSONL IO and repo-root — into the shared lib
-`.opencode/lib/omt_shared.ts`. These pins assert the single-source contract:
+`.opencode/lib/omt_shared.ts`. R2 split the enforcer monolith: the gate that
+consumes THOUGHT_PATTERN now lives in `.opencode/lib/enforcer/think_gate.ts`,
+and the digest machinery (thinkDigest + grep/fold/parse helpers) moved into
+the shared lib itself (R2 S6). These pins assert the single-source contract:
 
 1. exactly ONE THOUGHT_PATTERN definition repo-wide, in the lib; both
-   consuming plugins import it (no local redefinition);
+   consuming modules import it (no local redefinition);
 2. UNLOCK_WINDOW_MS agrees across the TS/Python language boundary
    (tdd_check.py keeps its own copy — cross-language, comment-pinned both
    sides per plan R1).
@@ -25,8 +28,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 LIB = ".opencode/lib/omt_shared.ts"
-ENFORCER = ".opencode/plugins/omt_enforcer.ts"
 THINK = ".opencode/plugins/omt_think.ts"
+# R2: the think-gate was split out of omt_enforcer.ts into this lib module.
+THINK_GATE = ".opencode/lib/enforcer/think_gate.ts"
 TDD_CHECK = "scripts/omt/tdd_check.py"
 
 
@@ -44,14 +48,16 @@ def test_thought_pattern_single_source_in_shared_lib() -> None:
     lib_defs = _definition_lines(LIB)
     assert len(lib_defs) == 1, (
         f"exactly one THOUGHT_PATTERN definition expected in {LIB}: {lib_defs}")
-    for plugin in (ENFORCER, THINK):
+    for plugin in (THINK, THINK_GATE):
         plugin_defs = _definition_lines(plugin)
         assert not plugin_defs, (
             f"THOUGHT_PATTERN redefined in {plugin} (R1: single source is "
             f"{LIB}): {plugin_defs}")
         src = (REPO_ROOT / plugin).read_text(encoding="utf-8")
+        # R2: plugins import as "../lib/omt_shared"; lib/enforcer/* modules
+        # (one dir deeper, inside lib/) import as "../omt_shared".
         assert re.search(
-            r'import\s*\{[^}]*\bTHOUGHT_PATTERN\b[^}]*\}\s*from\s*"\.\./lib/omt_shared"',
+            r'import\s*\{[^}]*\bTHOUGHT_PATTERN\b[^}]*\}\s*from\s*"(?:\.\./lib/|\.\./)omt_shared"',
             src, re.DOTALL,
         ), f"{plugin} must import THOUGHT_PATTERN from {LIB}"
 
@@ -112,7 +118,8 @@ def test_remove_appends_tombstone() -> None:
 def test_digest_stale_join_is_text_keyed() -> None:
     """F28: the digest's stale-join matches verify verdicts to live hits by
     normalized thought TEXT (identity), never path:line (line drift must not
-    re-attach a verdict to the wrong thought)."""
-    src = _think_source()
+    re-attach a verdict to the wrong thought). R2 S6: thinkDigest moved to the
+    shared lib, so the pin reads the lib source."""
+    src = (REPO_ROOT / LIB).read_text(encoding="utf-8")
     assert "latestVerifyByText.get(p.text)" in src
     assert "latestAddTsByText.get(p.text)" in src

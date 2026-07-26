@@ -1,6 +1,9 @@
 // OMT++ shared library — single source for cross-plugin constants, repo-root
 // resolution, state paths, JSONL state IO, and the e2e-receipt status check
 // (meta_harness_dsl R1; audit P1 duplication map, F2/F17 root fix).
+// R2 S6: the think-anywhere machinery shared by the think plugin's tools AND
+// the enforcer's session-bootstrap digest (grepThoughts / parseThoughtLine /
+// foldThoughtEvents / readThoughtsIndex / thinkDigest) lives here too.
 //
 // Loader contract (plan Appendix B2): this file lives OUTSIDE
 // .opencode/plugins/, so named non-function exports are legal here (plain Bun
@@ -138,8 +141,9 @@ export function appendJsonl(path: string, record: Record<string, unknown>): void
 
 // --- e2e receipt status check (the OMT-harness second-edit guard) -----------
 // Extracted from omt_enforcer.ts (R1); the enforcer calls omtHarnessE2eStatus
-// from its before-hook. The guard requires a fresh comprehensive e2e receipt
-// before a SECOND edit of any already-dirty harness file.
+// from its before-hook (R2: the receipt_guard module). The guard requires a
+// fresh comprehensive e2e receipt before a SECOND edit of any already-dirty
+// harness file.
 export const OMT_HARNESS_E2E_COMMAND = "uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q"
 export const OMT_HARNESS_E2E_RECEIPT = join(".meta", ".omt", "omt_harness_e2e_last_run.json")
 export const OMT_HARNESS_E2E_TEST = "tests/scripts/omt/test_omt_harness_e2e.py"
@@ -149,6 +153,7 @@ export function isOmtHarness(rel: string): boolean {
     rel === ".meta/software_development_process/omt_agent_guide.md" ||
     rel.startsWith(".opencode/plugins/omt_") ||
     rel.startsWith(".opencode/lib/omt_") ||
+    rel.startsWith(".opencode/lib/enforcer/") ||
     rel.startsWith("scripts/omt/") ||
     rel.startsWith(".meta/templates/") ||
     rel.startsWith(".meta/software_development_process/2.requirements/features/feature_006.opencode_process_enforcement/") ||
@@ -202,4 +207,145 @@ export function omtHarnessE2eStatus(rel: string, abs: string): { ok: boolean; me
       `editing it again:\n  ${OMT_HARNESS_E2E_COMMAND}\n` +
       `This test refreshes ${OMT_HARNESS_E2E_RECEIPT}.`,
   }
+}
+
+// --- think-anywhere shared machinery (meta_harness_dsl R2 S6) ---------------
+// Moved out of omt_think.ts so BOTH the think plugin's tools and the
+// enforcer's session-bootstrap digest share one implementation. grep (the
+// inline comments) stays the source of truth; the JSONL index is an
+// append-only sidecar of add / verify / remove-tombstone events (R6 S1 — the
+// reconcile/reindex rewrite class was DELETED: grep-is-truth made it
+// redundant AND destructive-prone on an untracked, backup-less index; audit
+// P8/F12).
+
+// Read the JSONL index (append-only event log: add / verify / remove records).
+// Skips corrupt lines, fail-open [].
+export function readThoughtsIndex(root?: string): any[] {
+  return readJsonl(thoughtsIndexPath(root))
+}
+
+// grep thought lines across a target (file or dir), honoring excludes. Returns
+// parsed {file,line,content} hits. Uses execFileSync (array argv — no shell,
+// H3 safe). -E: callers pass ERE patterns (THOUGHT_PATTERN-based, feature_022
+// A1). A1b: .venv/__pycache__ excluded (noise dirs that polluted the digest).
+export function grepThoughts(pattern: string, target: string): { file: string; line: number; content: string }[] {
+  const results: { file: string; line: number; content: string }[] = []
+  const absTarget = isAbsolute(target) ? target : join(repoRoot(), target)
+  if (!existsSync(absTarget)) return results
+  try {
+    const output = execFileSync("grep", [
+      "-rnHE",
+      "--exclude-dir=.git", "--exclude-dir=node_modules", "--exclude-dir=.omt",
+      "--exclude-dir=.venv", "--exclude-dir=__pycache__",
+      "--exclude=*.env*",
+      "--", pattern, absTarget,
+    ], { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] })
+    for (const line of output.trim().split("\n")) {
+      if (!line) continue
+      const match = line.match(/^(.+?):(\d+):(.*)$/)
+      if (match) {
+        const [, file, lineNum, content] = match
+        results.push({
+          file: relative(repoRoot(), file).split("\\").join("/"),
+          line: parseInt(lineNum, 10),
+          content: content.trim(),
+        })
+      }
+    }
+  } catch { /* grep returns non-zero when no matches — fine */ }
+  return results
+}
+
+// Parse a rendered thought line into {cat, text} for dedup comparison (A4).
+// Returns null for non-thought lines (anchored-pattern test first), so prose
+// mentions never collide with real thoughts.
+export function parseThoughtLine(line: string): { cat: string; text: string } | null {
+  if (!new RegExp(THOUGHT_PATTERN).test(line)) return null
+  let t = line.trim()
+  t = t.replace(/^(#|\/\/|\/\*|<!--|--)\s*/, "") // comment opener
+  t = t.replace(/^TA:\s*/, "") // marker
+  t = t.replace(/\s*(-->|\*\/)$/, "") // trailing html/block closer
+  t = t.replace(/\s+/g, " ").trim()
+  let cat = ""
+  const m = t.match(/^([a-z0-9_-]+):\s+(.*)$/)
+  if (m) { cat = m[1]; t = m[2] }
+  return { cat, text: t.trim() }
+}
+
+// Append-only event fold (meta_harness_dsl R6 S1): the index is NEVER rewritten
+// (grep is truth, audit P8/F12). Records are add (no kind) / verify /
+// remove-tombstone events; the fold is latest-wins. A slot (path:line) is
+// ALIVE when its newest add/remove event is an add — a tombstoned slot reads
+// as absent, and a re-added thought (newer add-record) starts unverified
+// (feature_022 C1 semantics, zero rewrites). Verify verdicts join by
+// normalized thought TEXT (identity), never path:line (audit F28: line drift
+// must not re-attach a verdict to the wrong thought; path:line is a display
+// key only).
+export function foldThoughtEvents(recs: any[]): {
+  aliveAdds: any[]
+  latestAddTsByText: Map<string, number>
+  latestVerifyByText: Map<string, { status: string; ts: number }>
+} {
+  const slotLatest = new Map<string, { kind: string; r: any }>()
+  const latestAddTsByText = new Map<string, number>()
+  const latestVerifyByText = new Map<string, { status: string; ts: number }>()
+  for (const r of recs) {
+    if (!r || typeof r.path !== "string") continue
+    const ts = Date.parse(r.ts || "") || 0
+    if (r.kind === "verify") {
+      if (typeof r.thought === "string" && r.thought) {
+        const cur = latestVerifyByText.get(r.thought)
+        if (!cur || ts >= cur.ts) latestVerifyByText.set(r.thought, { status: String(r.status || ""), ts })
+      }
+      continue
+    }
+    if (r.kind === "remove") {
+      slotLatest.set(`${r.path}:${r.line}`, { kind: "remove", r })
+      continue
+    }
+    // add-record (no kind field)
+    slotLatest.set(`${r.path}:${r.line}`, { kind: "add", r })
+    if (typeof r.thought === "string" && r.thought) {
+      if (ts >= (latestAddTsByText.get(r.thought) || 0)) latestAddTsByText.set(r.thought, ts)
+    }
+  }
+  const aliveAdds = [...slotLatest.values()].filter(e => e.kind === "add").map(e => e.r)
+  return { aliveAdds, latestAddTsByText, latestVerifyByText }
+}
+
+// --- per-session digest (R6 S7 compact form) --------------------------------
+// Compact by design (audit F32/C4: a conversation-resident injection is re-paid
+// EVERY model turn — full texts × ~30 turns ≈ 10k tok/session). Counts +
+// per-file counts + stale ⚠️ survive; full texts are re-injected point-of-use
+// by D1 on file read and are one omt_think_list call away.
+// R2 S6: emitted by the enforcer's session bootstrap (nav_gate), once per
+// session on the first tool result.
+export function thinkDigest(): string {
+  const hits = grepThoughts(THOUGHT_PATTERN, ".")
+  if (hits.length === 0) {
+    return "💡 TA: 0 thoughts indexed. Drop one with omt_think{path, thought} when you learn a gotcha."
+  }
+  const files = new Set(hits.map(h => h.file))
+  // Stale join (C1/F28): verdicts matched to live hits by normalized TEXT, and
+  // only when the verdict is newer than the thought's latest add (a re-added
+  // thought starts unverified). Index unreadable/corrupt → 0 stale (fail-open
+  // — the digest never breaks a session).
+  const { latestAddTsByText, latestVerifyByText } = foldThoughtEvents(readThoughtsIndex())
+  const stale: string[] = []
+  for (const h of hits) {
+    const p = parseThoughtLine(h.content)
+    if (!p) continue
+    const v = latestVerifyByText.get(p.text)
+    if (!v || v.status !== "stale") continue
+    if (v.ts >= (latestAddTsByText.get(p.text) || 0)) stale.push(`${h.file}:${h.line}`)
+  }
+  const perFile = new Map<string, number>()
+  for (const h of hits) perFile.set(h.file, (perFile.get(h.file) || 0) + 1)
+  const top = [...perFile.entries()].sort((a, b) => b[1] - a[1])
+  const shown = top.slice(0, 6).map(([f, n]) => `${f}(${n})`).join(" ")
+  let out = `💡 TA: ${hits.length} thought${hits.length === 1 ? "" : "s"} across ${files.size} file${files.size === 1 ? "" : "s"} — ${shown}` +
+    (top.length > 6 ? ` … (+${top.length - 6} files)` : "") +
+    (stale.length ? `\n⚠️ ${stale.length} stale: ${stale.slice(0, 5).join(", ")}${stale.length > 5 ? " …" : ""} — re-check with omt_think_verify{path, line}.` : "")
+  out += `\nFull texts: omt_think_list (auto-injected per thought-carrying file on read; think-gate applies).`
+  return out
 }
