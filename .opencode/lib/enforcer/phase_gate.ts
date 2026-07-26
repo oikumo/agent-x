@@ -4,11 +4,13 @@
 // additionally require a design artifact on disk per guide §12), the phase
 // lifecycle tools (omt_phase / omt_skip / omt_complete), and the §12
 // phase-exit artifact matrix they enforce.
+// R8 (OMT-HDL-1): tool descriptions resolve from the compiled IR
+// (irToolDescription) with the in-source text as fallback seed.
 
 import { tool } from "@opencode-ai/plugin"
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { resolveFeatureDir, globToRegex } from "../omt_shared"
+import { resolveFeatureDir, globToRegex, irToolDescription } from "../omt_shared"
 import {
   OmtBlock, writeLedger, readLedger, getActiveUnlock, getActiveFeaturePhase, type EnforcerEnv,
 } from "./session_state"
@@ -176,10 +178,10 @@ export function createPhaseTools(env: EnforcerEnv) {
   const { directory, $, safeLog } = env
 
   const omt_phase = tool({
-    description:
+    description: irToolDescription("omt_phase",
       "Declare your OMT++ phase before editing src/. Records task_type/phase/scope to the " +
       "process ledger and unlocks edits according to the guide §12 matrix. This is the real " +
-      "version of AGENTS.md's PROCESS CHECK. Call once per task before touching src/.",
+      "version of AGENTS.md's PROCESS CHECK. Call once per task before touching src/."),
     args: {
       task_type: tool.schema.string().describe(
         "one of: bug_fix, minor_feature, major_feature, new_screen, refactor, test, docs"),
@@ -244,10 +246,10 @@ export function createPhaseTools(env: EnforcerEnv) {
   })
 
   const omt_skip = tool({
-    description:
+    description: irToolDescription("omt_skip",
       "Logged escape hatch. Unlocks edits (or the feature_020 nav gate) without a full phase " +
       "declaration; the reason is recorded in the ledger for audit. Use sparingly (emergencies, " +
-      "approved canary tests). Scopes: src | tests | nav | all (default: all).",
+      "approved canary tests). Scopes: src | tests | nav | all (default: all)."),
     args: {
       reason: tool.schema.string().describe("why the process is being skipped"),
       scope: tool.schema.string().optional().describe("src | tests | nav | all (default: all)"),
@@ -271,9 +273,9 @@ export function createPhaseTools(env: EnforcerEnv) {
 
   // --- omt_complete: Verify phase completion and optionally advance ---
   const omt_complete = tool({
-    description:
+    description: irToolDescription("omt_complete",
       "Verify that all required artifacts for the current phase exist, then optionally advance to the next phase. " +
-      "Use this to formally complete a phase and unlock the next one with artifact validation.",
+      "Use this to formally complete a phase and unlock the next one with artifact validation."),
     args: {
       feature: tool.schema.string().describe("feature slug, e.g. feature_006.x"),
       advance_to: tool.schema.string().optional().describe("optional: phase to advance to after verification (Design | Programming | Testing | Done)"),

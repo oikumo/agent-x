@@ -3,8 +3,12 @@ node_modules/
 local_sessions/
 uv.lock
 
-# OMT++ process enforcer runtime state (feature_006) — not an artifact
-.meta/.omt/
+# OMT++ process enforcer runtime state (feature_006) — not an artifact.
+# R8: the two compiler-verified projections are tracked (verify-projections diffs
+# them against the .omt source); everything else under .meta/.omt/ stays ignored.
+.meta/.omt/*
+!.meta/.omt/harness.ir.json
+!.meta/.omt/nav.index.jsonl
 
 # Out-of-harness: this project is opencode-only. Claude Code config is not part
 # of the META HARNESS and should not be committed.

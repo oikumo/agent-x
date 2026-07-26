@@ -45,7 +45,9 @@ HARNESS_FILES = [
     ".opencode/lib/enforcer/mvc_after.ts",
     "opencode.jsonc",
     "AGENTS.md",
+    ".meta/META_HARNESS.omt",
     ".meta/software_development_process/omt_agent_guide.md",
+    "scripts/omt/harnessc.py",
     "scripts/omt/mvc_check.py",
     "scripts/omt/new_feature.py",
     "scripts/omt/tdd_check.py",
@@ -232,7 +234,11 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert '"omt_think_suggest": "allow"' in config
     assert '"omt_think_reindex": "allow"' not in config
     assert "Think Anywhere" in _read("AGENTS.md")
-    assert "SECTION:THINK" in _read(".meta/META_HARNESS.md")
+    # meta_harness_dsl R8 (OMT-HDL-1): META_HARNESS.md is RETIRED to a
+    # generated stub; the corpus single-source is .meta/META_HARNESS.omt.
+    mh = _read(".meta/META_HARNESS.md")
+    assert "GENERATED" in mh
+    assert ".meta/META_HARNESS.omt" in mh
     checks.append("feature_021 think-anywhere plugin + think-gate + docs wired")
 
     # 10. meta_harness_dsl R1: all four plugins import the shared lib (single

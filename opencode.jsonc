@@ -29,8 +29,10 @@
     "edit": "allow",
     "read": {
       "*": "allow",
-      "*.env": "deny",
-      "*.env.*": "deny"
+      // harnessc:begin read
+        "*.env": "deny",
+        "*.env.*": "deny"
+      // harnessc:end read
     },
     "bash": {
       "*": "ask",
@@ -42,42 +44,41 @@
       "git diff *": "allow",
       "git show *": "allow",
       "grep *": "allow",
-
-      // AGENTS.md MANDATORY: Python must run through uv (never bare python/pip/pytest).
-      "python *": "deny",
-      "python3 *": "deny",
-      "pip *": "deny",
-      "pip3 *": "deny",
-      "pytest *": "deny",
-
-      // AGENTS.md Core Directive #1: never commit/push.
-      "git commit *": "deny",
-      "git push *": "deny"
+      // harnessc:begin bash
+        "git commit *": "deny",
+        "git push *": "deny",
+        "python *": "deny",
+        "python3 *": "deny",
+        "pip *": "deny",
+        "pip3 *": "deny",
+        "pytest *": "deny"
+      // harnessc:end bash
     },
-    "webfetch": "deny",
     "grep": "allow",
     "glob": "allow",
     "list": "allow",
     "lsp": "allow",
     "skill": "allow",
-    // omt_* tool permissions — ALL explicit (F35: no implicit-default drift class).
-    "omt_nav": "allow",
-    "omt_list_sections": "allow",
-    "omt_cross_ref": "allow",
-    "omt_quick_ref": "allow",
-    "omt_think": "allow",
-    "omt_think_list": "allow",
-    "omt_think_remove": "allow",
-    "omt_think_verify": "allow",
-    "omt_think_suggest": "allow",
-    "omt_phase": "allow",
-    "omt_complete": "allow",
-    "omt_skip": "allow",
-    "omt_status": "allow",
-    "omt_testlist": "allow",
-    "omt_red": "allow",
-    "omt_green": "allow",
-    "omt_refactor": "allow",
-    "omt_done": "allow"
+    // harnessc:begin perm
+      "webfetch": "deny",
+      "omt_phase": "allow",
+      "omt_skip": "allow",
+      "omt_complete": "allow",
+      "omt_status": "allow",
+      "omt_testlist": "allow",
+      "omt_red": "allow",
+      "omt_green": "allow",
+      "omt_refactor": "allow",
+      "omt_done": "allow",
+      "omt_nav": "allow",
+      "omt_list_sections": "allow",
+      "omt_cross_ref": "allow",
+      "omt_quick_ref": "allow",
+      "omt_think": "allow",
+      "omt_think_list": "allow",
+      "omt_think_remove": "allow",
+      "omt_think_verify": "allow",
+      "omt_think_suggest": "allow"
+    // harnessc:end perm
   }
 }

@@ -126,12 +126,12 @@
 @msg nav_required sev=block see=@doc.nav.enforcement : before grep/glob on META HARNESS docs use omt_nav / omt_list_sections / omt_cross_ref / omt_quick_ref first; read and src/non-doc searches exempt; override omt_skip{scope:"nav"}
 @msg think_gate sev=block see=@doc.think.gate : '{rel}' carries TA: thoughts — review then clear with omt_think_list{path:"{rel}"} (the block already shows the thoughts; the call records the consult)
 @msg receipt_stale sev=block : '{rel}' is part of the META HARNESS surface and already has unverified changes — run the harness e2e before editing again: uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q
-@msg mvc_new_hard sev=block see=@doc.err.v2m : your edit introduced a hard MVC++ violation in {rel} (guide §16) — fix it forward now
+@msg mvc_new_hard sev=block see=@msg.err_v2m : your edit introduced a hard MVC++ violation in {rel} (guide §16) — fix it forward now
 @msg tdd_revert sev=block : REFACTOR broke tests — edit reverted
 @msg mvc_warn sev=warn : MVC++ advisory warnings on {rel} — run uv run scripts/omt/mvc_check.py {rel}
 @msg err_v2m sev=block : View imports Model (ui/ ← model.*) — BLOCK
 @msg err_m2v sev=block : Model imports View/UI (model/ ← ui.*) — BLOCK
-@msg err_prt_abc sev=block : Abstract Partner not ABC+@abstractmethod — BLOCK
+@msg err_prt_abc sev=block : Abstract Partner not ABC+abstractmethod — BLOCK
 @msg wrn_sql_dp sev=warn : SQL outside DP classes (non-*_db.py has SQL) — TOAST
 @msg wrn_god_ctl sev=warn : Controller >300 lines — TOAST
 @msg wrn_ctl_ui sev=warn : print()/console in Controller — TOAST

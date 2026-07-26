@@ -195,8 +195,46 @@ export const OMT_HARNESS_E2E_COMMAND = "uv run pytest tests/scripts/omt/test_omt
 export const OMT_HARNESS_E2E_RECEIPT = join(".meta", ".omt", "omt_harness_e2e_last_run.json")
 export const OMT_HARNESS_E2E_TEST = "tests/scripts/omt/test_omt_harness_e2e.py"
 
+// --- compiler projections (meta_harness_dsl R8 / OMT-HDL-1) -----------------
+// harnessc.py compiles .meta/META_HARNESS.omt into two runtime-consumed
+// projections: harness.ir.json (tool descriptions, vars) and nav.index.jsonl
+// (navigation records). FRESH READ per call — no module-level caching (IR
+// ~17 KB / index ~52 KB are trivial; a cache risks stale reads and captures
+// the pre-init cwd — the F2/F17 poisoning class).
+export function irPath(root?: string): string {
+  return join(root ?? REPO_ROOT, ".meta", ".omt", "harness.ir.json")
+}
+
+export function navIndexPath(root?: string): string {
+  return join(root ?? REPO_ROOT, ".meta", ".omt", "nav.index.jsonl")
+}
+
+export function loadIr(root?: string): any | null {
+  try {
+    const p = irPath(root)
+    if (!existsSync(p)) return null
+    return JSON.parse(readFileSync(p, "utf8"))
+  } catch { return null }
+}
+
+// Tool description from the IR, with the in-source text as fallback when the
+// projection is missing/corrupt or has no entry for the id — the static text
+// stays the seed harnessc.py scraped into the .omt single source.
+export function irToolDescription(id: string, fallback: string): string {
+  const desc = loadIr()?.tools?.[id]?.description
+  return typeof desc === "string" && desc ? desc : fallback
+}
+
+// Nav index records; null when missing/empty so callers take the legacy grep
+// path unchanged.
+export function loadNavIndex(root?: string): any[] | null {
+  const recs = readJsonl(navIndexPath(root))
+  return recs.length ? recs : null
+}
+
 export function isOmtHarness(rel: string): boolean {
   return rel === "AGENTS.md" || rel === "opencode.jsonc" ||
+    rel === ".meta/META_HARNESS.omt" ||
     rel === ".meta/software_development_process/omt_agent_guide.md" ||
     rel.startsWith(".opencode/plugins/omt_") ||
     rel.startsWith(".opencode/lib/omt_") ||

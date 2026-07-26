@@ -35,8 +35,28 @@ _LEDGER_ENV = os.environ.get("OMT_LEDGER_PATH")
 LEDGER_PATH = Path(_LEDGER_ENV) if _LEDGER_ENV else REPO_ROOT / ".meta" / ".omt" / "ledger.jsonl"
 _SNAPSHOT_ENV = os.environ.get("OMT_SNAPSHOT_DIR")
 SNAPSHOT_DIR = Path(_SNAPSHOT_ENV) if _SNAPSHOT_ENV else REPO_ROOT / ".meta" / ".omt" / "tdd_snapshots"
-UNLOCK_WINDOW_MS = 8 * 60 * 60 * 1000  # 8 hours (keep in sync with .opencode/lib/omt_shared.ts — single TS source since meta_harness_dsl R1; pinned by tests/scripts/omt/test_thought_pattern_pin.py)
-LEDGER_CAP_BYTES = 64 * 1024  # 64 KB hot-file cap (meta_harness_dsl R4 — keep in sync with .opencode/lib/omt_shared.ts; pinned by tests/scripts/omt/test_thought_pattern_pin.py)
+UNLOCK_WINDOW_MS = 8 * 60 * 60 * 1000  # 8 hours literal fallback (keep in sync with .opencode/lib/omt_shared.ts — single TS source since meta_harness_dsl R1; pinned by tests/scripts/omt/test_thought_pattern_pin.py)
+LEDGER_CAP_BYTES = 64 * 1024  # 64 KB hot-file cap literal fallback (meta_harness_dsl R4 — keep in sync with .opencode/lib/omt_shared.ts; pinned by tests/scripts/omt/test_thought_pattern_pin.py)
+
+
+def _ir_var_int(name: str) -> int | None:
+    """meta_harness_dsl R8: the .omt is the single source — when the compiled IR
+    is present, its @var values override the literal fallbacks above (the
+    literals + the TS consts stay as the no-IR fallback; the thought-pattern
+    pin regexes `NAME\\s*=\\s*([0-9 *]+)` must keep matching them). Best-effort:
+    missing/corrupt IR (pre-build checkout) → None → literal wins."""
+    try:
+        ir = json.loads(
+            (REPO_ROOT / ".meta" / ".omt" / "harness.ir.json").read_text(encoding="utf-8")
+        )
+        value = ir.get("vars", {}).get(name)
+        return int(value) if value is not None else None
+    except (OSError, ValueError):
+        return None
+
+
+UNLOCK_WINDOW_MS = _ir_var_int("unlock_window_ms") or UNLOCK_WINDOW_MS
+LEDGER_CAP_BYTES = _ir_var_int("ledger_cap_bytes") or LEDGER_CAP_BYTES
 
 
 # ---------------------------------------------------------------------------

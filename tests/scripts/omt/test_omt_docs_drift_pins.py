@@ -12,20 +12,26 @@ is pinned mechanically here so it cannot recur:
     rewriting them falsifies history); .sandbox/ holds planning docs/audit records.
 2. opencode.jsonc's `plugin` array carries NO local omt_* plugin names (F14:
    the array is npm-only; local plugins auto-load from .opencode/plugins/).
-3. Startup contract single-source (R7 T1/F30): AGENTS.md and
-   .agents_prompts/build.md carry the SAME WORK.md-only startup sentence.
-4. Tool-set sync: AGENTS.md tools table == META_HARNESS.md CMD_ entries ==
-   opencode.jsonc omt_* permission keys == plugin-registered tools (F35).
-5. Every COMP_* path in META_HARNESS.md exists on disk.
-6. R7 T5 token budget pins (F32: conversation-resident injections re-pay EVERY
+3. Startup contract (R7 T1/F30): .agents_prompts/build.md carries the
+   WORK.md-only startup sentence (R8: the AGENTS.md leg is now pinned by
+   `harnessc check --verify-projections` — the .omt single-sources it).
+4. Tool-set sync (R8 form): plugin-registered tools == IR `tools` keys (F35).
+   The AGENTS.md table, opencode.jsonc perm keys and CMD_ entries are
+   compiler-projected from the same IR — verify-projections owns those legs.
+5. R7 T5 token budget pins (F32: conversation-resident injections re-pay EVERY
    model turn): AGENTS.md ≤ 5 KiB; WORK.md ≤ 14 KiB with scratchpad ≤ 6 KiB;
    nav tip ≤ 0.5 KiB; TA digest hard-capped at DIGEST_CAP_BYTES ≤ 1 KiB.
+
+R8 DELETED pins (now compiler-owned): the old #5 COMP_*-paths-exist pin —
+harnessc `check_comp_paths` owns it against the .omt, and META_HARNESS.md is a
+generated stub.
 
 Budget failures say "grow the budget deliberately in the same commit" — the pin
 forces a conscious edit, not a hard ceiling (plan §5).
 """
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -33,10 +39,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 AGENTS = REPO_ROOT / "AGENTS.md"
-META_HARNESS = REPO_ROOT / ".meta" / "META_HARNESS.md"
 BUILD_PROMPT = REPO_ROOT / ".agents_prompts" / "build.md"
 CONFIG = REPO_ROOT / "opencode.jsonc"
 WORK = REPO_ROOT / "WORK.md"
+IR = REPO_ROOT / ".meta" / ".omt" / "harness.ir.json"
 SHARED_LIB = REPO_ROOT / ".opencode" / "lib" / "omt_shared.ts"
 NAV_GATE = REPO_ROOT / ".opencode" / "lib" / "enforcer" / "nav_gate.ts"
 
@@ -108,7 +114,7 @@ def test_plugin_array_has_no_local_plugins() -> None:
         f"auto-load from .opencode/plugins/ — remove: {local}")
 
 
-# --- 3. startup contract single-source (R7 T1/F30) --------------------------
+# --- 3. startup contract (R7 T1/F30; R8: build.md leg only) -----------------
 
 STARTUP_SENTENCE = (
     "Read `WORK.md` (only) at session start; summarize current state in ≤ 15 "
@@ -117,17 +123,16 @@ STARTUP_SENTENCE = (
 )
 
 
-def test_startup_contract_single_sourced() -> None:
-    for path in (AGENTS, BUILD_PROMPT):
-        text = path.read_text(encoding="utf-8")
-        assert STARTUP_SENTENCE in text, (
-            f"{path.relative_to(REPO_ROOT)} lost the WORK.md-only startup "
-            "sentence (R7 T1: AGENTS.md and .agents_prompts/build.md must "
-            "carry the SAME startup contract — drift here re-inflates every "
-            "session by ~10-11k tok, F30)")
+def test_build_prompt_carries_startup_contract() -> None:
+    text = BUILD_PROMPT.read_text(encoding="utf-8")
+    assert STARTUP_SENTENCE in text, (
+        ".agents_prompts/build.md lost the WORK.md-only startup sentence "
+        "(R7 T1/F30 — drift here re-inflates every session by ~10-11k tok. "
+        "R8: the AGENTS.md leg is pinned by `harnessc check "
+        "--verify-projections`; the .omt single-sources it)")
 
 
-# --- 4. tool-set sync (AGENTS.md ↔ META_HARNESS CMD_ ↔ config ↔ plugins) ----
+# --- 4. tool-set sync (R8: plugin-registered ↔ IR `tools` keys) --------------
 
 
 def _registered_omt_tools() -> set[str]:
@@ -146,48 +151,16 @@ def _registered_omt_tools() -> set[str]:
     return tools
 
 
-def _md_section(text: str, heading: str) -> str:
-    """One markdown section: from `## <heading>` to the next `## ` heading."""
-    m = re.search(rf"^## {re.escape(heading)}\n(.*?)(?=^## |\Z)", text,
-                  re.DOTALL | re.MULTILINE)
-    return m.group(1) if m else ""
-
-
 def test_omt_tool_set_is_in_sync_everywhere() -> None:
     registered = _registered_omt_tools()
     assert registered, "no omt_* tools found in the plugin sources?"
-    # AGENTS.md: only the Tools table section counts (the ENF line names the
-    # omt_enforcer.ts PLUGIN — a file, not a tool).
-    agents_tools = set(re.findall(
-        r"\bomt_\w+\b", _md_section(AGENTS.read_text(encoding="utf-8"), "Tools")))
-    meta = META_HARNESS.read_text(encoding="utf-8")
-    cmd_tools = set(re.findall(r"\bomt_\w+\b", "\n".join(
-        line for line in meta.splitlines() if line.startswith("CMD_"))))
-    config_tools = set(re.findall(r'"(omt_\w+)"\s*:', CONFIG.read_text(encoding="utf-8")))
-    for label, found in (("AGENTS.md", agents_tools), ("META_HARNESS CMD_", cmd_tools),
-                         ("opencode.jsonc", config_tools)):
-        assert registered == found, (
-            f"omt_* tool-set drift vs {label}: "
-            f"only in plugins={sorted(registered - found)} "
-            f"only in {label}={sorted(found - registered)} "
-            "(R5/F35: one set, four places, kept equal)")
-
-
-# --- 5. COMP_* paths exist on disk ------------------------------------------
-
-
-def test_comp_paths_exist_on_disk() -> None:
-    missing: list[str] = []
-    for line in META_HARNESS.read_text(encoding="utf-8").splitlines():
-        m = re.match(r"COMP_\w+:\s+(.+?)(?:\s+—|\s*$)", line)
-        if not m:
-            continue
-        for token in m.group(1).split(","):
-            p = token.strip()
-            if p and not (REPO_ROOT / p).exists():
-                missing.append(f"{line.split(':', 1)[0]}: {p}")
-    assert not missing, (
-        "META_HARNESS.md COMP_* paths missing on disk: " + "; ".join(missing))
+    ir_tools = set(json.loads(IR.read_text(encoding="utf-8"))["tools"])
+    assert registered == ir_tools, (
+        "omt_* tool-set drift: only in plugins="
+        f"{sorted(registered - ir_tools)} only in IR={sorted(ir_tools - registered)} "
+        "(R8/F35: the IR is the single source — AGENTS.md table, opencode.jsonc "
+        "perm keys and CMD_ entries are compiler projections owned by "
+        "`harnessc check --verify-projections`)")
 
 
 # --- 6. R7 T5 token budget pins (F32) ---------------------------------------

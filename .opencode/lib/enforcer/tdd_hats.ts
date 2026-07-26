@@ -4,10 +4,13 @@
 // Python): the five omt_* TDD tools, the before-hook two-hats gate (tests/
 // and src/ branches), and the after-hook after-edit check (advisories +
 // REFACTOR revert when a refactor edit breaks tests).
+// R8 (OMT-HDL-1): tool descriptions resolve from the compiled IR
+// (irToolDescription) with the in-source text as fallback seed.
 
 import { tool } from "@opencode-ai/plugin"
 import { writeFileSync } from "node:fs"
 import { OmtBlock, getActiveUnlock, type EnforcerEnv } from "./session_state"
+import { irToolDescription } from "../omt_shared"
 
 // --- TDD tools (thin wrappers delegating to tdd_check.py) -------------------
 const tddTool = (env: EnforcerEnv, subcmd: string, desc: string, argNames: string[]) => tool({
@@ -37,19 +40,24 @@ const tddTool = (env: EnforcerEnv, subcmd: string, desc: string, argNames: strin
 
 export function createTddTools(env: EnforcerEnv) {
   const omt_testlist = tddTool(env, "testlist",
-    "Record the TDD test list (behaviors to implement). Sets TDD state to TESTLIST.",
+    irToolDescription("omt_testlist",
+      "Record the TDD test list (behaviors to implement). Sets TDD state to TESTLIST."),
     ["behaviors", "feature"])
   const omt_red = tddTool(env, "start",
-    "Declare a failing test (TDD Red). Runs pytest to verify the test fails, then AST analysis for true-RED verification. Sets TDD state to RED (test hat: only tests/ edits allowed).",
+    irToolDescription("omt_red",
+      "Declare a failing test (TDD Red). Runs pytest to verify the test fails, then AST analysis for true-RED verification. Sets TDD state to RED (test hat: only tests/ edits allowed)."),
     ["test_node", "target_src", "feature"])
   const omt_green = tddTool(env, "green",
-    "Declare a passing test (TDD Green). Runs pytest to verify the test passes. Sets TDD state to GREEN (code hat: only src/ edits allowed).",
+    irToolDescription("omt_green",
+      "Declare a passing test (TDD Green). Runs pytest to verify the test passes. Sets TDD state to GREEN (code hat: only src/ edits allowed)."),
     ["test_node", "feature"])
   const omt_refactor = tddTool(env, "refactor",
-    "Declare refactor state (TDD Refactor). Runs pytest to verify tests are green. Sets TDD state to REFACTOR (refactor hat: only src/ edits allowed, tests must stay green per micro-edit).",
+    irToolDescription("omt_refactor",
+      "Declare refactor state (TDD Refactor). Runs pytest to verify tests are green. Sets TDD state to REFACTOR (refactor hat: only src/ edits allowed, tests must stay green per micro-edit)."),
     ["test_node", "feature"])
   const omt_done = tddTool(env, "done",
-    "Declare TDD completion. Runs full suite + checklist verification. Sets TDD state to DONE.",
+    irToolDescription("omt_done",
+      "Declare TDD completion. Runs full suite + checklist verification. Sets TDD state to DONE."),
     ["feature"])
   return { omt_testlist, omt_red, omt_green, omt_refactor, omt_done }
 }

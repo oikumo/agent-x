@@ -1,0 +1,549 @@
+{
+  "budgets": {
+    "agents_md": 5120,
+    "digest_cap": 1024,
+    "nav_tip": 512,
+    "tool_schemas": 2560,
+    "work_md": 14336,
+    "work_scratchpad": 6144
+  },
+  "deny": [
+    {
+      "id": "bash.git_commit",
+      "match": "git commit *",
+      "msg": "deny_git",
+      "scope": "bash"
+    },
+    {
+      "id": "bash.git_push",
+      "match": "git push *",
+      "msg": "deny_git",
+      "scope": "bash"
+    },
+    {
+      "id": "bash.python",
+      "match": "python *",
+      "msg": "deny_uv",
+      "scope": "bash"
+    },
+    {
+      "id": "bash.python3",
+      "match": "python3 *",
+      "msg": "deny_uv",
+      "scope": "bash"
+    },
+    {
+      "id": "bash.pip",
+      "match": "pip *",
+      "msg": "deny_uv",
+      "scope": "bash"
+    },
+    {
+      "id": "bash.pip3",
+      "match": "pip3 *",
+      "msg": "deny_uv",
+      "scope": "bash"
+    },
+    {
+      "id": "bash.pytest",
+      "match": "pytest *",
+      "msg": "deny_uv",
+      "scope": "bash"
+    },
+    {
+      "id": "read.env",
+      "match": "*.env",
+      "msg": "deny_env",
+      "scope": "read"
+    },
+    {
+      "id": "read.env_star",
+      "match": "*.env.*",
+      "msg": "deny_env",
+      "scope": "read"
+    },
+    {
+      "id": "net.webfetch",
+      "match": "webfetch",
+      "msg": "deny_webfetch",
+      "scope": "toplevel"
+    }
+  ],
+  "fsm": {
+    "phase": {
+      "initial": "Analysis",
+      "states": "Analysis,Design,Programming,Testing,Done",
+      "transitions": "Analysis>Design,Testing;Design>Programming,Analysis;Programming>Testing,Design,Analysis;Testing>Analysis,Design,Programming,Done"
+    },
+    "tdd": {
+      "auto_on": "major_feature@Programming,new_screen@Programming",
+      "initial": "TESTLIST",
+      "states": "TESTLIST,RED,GREEN,REFACTOR,DONE"
+    }
+  },
+  "gates": [
+    {
+      "hard": true,
+      "id": "g.nav",
+      "msg": "nav_required",
+      "on": "before",
+      "order": 0,
+      "paths": ".meta/,AGENTS.md,WORK.md",
+      "requires": "session_flag(nav_used)",
+      "skip_ok": true,
+      "text": "nav tools before doc searches (feature_020); read + src/non-doc exempt",
+      "tools": "grep|glob|rg|find",
+      "when": "path_in(@var.doc_paths)"
+    },
+    {
+      "hard": true,
+      "id": "g.protect",
+      "msg": "protect_file",
+      "on": "before",
+      "order": 10,
+      "paths": "",
+      "requires": "",
+      "skip_ok": true,
+      "text": "NEVER paths; .env* hard (no skip), README/uv.lock/LICENSE via scope=all",
+      "tools": "edit|write|patch|multiedit",
+      "when": "path_in(@protect.*)"
+    },
+    {
+      "hard": true,
+      "id": "g.receipt",
+      "msg": "receipt_stale",
+      "on": "before",
+      "order": 20,
+      "paths": "",
+      "requires": "receipt_fresh()",
+      "skip_ok": false,
+      "text": "second-edit guard on the harness surface (git-dirty + mtime vs receipt)",
+      "tools": "edit|write|patch|multiedit",
+      "when": "path_in(@var.harness_paths)"
+    },
+    {
+      "hard": true,
+      "id": "g.tests",
+      "msg": "tests_canary",
+      "on": "before",
+      "order": 30,
+      "paths": "",
+      "requires": "ledger_has(skip,tests_approved=true,@var.unlock_window_ms)",
+      "skip_ok": true,
+      "text": "canary approval; TDD hat decides when tdd_mode active",
+      "tools": "edit|write|patch|multiedit",
+      "when": "path_in(tests/)"
+    },
+    {
+      "hard": true,
+      "id": "g.phase",
+      "msg": "no_phase",
+      "on": "before",
+      "order": 40,
+      "paths": "",
+      "requires": "ledger_has(phase|skip)",
+      "skip_ok": true,
+      "text": "declared phase; design artifact also required for major_feature/new_screen",
+      "tools": "edit|write|patch|multiedit",
+      "when": "path_in(src/)"
+    },
+    {
+      "hard": true,
+      "id": "g.think",
+      "msg": "think_gate",
+      "on": "before",
+      "order": 50,
+      "paths": "",
+      "requires": "ledger_has(think_consult)",
+      "skip_ok": false,
+      "text": "consult via omt_think_list{path} \u2014 NOT skip-bypassable; risk: thoughts drop the cross-session window",
+      "tools": "edit|write|patch|multiedit",
+      "when": "file_has(TA:)"
+    },
+    {
+      "hard": false,
+      "id": "g.tdd_after",
+      "msg": "tdd_revert",
+      "on": "after",
+      "order": 60,
+      "paths": "",
+      "requires": "fsm_allows(@fsm.tdd,path)",
+      "skip_ok": false,
+      "text": "REFACTOR auto-revert when tests break + advisories",
+      "tools": "edit|write|patch|multiedit",
+      "when": "path_in(src/)"
+    },
+    {
+      "hard": true,
+      "id": "g.mvc",
+      "msg": "mvc_new_hard",
+      "on": "after",
+      "order": 70,
+      "paths": "",
+      "requires": "",
+      "run": "uv run scripts/omt/mvc_check.py",
+      "skip_ok": false,
+      "text": "block NEWLY introduced hard MVC++ violations (delta vs pre-edit snapshot; correct-forward)",
+      "tools": "edit|write|patch|multiedit",
+      "when": "path_in(src/**/*.py)"
+    }
+  ],
+  "generated_from": ".meta/META_HARNESS.omt",
+  "hats": {
+    "tdd.done": {
+      "allow": "",
+      "revert_on": ""
+    },
+    "tdd.green": {
+      "allow": "src/",
+      "revert_on": ""
+    },
+    "tdd.red": {
+      "allow": "tests/",
+      "revert_on": ""
+    },
+    "tdd.refactor": {
+      "allow": "src/",
+      "revert_on": "tests_break"
+    },
+    "tdd.testlist": {
+      "allow": "",
+      "revert_on": ""
+    }
+  },
+  "injects": [
+    {
+      "budget": 1536,
+      "id": "session_bootstrap",
+      "on": "first_tool_result",
+      "text": "ONE emission per session (nav tip \u2264512B deferred when nav-first R7 T3; compact TA digest \u22641024B DIGEST_CAP_BYTES \u2014 counts + per-file counts + stale \u26a0\ufe0f + pointer, full texts via omt_think_list / D1)"
+    },
+    {
+      "budget": 1024,
+      "id": "file_thoughts",
+      "on": "file_read",
+      "text": "first read of a TA:-carrying file per session appends the file's thoughts (feature_022 D1 point-of-use; awareness \u2260 consult \u2014 no think_consult record)"
+    }
+  ],
+  "msgs": {
+    "artifact": {
+      "see": "@doc.rule.r2",
+      "sev": "block",
+      "text": "task_type '{tt}' may not edit src/ until a design artifact exists (guide \u00a712); auto-detected under 4.design/features/ from the feature slug, or design_doc=; scaffold: uv run scripts/omt/new_feature.py \"<name>\" --type {tt}"
+    },
+    "deny_env": {
+      "see": "",
+      "sev": "block",
+      "text": ".env files are denied (secrets)"
+    },
+    "deny_git": {
+      "see": "@doc.rule.r1",
+      "sev": "block",
+      "text": "git commit/push is NEVER without an explicit user request (Core Directive #1)"
+    },
+    "deny_uv": {
+      "see": "",
+      "sev": "block",
+      "text": "Python must run through uv \u2014 never bare python/pip/pytest"
+    },
+    "deny_webfetch": {
+      "see": "",
+      "sev": "block",
+      "text": "webfetch is denied in this repo"
+    },
+    "err_m2v": {
+      "see": "",
+      "sev": "block",
+      "text": "Model imports View/UI (model/ \u2190 ui.*) \u2014 BLOCK"
+    },
+    "err_prt_abc": {
+      "see": "",
+      "sev": "block",
+      "text": "Abstract Partner not ABC+abstractmethod \u2014 BLOCK"
+    },
+    "err_v2m": {
+      "see": "",
+      "sev": "block",
+      "text": "View imports Model (ui/ \u2190 model.*) \u2014 BLOCK"
+    },
+    "mvc_new_hard": {
+      "see": "@msg.err_v2m",
+      "sev": "block",
+      "text": "your edit introduced a hard MVC++ violation in {rel} (guide \u00a716) \u2014 fix it forward now"
+    },
+    "mvc_warn": {
+      "see": "",
+      "sev": "warn",
+      "text": "MVC++ advisory warnings on {rel} \u2014 run uv run scripts/omt/mvc_check.py {rel}"
+    },
+    "nav_required": {
+      "see": "@doc.nav.enforcement",
+      "sev": "block",
+      "text": "before grep/glob on META HARNESS docs use omt_nav / omt_list_sections / omt_cross_ref / omt_quick_ref first; read and src/non-doc searches exempt; override omt_skip{scope:\"nav\"}"
+    },
+    "no_phase": {
+      "see": "@doc.rule.r1",
+      "sev": "block",
+      "text": "declare your OMT++ phase before editing src/ ('{rel}'): omt_phase{task_type, scope}. Trivial fix? task_type:\"bug_fix\" is enough. Override: omt_skip{reason:\"...\"}"
+    },
+    "protect_env": {
+      "see": "",
+      "sev": "block",
+      "text": "'{rel}' is protected (.env / secrets) \u2014 NEVER editable, no override (Core Directives #2)"
+    },
+    "protect_file": {
+      "see": "",
+      "sev": "block",
+      "text": "'{rel}' is protected (README.md / uv.lock / LICENSE). Edit refused; if truly intended ask the user, then omt_skip{scope:\"all\"}"
+    },
+    "receipt_stale": {
+      "see": "",
+      "sev": "block",
+      "text": "'{rel}' is part of the META HARNESS surface and already has unverified changes \u2014 run the harness e2e before editing again: uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q"
+    },
+    "tdd_revert": {
+      "see": "",
+      "sev": "block",
+      "text": "REFACTOR broke tests \u2014 edit reverted"
+    },
+    "tests_canary": {
+      "see": "",
+      "sev": "block",
+      "text": "editing '{rel}' requires explicit canary-test approval (Stop Point #4). Unlock: omt_skip{reason:\"approved canary test\", scope:\"tests\"}"
+    },
+    "think_gate": {
+      "see": "@doc.think.gate",
+      "sev": "block",
+      "text": "'{rel}' carries TA: thoughts \u2014 review then clear with omt_think_list{path:\"{rel}\"} (the block already shows the thoughts; the call records the consult)"
+    },
+    "wrn_ctl_ui": {
+      "see": "",
+      "sev": "warn",
+      "text": "print()/console in Controller \u2014 TOAST"
+    },
+    "wrn_god_ctl": {
+      "see": "",
+      "sev": "warn",
+      "text": "Controller >300 lines \u2014 TOAST"
+    },
+    "wrn_sql_dp": {
+      "see": "",
+      "sev": "warn",
+      "text": "SQL outside DP classes (non-*_db.py has SQL) \u2014 TOAST"
+    }
+  },
+  "phases": [
+    {
+      "applies": "bug_fix,minor_feature,refactor,test",
+      "id": "decl_only",
+      "requires": "decl"
+    },
+    {
+      "applies": "major_feature,new_screen",
+      "id": "design_req",
+      "requires": "decl,design"
+    },
+    {
+      "applies": "docs",
+      "id": "docs_none",
+      "requires": "none"
+    }
+  ],
+  "preds": [
+    "path_in",
+    "cmd_match",
+    "ledger_has",
+    "session_flag",
+    "file_has",
+    "receipt_fresh",
+    "fsm_allows",
+    "risk_high"
+  ],
+  "protect": [
+    {
+      "hard": true,
+      "id": "core.env",
+      "msg": "protect_env",
+      "path": ".env"
+    },
+    {
+      "hard": true,
+      "id": "core.env_dot",
+      "msg": "protect_env",
+      "path": ".env.*"
+    },
+    {
+      "hard": false,
+      "id": "core.readme",
+      "msg": "protect_file",
+      "path": "README.md"
+    },
+    {
+      "hard": false,
+      "id": "core.uvlock",
+      "msg": "protect_file",
+      "path": "uv.lock"
+    },
+    {
+      "hard": false,
+      "id": "core.license",
+      "msg": "protect_file",
+      "path": "LICENSE"
+    }
+  ],
+  "state": {
+    "ledger": {
+      "cap": 65536,
+      "mode": "rotate",
+      "path": ".meta/.omt/ledger.jsonl",
+      "truth": "ledger.jsonl hot + latest ledger-YYYYMM.jsonl archive",
+      "window": 28800000
+    },
+    "receipt": {
+      "mode": "rewrite",
+      "path": ".meta/.omt/omt_harness_e2e_last_run.json",
+      "truth": "json passed_at + mtime"
+    },
+    "thoughts": {
+      "mode": "append",
+      "path": ".meta/.omt/thoughts.jsonl",
+      "truth": "grep TA:"
+    }
+  },
+  "tools": {
+    "omt_complete": {
+      "args": "feature,advance_to?",
+      "description": "Verify the current phase's artifacts, then optionally advance (Design | Programming | Testing | Done).",
+      "perm": "allow",
+      "tags": "CMD_OMT_COMPLETE"
+    },
+    "omt_cross_ref": {
+      "args": "xref",
+      "description": "Resolve an XREF_ cross-reference to related doc sections.",
+      "perm": "allow",
+      "tags": "CMD_CROSS_REF"
+    },
+    "omt_done": {
+      "args": "feature",
+      "description": "Declare TDD completion; runs full suite + checklist; state DONE.",
+      "perm": "allow",
+      "tags": "CMD_TDD_DONE"
+    },
+    "omt_green": {
+      "args": "test_node,feature",
+      "description": "Declare a passing test (verified); state GREEN \u2014 src/ edits only.",
+      "perm": "allow",
+      "tags": "CMD_TDD_GREEN"
+    },
+    "omt_list_sections": {
+      "args": "file?",
+      "description": "List all SECTION: headers across the META HARNESS corpus.",
+      "perm": "allow",
+      "tags": "CMD_LIST_SECTIONS"
+    },
+    "omt_nav": {
+      "args": "query,file?,tag_type?,include_context?",
+      "description": "Navigate META HARNESS docs by structured tag (SECTION:/CMD_/ERR_/XREF_) or keyword.",
+      "perm": "allow",
+      "tags": "CMD_NAV"
+    },
+    "omt_phase": {
+      "args": "task_type,scope,phase?,feature?,design_doc?,tdd?",
+      "description": "Declare your OMT++ phase before editing src/ (task_type/phase/scope \u2192 ledger; unlocks per the \u00a712 matrix).",
+      "perm": "allow",
+      "tags": "CMD_OMT_PHASE"
+    },
+    "omt_quick_ref": {
+      "args": "workflow?",
+      "description": "Get QUICK_ workflow patterns for common agent tasks.",
+      "perm": "allow",
+      "tags": "CMD_QUICK_REF"
+    },
+    "omt_red": {
+      "args": "test_node,target_src,feature",
+      "description": "Declare a failing test (verified true RED); state RED \u2014 tests/ edits only.",
+      "perm": "allow",
+      "tags": "CMD_TDD_RED"
+    },
+    "omt_refactor": {
+      "args": "test_node,feature",
+      "description": "Declare refactor state (tests verified green); src/ only, auto-revert on break.",
+      "perm": "allow",
+      "tags": "CMD_TDD_REFACTOR"
+    },
+    "omt_skip": {
+      "args": "reason,scope?",
+      "description": "Logged escape hatch: unlock edits/nav without a phase declaration. Scopes: src | tests | nav | all (default all).",
+      "perm": "allow",
+      "tags": "CMD_OMT_SKIP"
+    },
+    "omt_status": {
+      "args": "include_ledger?",
+      "description": "OMT++ process context: phase, unlock, artifacts, lint baseline, valid next phases, WORK.md next task.",
+      "perm": "allow",
+      "tags": "CMD_STATUS"
+    },
+    "omt_testlist": {
+      "args": "behaviors,feature",
+      "description": "Record the TDD behavior list (JSON array); sets state TESTLIST.",
+      "perm": "allow",
+      "tags": "CMD_TDD_LIST"
+    },
+    "omt_think": {
+      "args": "path,thought,line?,after?,symbol?,category?",
+      "description": "Add a persistent inline TA: thought-tag (language-valid comment; survives sessions; grep-retrievable). Bypasses phase/canary gates. Address by line | after | symbol (at most one).",
+      "perm": "allow",
+      "tags": "CMD_THINK"
+    },
+    "omt_think_list": {
+      "args": "path?,category?,query?",
+      "description": "List TA: thought-tags (grep is truth); records the consult that clears the think-gate for matched files.",
+      "perm": "allow",
+      "tags": "CMD_THINK_LIST"
+    },
+    "omt_think_remove": {
+      "args": "path,line",
+      "description": "Remove a TA: line; appends a remove-tombstone (index append-only).",
+      "perm": "allow",
+      "tags": "CMD_THINK_REMOVE"
+    },
+    "omt_think_suggest": {
+      "args": "path,top?",
+      "description": "Rank candidate TA: insertion sites in a .py file.",
+      "perm": "allow",
+      "tags": "CMD_THINK_SUGGEST"
+    },
+    "omt_think_verify": {
+      "args": "path,line",
+      "description": "Re-check a TA: thought's placement integrity (drift \u2192 stale).",
+      "perm": "allow",
+      "tags": "CMD_THINK_VERIFY"
+    }
+  },
+  "vars": {
+    "design_features": ".meta/software_development_process/4.design/features",
+    "doc_paths": ".meta/,AGENTS.md,WORK.md",
+    "e2e_cmd": "uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q",
+    "e2e_test": "tests/scripts/omt/test_omt_harness_e2e.py",
+    "edit_tools": "edit|write|patch|multiedit",
+    "enforcer_lib": ".opencode/lib/enforcer/",
+    "harness_paths": "AGENTS.md,opencode.jsonc,.meta/META_HARNESS.omt,.meta/software_development_process/omt_agent_guide.md,.opencode/plugins/omt_,.opencode/lib/omt_,.opencode/lib/enforcer/,scripts/omt/,.meta/templates/,tests/scripts/omt/",
+    "harnessc": "uv run scripts/omt/harnessc.py",
+    "ir_path": ".meta/.omt/harness.ir.json",
+    "ledger_cap_bytes": 65536,
+    "ledger_path": ".meta/.omt/ledger.jsonl",
+    "mvc_check": "uv run scripts/omt/mvc_check.py",
+    "nav_index_path": ".meta/.omt/nav.index.jsonl",
+    "plugin_dir": ".opencode/plugins/",
+    "process_root": ".meta/software_development_process",
+    "receipt_path": ".meta/.omt/omt_harness_e2e_last_run.json",
+    "scaffold": "uv run scripts/omt/new_feature.py",
+    "search_tools": "grep|glob|rg|find",
+    "shared_lib": ".opencode/lib/omt_shared.ts",
+    "tdd_check": "uv run scripts/omt/tdd_check.py",
+    "thought_pattern": "^\\s*(#|//|/\\*|<!--|--)\\s*TA:",
+    "thoughts_path": ".meta/.omt/thoughts.jsonl",
+    "unlock_window_ms": 28800000
+  },
+  "version": 1
+}

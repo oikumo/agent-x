@@ -21,6 +21,11 @@
 // emission moved into the enforcer's session bootstrap (lib/enforcer/
 // nav_gate.ts) — ONE bootstrap Set, one emission site, load-order independent.
 //
+// meta_harness_dsl R8 (OMT-HDL-1): the tools are built inside
+// createThinkTools() so their descriptions resolve from the compiled IR AFTER
+// initOmtShared ran (a module-level tool() would read the IR under the
+// pre-init cwd — F2/F17).
+//
 // Contract (mirrors omt_nav.ts / omt_status.ts — feature_020 defect-free):
 //   • import { tool } from "@opencode-ai/plugin"; args + tool.schema.* (DEFECT-C safe)
 //   • async execute(args, context) returns a plain string (DEFECT-D safe)
@@ -35,11 +40,13 @@ import { execFileSync } from "node:child_process"
 // Single source (meta_harness_dsl R1): THOUGHT_PATTERN, state paths, JSONL IO
 // and repo-root live in the shared lib (root injected at plugin-init, F2/F17).
 // R2 S6: the grep/fold/parse thought machinery lives there too, shared with
-// the enforcer's session-bootstrap digest.
+// the enforcer's session-bootstrap digest. R8: tool descriptions resolve from
+// the compiled IR (irToolDescription).
 import {
   initOmtShared, thoughtsIndexPath,
   relOf as sharedRelOf, toAbs, appendJsonl, appendLedger, THOUGHT_PATTERN,
   grepThoughts, parseThoughtLine, foldThoughtEvents, readThoughtsIndex,
+  irToolDescription,
 } from "../lib/omt_shared"
 
 // Protected files: TA: tags are NEVER written here (AGENTS.md NEVER set + JSON).
@@ -210,363 +217,368 @@ function resolveAnchor(
   return { ok: true, insertAt: matches[0] + 1, anchor: { kind, value } }
 }
 
-// --- omt_think: add a thought inline ---------------------------------------
-const omt_think = tool({
-  description:
-    "Add a persistent TA: thought-tag inline in a non-protected file (feature_021). " +
-    "The thought becomes a language-valid single-line comment so it survives across " +
-    "sessions and is grep-retrievable. Bypasses phase/canary gates (annotation, not code). " +
-    "Address by line (1-based), after (literal substring anchor), or symbol " +
-    "(definition-name anchor, .py/.ts-family) — at most one (feature_022 B1).",
-  args: {
-    path: tool.schema.string().describe("repo-relative target file (must already exist)"),
-    thought: tool.schema.string().describe("the thought text (single line; newlines stripped)"),
-    line: tool.schema.number().optional().describe("1-based line to insert AFTER (default: append at EOF)"),
-    after: tool.schema.string().optional().describe(
-      "literal substring anchor; insert AFTER the unique matching line (0 or >1 matches → refused)"),
-    symbol: tool.schema.string().optional().describe(
-      "definition-name anchor (.py def/class/async def; .ts/.js-family function/class/const); insert AFTER the unique definition line"),
-    category: tool.schema.string().optional().describe(
-      "lowercase token: gotcha|why|risk|xref|todo|... (enables `TA: <category>:` filtering)"),
-  },
-  async execute(args, context) {
-    const rawPath = args?.path ?? ""
-    const thought = args?.thought ?? ""
-    const lineArg = args?.line
-    const afterArg = args?.after
-    const symbolArg = args?.symbol
-    const category = args?.category
-    if (!rawPath) return "❌ 'path' is required."
-    if (!thought) return "❌ 'thought' is required."
-    // B1: at most one addressing mode (none → EOF append, back-compat).
-    const modes = [
-      lineArg !== undefined && lineArg !== null ? "line" : null,
-      afterArg !== undefined && afterArg !== null ? "after" : null,
-      symbolArg !== undefined && symbolArg !== null ? "symbol" : null,
-    ].filter(Boolean)
-    if (modes.length > 1) {
-      return `⛔ TA: refused — pass at most one of line, after, symbol (got ${modes.join("+")}).`
-    }
-    const rel = relOf(rawPath)
-    if (isProtectedPath(rel)) {
-      return `⛔ TA: refused — '${rel}' is protected (.env*, README.md, uv.lock, LICENSE).`
-    }
-    const ext = extname(rel)
-    if (ext.toLowerCase() === ".json") {
-      return `⛔ TA: refused — '.json' has no comments (would break parsing). Use .jsonc instead.`
-    }
-    const abs = toAbs(rel)
-    if (!existsSync(abs)) {
-      return `⛔ TA: refused — '${rel}' does not exist. (omt_think never creates files.)`
-    }
-    const newLine = buildThoughtLine(ext, category, thought)
-    if (!newLine) {
-      // A2: unknown extension → deny (F2: no unsafe default comment syntax).
-      return `⛔ TA: refused — unsupported file type '${ext || "(none)"}'. ` +
-        `Add an explicit mapping in commentSyntaxFor (omt_think.ts, feature_022) ` +
-        `only if a real comment syntax exists.`
-    }
-    const content = readFileSync(abs, "utf8")
-    // A4: preserve the file's own EOL style (F9: no mixed CRLF/LF endings).
-    const eol = content.includes("\r\n") ? "\r\n" : "\n"
-    const lines = content.split(/\r?\n/)
-    // A4 dedup: refuse an identical (category, thought) pair already present.
-    const normText = thought.replace(/\s+/g, " ").trim().replace(/^TA:\s*/i, "")
-    const normCat = (category || "").trim().toLowerCase()
-    for (let i = 0; i < lines.length; i++) {
-      const p = parseThoughtLine(lines[i])
-      if (p && p.cat === normCat && p.text === normText) {
-        return `⛔ TA: refused — duplicate of existing thought at ${rel}:${i + 1}.`
+// --- the five think tools (built post-init — see createThinkTools) ----------
+function createThinkTools() {
+  // --- omt_think: add a thought inline -------------------------------------
+  const omt_think = tool({
+    description: irToolDescription("omt_think",
+      "Add a persistent TA: thought-tag inline in a non-protected file (feature_021). " +
+      "The thought becomes a language-valid single-line comment so it survives across " +
+      "sessions and is grep-retrievable. Bypasses phase/canary gates (annotation, not code). " +
+      "Address by line (1-based), after (literal substring anchor), or symbol " +
+      "(definition-name anchor, .py/.ts-family) — at most one (feature_022 B1)."),
+    args: {
+      path: tool.schema.string().describe("repo-relative target file (must already exist)"),
+      thought: tool.schema.string().describe("the thought text (single line; newlines stripped)"),
+      line: tool.schema.number().optional().describe("1-based line to insert AFTER (default: append at EOF)"),
+      after: tool.schema.string().optional().describe(
+        "literal substring anchor; insert AFTER the unique matching line (0 or >1 matches → refused)"),
+      symbol: tool.schema.string().optional().describe(
+        "definition-name anchor (.py def/class/async def; .ts/.js-family function/class/const); insert AFTER the unique definition line"),
+      category: tool.schema.string().optional().describe(
+        "lowercase token: gotcha|why|risk|xref|todo|... (enables `TA: <category>:` filtering)"),
+    },
+    async execute(args, context) {
+      const rawPath = args?.path ?? ""
+      const thought = args?.thought ?? ""
+      const lineArg = args?.line
+      const afterArg = args?.after
+      const symbolArg = args?.symbol
+      const category = args?.category
+      if (!rawPath) return "❌ 'path' is required."
+      if (!thought) return "❌ 'thought' is required."
+      // B1: at most one addressing mode (none → EOF append, back-compat).
+      const modes = [
+        lineArg !== undefined && lineArg !== null ? "line" : null,
+        afterArg !== undefined && afterArg !== null ? "after" : null,
+        symbolArg !== undefined && symbolArg !== null ? "symbol" : null,
+      ].filter(Boolean)
+      if (modes.length > 1) {
+        return `⛔ TA: refused — pass at most one of line, after, symbol (got ${modes.join("+")}).`
       }
-    }
-    // If the file ends with a trailing newline, split produces a trailing "".
-    // Insert the thought AFTER `line` (1-based), clamped to EOF.
-    let insertAt: number
-    // B1: anchor mode resolves to an insertion index carrying its anchor for
-    // the index record (consumed later by E1 drift-repair), then flows through
-    // the same pipeline as line mode (trailing-newline adjust → A3 → splice).
-    let anchor: { kind: "after" | "symbol"; value: string } | null = null
-    if ((afterArg !== undefined && afterArg !== null) || (symbolArg !== undefined && symbolArg !== null)) {
-      const r = resolveAnchor(lines, ext, rel, afterArg, symbolArg)
-      if (!r.ok) return r.err
-      insertAt = r.insertAt
-      anchor = r.anchor
-    } else if (lineArg === undefined || lineArg === null) {
-      insertAt = lines.length // append at very end
-    } else {
-      insertAt = Math.min(Math.max(1, Math.floor(lineArg)), lines.length)
-    }
-    // If there's a trailing "" from a final newline, insert before it.
-    if (lines.length > 0 && lines[lines.length - 1] === "" && insertAt >= lines.length) {
-      insertAt = lines.length - 1
-    }
-    // A3: never splice INTO a string literal / code fence (F1 class: broke
-    // Textual CSS via a triple-quoted string in main_screen.py).
-    if (inStringContext(lines, insertAt, ext)) {
-      return `⛔ TA: refused — insertion point ${rel}:${insertAt + 1} lies inside a ` +
-        `string/code-fence (F1 class: broke Textual CSS via triple-quoted string). ` +
-        `Choose a line outside the literal.`
-    }
-    lines.splice(insertAt, 0, newLine)
-    writeFileSync(abs, lines.join(eol), "utf8")
-    const newLineNo = insertAt + 1 // 1-based line number of the inserted line
-    appendIndex({ path: rel, line: newLineNo, category: normCat || null, thought: normText, anchor })
-    return `✅ TA: ${normText} → ${rel}:${newLineNo}`
-  },
-})
-
-// --- omt_think_list: retrieve thoughts (grep-backed, authoritative inline) --
-const omt_think_list = tool({
-  description:
-    "List TA: thought-tags (feature_021). Grep-backed retrieval over inline tags " +
-    "(the source of truth). Marks the session consulted, clearing the think-gate " +
-    "for exactly the files the listing matched (feature_022 C2 per-file consult). " +
-    "Also usable as plain `grep -rn \"TA:\" <path>`. Caps output at 50 lines.",
-  args: {
-    path: tool.schema.string().optional().describe("restrict to a file/dir (default: whole repo)"),
-    category: tool.schema.string().optional().describe("filter `TA: <category>:`"),
-    query: tool.schema.string().optional().describe("extra substring filter"),
-  },
-  async execute(args, context) {
-    const session = context?.sessionID
-    const pathArg = args?.path
-    const category = args?.category
-    const query = args?.query
-    // A1: anchored base pattern (F3 prose false-positives). A4: category
-    // lowercased; both filters regex-escaped before interpolation (F7).
-    let pattern = THOUGHT_PATTERN
-    const cat = category ? category.trim().toLowerCase() : ""
-    if (cat) pattern += "\\s*" + escapeRegex(cat) + ":"
-    if (query) pattern += ".*" + escapeRegex(query)
-    const target = pathArg || "."
-    const hits = grepThoughts(pattern, target)
-    // Always record consult (clears the think-gate) — even on empty results.
-    // C2: the record carries the consulted file set (what the agent was shown).
-    const consultedFiles = [...new Set(hits.map(h => h.file))]
-    recordConsult(session, consultedFiles)
-    if (hits.length === 0) {
-      return `0 thoughts${category ? ` matching category '${category}'` : ""}${query ? ` / query '${query}'` : ""}.\n` +
-        `Add one with omt_think{path, thought}.`
-    }
-    const cap = 50
-    const shown = hits.slice(0, cap)
-    const rendered = shown.map(h => `${h.file}:${h.line}: ${h.content}`).join("\n")
-    const fileCount = consultedFiles.length
-    let out = `${rendered}\n\n${hits.length} thought${hits.length === 1 ? "" : "s"} across ${fileCount} file${fileCount === 1 ? "" : "s"}.`
-    if (hits.length > cap) {
-      out += ` … (+${hits.length - cap} more: omt_think_list{${category ? `category:"${category}"` : "path:\"<subdir>\""}})`
-    }
-    return out
-  },
-})
-
-// --- omt_think_remove: remove a thought -------------------------------------
-const omt_think_remove = tool({
-  description:
-    "Remove a TA: thought-tag line from a file (feature_021) and append a " +
-    "remove-tombstone to the JSONL index (append-only, R6 S1: the index is " +
-    "never rewritten; the latest-wins fold reads a tombstoned slot as absent).",
-  args: {
-    path: tool.schema.string().describe("target file"),
-    line: tool.schema.number().describe("1-based line of the TA: comment to remove"),
-  },
-  async execute(args, context) {
-    const rawPath = args?.path ?? ""
-    const lineArg = args?.line
-    if (!rawPath) return "❌ 'path' is required."
-    if (lineArg === undefined || lineArg === null) return "❌ 'line' is required."
-    const rel = relOf(rawPath)
-    if (isProtectedPath(rel)) {
-      return `⛔ TA: refused — '${rel}' is protected.`
-    }
-    const abs = toAbs(rel)
-    if (!existsSync(abs)) {
-      return `⛔ TA: refused — '${rel}' does not exist.`
-    }
-    const content = readFileSync(abs, "utf8")
-    const lines = content.split("\n")
-    const idx = Math.floor(lineArg) - 1
-    if (idx < 0 || idx >= lines.length) {
-      return `⛔ TA: refused — line ${lineArg} out of range (file has ${lines.length} lines).`
-    }
-    // A1: only real anchored thought lines are removable (prose mentions refused).
-    if (!new RegExp(THOUGHT_PATTERN).test(lines[idx])) {
-      return `⛔ TA: refused — line ${lineArg} is not a TA: comment:\n  ${lines[idx]}`
-    }
-    lines.splice(idx, 1)
-    writeFileSync(abs, lines.join("\n"), "utf8")
-    // R6 S1 append-only tombstone: the index is NEVER rewritten (the
-    // reconcile-by-rewrite path was deleted — grep is truth, audit P8/F12).
-    // The fold reads a tombstoned slot as absent; a re-added thought (newer
-    // add-record) starts unverified — C1 semantics, zero rewrites.
-    appendIndex({ kind: "remove", path: rel, line: Math.floor(lineArg) })
-    return `🗑 removed TA: at ${rel}:${lineArg}`
-  },
-})
-
-// --- omt_think_verify: structural placement-integrity check (feature_022 C1) -
-// Re-checks that a thought exists where expected AND that its B1 anchor still
-// resolves to it. STRUCTURAL, not semantic: never judges whether the thought's
-// claim is still true (the agent's job at consult/read time). This is the
-// RLVR-analogue feedback signal: drifted/detached thoughts are flagged stale
-// instead of silently persisting as trustworthy.
-const omt_think_verify = tool({
-  description:
-    "Re-check a TA: thought's placement integrity (feature_022 C1): existence at " +
-    "the given line plus, when the index add-record carries an anchor, re-resolution " +
-    "of that anchor (drift/ambiguity/removal → stale). Structural only — never judges " +
-    "semantic truth. Appends a verified/stale record to the index (latest per " +
-    "path:line wins); the digest + think-gate surface stale thoughts.",
-  args: {
-    path: tool.schema.string().describe("repo-relative file carrying the TA: comment"),
-    line: tool.schema.number().describe("1-based line of the TA: comment to verify"),
-  },
-  async execute(args, context) {
-    const rawPath = args?.path ?? ""
-    const lineArg = args?.line
-    if (!rawPath) return "❌ 'path' is required."
-    if (lineArg === undefined || lineArg === null) return "❌ 'line' is required."
-    const rel = relOf(rawPath)
-    if (isProtectedPath(rel)) {
-      return `⛔ TA: refused — '${rel}' is protected.`
-    }
-    const abs = toAbs(rel)
-    if (!existsSync(abs)) {
-      return `⛔ TA: refused — '${rel}' does not exist.`
-    }
-    const content = readFileSync(abs, "utf8")
-    const lines = content.split(/\r?\n/)
-    const lineNo = Math.floor(lineArg)
-    const idx = lineNo - 1
-    if (idx < 0 || idx >= lines.length) {
-      return `⛔ TA: refused — line ${lineArg} out of range (file has ${lines.length} lines).`
-    }
-    if (!new RegExp(THOUGHT_PATTERN).test(lines[idx])) {
-      return `⛔ TA: refused — line ${lineArg} is not a TA: comment:\n  ${lines[idx]}`
-    }
-    const parsed = parseThoughtLine(lines[idx])
-    const text = parsed?.text || ""
-    const cat = parsed?.cat || null
-    // Index lookup over ALIVE add-records (R6 S1 fold: tombstoned slots read
-    // as absent): latest add-record at (path,line); drift fallback: latest
-    // add-record with (path, thought-text). Latest wins.
-    const { aliveAdds } = foldThoughtEvents(readThoughtsIndex())
-    const adds = aliveAdds.filter(r => r.path === rel)
-    let rec = [...adds].reverse().find(r => r.line === lineNo)
-    if (!rec) rec = [...adds].reverse().find(r => r.thought === text)
-    let status: "verified" | "stale"
-    let basis: "anchor" | "exists"
-    let reason = ""
-    if (rec?.anchor) {
-      basis = "anchor"
-      const r = resolveAnchor(lines, extname(rel), rel,
-        rec.anchor.kind === "after" ? rec.anchor.value : null,
-        rec.anchor.kind === "symbol" ? rec.anchor.value : null)
-      if (r.ok && r.insertAt + 1 === lineNo) {
-        status = "verified"
+      const rel = relOf(rawPath)
+      if (isProtectedPath(rel)) {
+        return `⛔ TA: refused — '${rel}' is protected (.env*, README.md, uv.lock, LICENSE).`
+      }
+      const ext = extname(rel)
+      if (ext.toLowerCase() === ".json") {
+        return `⛔ TA: refused — '.json' has no comments (would break parsing). Use .jsonc instead.`
+      }
+      const abs = toAbs(rel)
+      if (!existsSync(abs)) {
+        return `⛔ TA: refused — '${rel}' does not exist. (omt_think never creates files.)`
+      }
+      const newLine = buildThoughtLine(ext, category, thought)
+      if (!newLine) {
+        // A2: unknown extension → deny (F2: no unsafe default comment syntax).
+        return `⛔ TA: refused — unsupported file type '${ext || "(none)"}'. ` +
+          `Add an explicit mapping in commentSyntaxFor (omt_think.ts, feature_022) ` +
+          `only if a real comment syntax exists.`
+      }
+      const content = readFileSync(abs, "utf8")
+      // A4: preserve the file's own EOL style (F9: no mixed CRLF/LF endings).
+      const eol = content.includes("\r\n") ? "\r\n" : "\n"
+      const lines = content.split(/\r?\n/)
+      // A4 dedup: refuse an identical (category, thought) pair already present.
+      const normText = thought.replace(/\s+/g, " ").trim().replace(/^TA:\s*/i, "")
+      const normCat = (category || "").trim().toLowerCase()
+      for (let i = 0; i < lines.length; i++) {
+        const p = parseThoughtLine(lines[i])
+        if (p && p.cat === normCat && p.text === normText) {
+          return `⛔ TA: refused — duplicate of existing thought at ${rel}:${i + 1}.`
+        }
+      }
+      // If the file ends with a trailing newline, split produces a trailing "".
+      // Insert the thought AFTER `line` (1-based), clamped to EOF.
+      let insertAt: number
+      // B1: anchor mode resolves to an insertion index carrying its anchor for
+      // the index record (consumed later by E1 drift-repair), then flows through
+      // the same pipeline as line mode (trailing-newline adjust → A3 → splice).
+      let anchor: { kind: "after" | "symbol"; value: string } | null = null
+      if ((afterArg !== undefined && afterArg !== null) || (symbolArg !== undefined && symbolArg !== null)) {
+        const r = resolveAnchor(lines, ext, rel, afterArg, symbolArg)
+        if (!r.ok) return r.err
+        insertAt = r.insertAt
+        anchor = r.anchor
+      } else if (lineArg === undefined || lineArg === null) {
+        insertAt = lines.length // append at very end
       } else {
-        status = "stale"
-        reason = r.ok
-          ? `anchor moved (thought at ${lineNo}, anchor resolves to ${r.insertAt + 1})`
-          : r.err.replace(/^⛔ TA: refused — /, "").replace(/\.$/, "")
+        insertAt = Math.min(Math.max(1, Math.floor(lineArg)), lines.length)
       }
-    } else {
-      // No record or anchor:null → weaker verification: existence only.
-      basis = "exists"
-      status = "verified"
-    }
-    appendIndex({ kind: "verify", path: rel, line: lineNo, category: cat, thought: text, status, basis })
-    if (status === "verified") {
-      return basis === "anchor"
-        ? `✅ TA: verified — ${rel}:${lineNo} (basis: anchor)`
-        : `✅ TA: verified — ${rel}:${lineNo} (basis: exists — placement only, no anchor recorded)`
-    }
-    return `⚠️ TA: STALE — ${rel}:${lineNo} — ${reason}. ` +
-      `Re-place with omt_think or remove with omt_think_remove.`
-  },
-})
+      // If there's a trailing "" from a final newline, insert before it.
+      if (lines.length > 0 && lines[lines.length - 1] === "" && insertAt >= lines.length) {
+        insertAt = lines.length - 1
+      }
+      // A3: never splice INTO a string literal / code fence (F1 class: broke
+      // Textual CSS via a triple-quoted string in main_screen.py).
+      if (inStringContext(lines, insertAt, ext)) {
+        return `⛔ TA: refused — insertion point ${rel}:${insertAt + 1} lies inside a ` +
+          `string/code-fence (F1 class: broke Textual CSS via triple-quoted string). ` +
+          `Choose a line outside the literal.`
+      }
+      lines.splice(insertAt, 0, newLine)
+      writeFileSync(abs, lines.join(eol), "utf8")
+      const newLineNo = insertAt + 1 // 1-based line number of the inserted line
+      appendIndex({ path: rel, line: newLineNo, category: normCat || null, thought: normText, anchor })
+      return `✅ TA: ${normText} → ${rel}:${newLineNo}`
+    },
+  })
 
-// --- omt_think_suggest: AST-ranked insertion-site advisor (feature_022 B2) ---
-// The paper's high-entropy position table as a MECHANICAL proxy (no model in
-// the loop): rank candidate TA: sites by node type Assign>Return>Expr>If>
-// AugAssign, tie-break source order. Real AST via `uv run python` (stdlib ast,
-// same execFileSync class as grepThoughts — H3 safe); AST-walk is inherently
-// string-safe (never yields lines inside string literals — composes with A3).
-// Read-only advisor: no target writes, no index writes, no ledger records.
-const SITE_RANK: Record<string, number> = { Assign: 1, Return: 2, Expr: 3, If: 4, AugAssign: 5 }
-// keep in sync with the RANK map inside SUGGEST_PY_SCRIPT below
-const SUGGEST_PY_SCRIPT =
-  "import ast, json, sys\n" +
-  'RANK = {"Assign": 1, "Return": 2, "Expr": 3, "If": 4, "AugAssign": 5}\n' +
-  'tree = ast.parse(open(sys.argv[1], encoding="utf-8").read())\n' +
-  'out = [{"line": n.lineno, "end": n.end_lineno, "kind": type(n).__name__}\n' +
-  "       for n in ast.walk(tree)\n" +
-  '       if type(n).__name__ in RANK and getattr(n, "lineno", None)]\n' +
-  "print(json.dumps(out))\n"
+  // --- omt_think_list: retrieve thoughts (grep-backed, authoritative inline) -
+  const omt_think_list = tool({
+    description: irToolDescription("omt_think_list",
+      "List TA: thought-tags (feature_021). Grep-backed retrieval over inline tags " +
+      "(the source of truth). Marks the session consulted, clearing the think-gate " +
+      "for exactly the files the listing matched (feature_022 C2 per-file consult). " +
+      "Also usable as plain `grep -rn \"TA:\" <path>`. Caps output at 50 lines."),
+    args: {
+      path: tool.schema.string().optional().describe("restrict to a file/dir (default: whole repo)"),
+      category: tool.schema.string().optional().describe("filter `TA: <category>:`"),
+      query: tool.schema.string().optional().describe("extra substring filter"),
+    },
+    async execute(args, context) {
+      const session = context?.sessionID
+      const pathArg = args?.path
+      const category = args?.category
+      const query = args?.query
+      // A1: anchored base pattern (F3 prose false-positives). A4: category
+      // lowercased; both filters regex-escaped before interpolation (F7).
+      let pattern = THOUGHT_PATTERN
+      const cat = category ? category.trim().toLowerCase() : ""
+      if (cat) pattern += "\\s*" + escapeRegex(cat) + ":"
+      if (query) pattern += ".*" + escapeRegex(query)
+      const target = pathArg || "."
+      const hits = grepThoughts(pattern, target)
+      // Always record consult (clears the think-gate) — even on empty results.
+      // C2: the record carries the consulted file set (what the agent was shown).
+      const consultedFiles = [...new Set(hits.map(h => h.file))]
+      recordConsult(session, consultedFiles)
+      if (hits.length === 0) {
+        return `0 thoughts${category ? ` matching category '${category}'` : ""}${query ? ` / query '${query}'` : ""}.\n` +
+          `Add one with omt_think{path, thought}.`
+      }
+      const cap = 50
+      const shown = hits.slice(0, cap)
+      const rendered = shown.map(h => `${h.file}:${h.line}: ${h.content}`).join("\n")
+      const fileCount = consultedFiles.length
+      let out = `${rendered}\n\n${hits.length} thought${hits.length === 1 ? "" : "s"} across ${fileCount} file${fileCount === 1 ? "" : "s"}.`
+      if (hits.length > cap) {
+        out += ` … (+${hits.length - cap} more: omt_think_list{${category ? `category:"${category}"` : "path:\"<subdir>\""}})`
+      }
+      return out
+    },
+  })
 
-const omt_think_suggest = tool({
-  description:
-    "Rank candidate TA: insertion sites in a .py file (feature_022 B2): AST-walk " +
-    "ordered by the Think-Anywhere paper's table (Assign > Return > Expr > If > " +
-    "AugAssign), source-order tie-break; sites already carrying a thought (±1 line) " +
-    "are excluded. Read-only — suggests line/anchor targets for omt_think.",
-  args: {
-    path: tool.schema.string().describe("repo-relative .py file to analyze"),
-    top: tool.schema.number().optional().describe("max sites returned (default 5, clamped 1..20)"),
-  },
-  async execute(args, context) {
-    const rawPath = args?.path ?? ""
-    if (!rawPath) return "❌ 'path' is required."
-    const rel = relOf(rawPath)
-    if (isProtectedPath(rel)) {
-      return `⛔ TA: refused — '${rel}' is protected (.env*, README.md, uv.lock, LICENSE).`
-    }
-    const abs = toAbs(rel)
-    if (!existsSync(abs)) {
-      return `⛔ TA: refused — '${rel}' does not exist.`
-    }
-    const ext = extname(rel).toLowerCase()
-    if (ext !== ".py") {
-      return `⛔ TA: suggest refused — ranking is Python-AST-based (paper's table); got '${ext || "(none)"}'.`
-    }
-    const top = Math.min(20, Math.max(1, Math.floor(args?.top ?? 5)))
-    const content = readFileSync(abs, "utf8")
-    const lines = content.split(/\r?\n/)
-    // AST extraction (fail-open refusal on any subprocess/parse failure).
-    let sites: { line: number; end: number; kind: string }[]
-    try {
-      const out = execFileSync("uv", ["run", "--no-sync", "python", "-c", SUGGEST_PY_SCRIPT, abs],
-        { encoding: "utf8", timeout: 60000, stdio: ["ignore", "pipe", "pipe"] })
-      sites = JSON.parse(out.trim() || "[]")
-    } catch (e: any) {
-      const err = String(e?.stderr || e?.message || e).split("\n")
-        .filter((l: string) => l.trim()).pop() || "unknown error"
-      return `⛔ TA: suggest refused — '${rel}' is not parseable Python (${err.trim().slice(0, 120)}).`
-    }
-    // Rank: paper-table priority, then source order.
-    const rankOf = (k: string) => SITE_RANK[k] ?? 99
-    sites.sort((a, b) => rankOf(a.kind) - rankOf(b.kind) || a.line - b.line)
-    // Coverage exclusion: a real thought line at site.line ± 1 covers the site.
-    const thoughtAt = new Set<number>()
-    const rx = new RegExp(THOUGHT_PATTERN)
-    for (let i = 0; i < lines.length; i++) if (rx.test(lines[i])) thoughtAt.add(i + 1)
-    const covered = sites.filter(s => thoughtAt.has(s.line - 1) || thoughtAt.has(s.line) || thoughtAt.has(s.line + 1))
-    const open = sites.filter(s => !(thoughtAt.has(s.line - 1) || thoughtAt.has(s.line) || thoughtAt.has(s.line + 1)))
-    const shown = open.slice(0, top)
-    const preview = (no: number) => {
-      const p = (lines[no - 1] || "").replace(/\s+/g, " ").trim()
-      return p.length > 60 ? p.slice(0, 60) + "…" : p
-    }
-    if (shown.length === 0) {
-      return `💡 TA: suggest — ${rel}: 0 candidate sites (${covered.length} covered). Nothing to suggest.`
-    }
-    const items = shown.map((s, i) =>
-      ` ${i + 1}. L${s.line} ${s.kind} → insert after L${s.end}: \`${preview(s.line)}\``)
-    return `💡 TA: suggest — ${rel}: ${shown.length} candidate site${shown.length === 1 ? "" : "s"}, ${covered.length} already covered.\n` +
-      items.join("\n") +
-      `\n→ omt_think{path:"${rel}", line:<end>, thought:"..."}  (or after:"<preview>" — unique-match caveat)`
-  },
-})
+  // --- omt_think_remove: remove a thought -----------------------------------
+  const omt_think_remove = tool({
+    description: irToolDescription("omt_think_remove",
+      "Remove a TA: thought-tag line from a file (feature_021) and append a " +
+      "remove-tombstone to the JSONL index (append-only, R6 S1: the index is " +
+      "never rewritten; the latest-wins fold reads a tombstoned slot as absent)."),
+    args: {
+      path: tool.schema.string().describe("target file"),
+      line: tool.schema.number().describe("1-based line of the TA: comment to remove"),
+    },
+    async execute(args, context) {
+      const rawPath = args?.path ?? ""
+      const lineArg = args?.line
+      if (!rawPath) return "❌ 'path' is required."
+      if (lineArg === undefined || lineArg === null) return "❌ 'line' is required."
+      const rel = relOf(rawPath)
+      if (isProtectedPath(rel)) {
+        return `⛔ TA: refused — '${rel}' is protected.`
+      }
+      const abs = toAbs(rel)
+      if (!existsSync(abs)) {
+        return `⛔ TA: refused — '${rel}' does not exist.`
+      }
+      const content = readFileSync(abs, "utf8")
+      const lines = content.split("\n")
+      const idx = Math.floor(lineArg) - 1
+      if (idx < 0 || idx >= lines.length) {
+        return `⛔ TA: refused — line ${lineArg} out of range (file has ${lines.length} lines).`
+      }
+      // A1: only real anchored thought lines are removable (prose mentions refused).
+      if (!new RegExp(THOUGHT_PATTERN).test(lines[idx])) {
+        return `⛔ TA: refused — line ${lineArg} is not a TA: comment:\n  ${lines[idx]}`
+      }
+      lines.splice(idx, 1)
+      writeFileSync(abs, lines.join("\n"), "utf8")
+      // R6 S1 append-only tombstone: the index is NEVER rewritten (the
+      // reconcile-by-rewrite path was deleted — grep is truth, audit P8/F12).
+      // The fold reads a tombstoned slot as absent; a re-added thought (newer
+      // add-record) starts unverified — C1 semantics, zero rewrites.
+      appendIndex({ kind: "remove", path: rel, line: Math.floor(lineArg) })
+      return `🗑 removed TA: at ${rel}:${lineArg}`
+    },
+  })
+
+  // --- omt_think_verify: structural placement-integrity check (feature_022 C1)
+  // Re-checks that a thought exists where expected AND that its B1 anchor still
+  // resolves to it. STRUCTURAL, not semantic: never judges whether the thought's
+  // claim is still true (the agent's job at consult/read time). This is the
+  // RLVR-analogue feedback signal: drifted/detached thoughts are flagged stale
+  // instead of silently persisting as trustworthy.
+  const omt_think_verify = tool({
+    description: irToolDescription("omt_think_verify",
+      "Re-check a TA: thought's placement integrity (feature_022 C1): existence at " +
+      "the given line plus, when the index add-record carries an anchor, re-resolution " +
+      "of that anchor (drift/ambiguity/removal → stale). Structural only — never judges " +
+      "semantic truth. Appends a verified/stale record to the index (latest per " +
+      "path:line wins); the digest + think-gate surface stale thoughts."),
+    args: {
+      path: tool.schema.string().describe("repo-relative file carrying the TA: comment"),
+      line: tool.schema.number().describe("1-based line of the TA: comment to verify"),
+    },
+    async execute(args, context) {
+      const rawPath = args?.path ?? ""
+      const lineArg = args?.line
+      if (!rawPath) return "❌ 'path' is required."
+      if (lineArg === undefined || lineArg === null) return "❌ 'line' is required."
+      const rel = relOf(rawPath)
+      if (isProtectedPath(rel)) {
+        return `⛔ TA: refused — '${rel}' is protected.`
+      }
+      const abs = toAbs(rel)
+      if (!existsSync(abs)) {
+        return `⛔ TA: refused — '${rel}' does not exist.`
+      }
+      const content = readFileSync(abs, "utf8")
+      const lines = content.split(/\r?\n/)
+      const lineNo = Math.floor(lineArg)
+      const idx = lineNo - 1
+      if (idx < 0 || idx >= lines.length) {
+        return `⛔ TA: refused — line ${lineArg} out of range (file has ${lines.length} lines).`
+      }
+      if (!new RegExp(THOUGHT_PATTERN).test(lines[idx])) {
+        return `⛔ TA: refused — line ${lineArg} is not a TA: comment:\n  ${lines[idx]}`
+      }
+      const parsed = parseThoughtLine(lines[idx])
+      const text = parsed?.text || ""
+      const cat = parsed?.cat || null
+      // Index lookup over ALIVE add-records (R6 S1 fold: tombstoned slots read
+      // as absent): latest add-record at (path,line); drift fallback: latest
+      // add-record with (path, thought-text). Latest wins.
+      const { aliveAdds } = foldThoughtEvents(readThoughtsIndex())
+      const adds = aliveAdds.filter(r => r.path === rel)
+      let rec = [...adds].reverse().find(r => r.line === lineNo)
+      if (!rec) rec = [...adds].reverse().find(r => r.thought === text)
+      let status: "verified" | "stale"
+      let basis: "anchor" | "exists"
+      let reason = ""
+      if (rec?.anchor) {
+        basis = "anchor"
+        const r = resolveAnchor(lines, extname(rel), rel,
+          rec.anchor.kind === "after" ? rec.anchor.value : null,
+          rec.anchor.kind === "symbol" ? rec.anchor.value : null)
+        if (r.ok && r.insertAt + 1 === lineNo) {
+          status = "verified"
+        } else {
+          status = "stale"
+          reason = r.ok
+            ? `anchor moved (thought at ${lineNo}, anchor resolves to ${r.insertAt + 1})`
+            : r.err.replace(/^⛔ TA: refused — /, "").replace(/\.$/, "")
+        }
+      } else {
+        // No record or anchor:null → weaker verification: existence only.
+        basis = "exists"
+        status = "verified"
+      }
+      appendIndex({ kind: "verify", path: rel, line: lineNo, category: cat, thought: text, status, basis })
+      if (status === "verified") {
+        return basis === "anchor"
+          ? `✅ TA: verified — ${rel}:${lineNo} (basis: anchor)`
+          : `✅ TA: verified — ${rel}:${lineNo} (basis: exists — placement only, no anchor recorded)`
+      }
+      return `⚠️ TA: STALE — ${rel}:${lineNo} — ${reason}. ` +
+        `Re-place with omt_think or remove with omt_think_remove.`
+    },
+  })
+
+  // --- omt_think_suggest: AST-ranked insertion-site advisor (feature_022 B2) -
+  // The paper's high-entropy position table as a MECHANICAL proxy (no model in
+  // the loop): rank candidate TA: sites by node type Assign>Return>Expr>If>
+  // AugAssign, tie-break source order. Real AST via `uv run python` (stdlib ast,
+  // same execFileSync class as grepThoughts — H3 safe); AST-walk is inherently
+  // string-safe (never yields lines inside string literals — composes with A3).
+  // Read-only advisor: no target writes, no index writes, no ledger records.
+  const SITE_RANK: Record<string, number> = { Assign: 1, Return: 2, Expr: 3, If: 4, AugAssign: 5 }
+  // keep in sync with the RANK map inside SUGGEST_PY_SCRIPT below
+  const SUGGEST_PY_SCRIPT =
+    "import ast, json, sys\n" +
+    'RANK = {"Assign": 1, "Return": 2, "Expr": 3, "If": 4, "AugAssign": 5}\n' +
+    'tree = ast.parse(open(sys.argv[1], encoding="utf-8").read())\n' +
+    'out = [{"line": n.lineno, "end": n.end_lineno, "kind": type(n).__name__}\n' +
+    "       for n in ast.walk(tree)\n" +
+    '       if type(n).__name__ in RANK and getattr(n, "lineno", None)]\n' +
+    "print(json.dumps(out))\n"
+
+  const omt_think_suggest = tool({
+    description: irToolDescription("omt_think_suggest",
+      "Rank candidate TA: insertion sites in a .py file (feature_022 B2): AST-walk " +
+      "ordered by the Think-Anywhere paper's table (Assign > Return > Expr > If > " +
+      "AugAssign), source-order tie-break; sites already carrying a thought (±1 line) " +
+      "are excluded. Read-only — suggests line/anchor targets for omt_think."),
+    args: {
+      path: tool.schema.string().describe("repo-relative .py file to analyze"),
+      top: tool.schema.number().optional().describe("max sites returned (default 5, clamped 1..20)"),
+    },
+    async execute(args, context) {
+      const rawPath = args?.path ?? ""
+      if (!rawPath) return "❌ 'path' is required."
+      const rel = relOf(rawPath)
+      if (isProtectedPath(rel)) {
+        return `⛔ TA: refused — '${rel}' is protected (.env*, README.md, uv.lock, LICENSE).`
+      }
+      const abs = toAbs(rel)
+      if (!existsSync(abs)) {
+        return `⛔ TA: refused — '${rel}' does not exist.`
+      }
+      const ext = extname(rel).toLowerCase()
+      if (ext !== ".py") {
+        return `⛔ TA: suggest refused — ranking is Python-AST-based (paper's table); got '${ext || "(none)"}'.`
+      }
+      const top = Math.min(20, Math.max(1, Math.floor(args?.top ?? 5)))
+      const content = readFileSync(abs, "utf8")
+      const lines = content.split(/\r?\n/)
+      // AST extraction (fail-open refusal on any subprocess/parse failure).
+      let sites: { line: number; end: number; kind: string }[]
+      try {
+        const out = execFileSync("uv", ["run", "--no-sync", "python", "-c", SUGGEST_PY_SCRIPT, abs],
+          { encoding: "utf8", timeout: 60000, stdio: ["ignore", "pipe", "pipe"] })
+        sites = JSON.parse(out.trim() || "[]")
+      } catch (e: any) {
+        const err = String(e?.stderr || e?.message || e).split("\n")
+          .filter((l: string) => l.trim()).pop() || "unknown error"
+        return `⛔ TA: suggest refused — '${rel}' is not parseable Python (${err.trim().slice(0, 120)}).`
+      }
+      // Rank: paper-table priority, then source order.
+      const rankOf = (k: string) => SITE_RANK[k] ?? 99
+      sites.sort((a, b) => rankOf(a.kind) - rankOf(b.kind) || a.line - b.line)
+      // Coverage exclusion: a real thought line at site.line ± 1 covers the site.
+      const thoughtAt = new Set<number>()
+      const rx = new RegExp(THOUGHT_PATTERN)
+      for (let i = 0; i < lines.length; i++) if (rx.test(lines[i])) thoughtAt.add(i + 1)
+      const covered = sites.filter(s => thoughtAt.has(s.line - 1) || thoughtAt.has(s.line) || thoughtAt.has(s.line + 1))
+      const open = sites.filter(s => !(thoughtAt.has(s.line - 1) || thoughtAt.has(s.line) || thoughtAt.has(s.line + 1)))
+      const shown = open.slice(0, top)
+      const preview = (no: number) => {
+        const p = (lines[no - 1] || "").replace(/\s+/g, " ").trim()
+        return p.length > 60 ? p.slice(0, 60) + "…" : p
+      }
+      if (shown.length === 0) {
+        return `💡 TA: suggest — ${rel}: 0 candidate sites (${covered.length} covered). Nothing to suggest.`
+      }
+      const items = shown.map((s, i) =>
+        ` ${i + 1}. L${s.line} ${s.kind} → insert after L${s.end}: \`${preview(s.line)}\``)
+      return `💡 TA: suggest — ${rel}: ${shown.length} candidate site${shown.length === 1 ? "" : "s"}, ${covered.length} already covered.\n` +
+        items.join("\n") +
+        `\n→ omt_think{path:"${rel}", line:<end>, thought:"..."}  (or after:"<preview>" — unique-match caveat)`
+    },
+  })
+
+  return { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest }
+}
 
 // Standalone opencode plugin (mirrors omt_nav.ts / omt_status.ts).
 // NO named tool-object exports — opencode's loader requires every export to be a
@@ -575,8 +587,11 @@ const omt_think_suggest = tool({
 // before any hook runs (all lib path getters are lazy — see lib header).
 // R2 S6: tools-only — the TA digest rides the enforcer's session bootstrap
 // (lib/enforcer/nav_gate.ts), so this plugin returns no hooks.
+// R8: tools build post-init (createThinkTools) so descriptions read the IR
+// under the injected root.
 export default async ({ directory, worktree }) => {
   initOmtShared(worktree ?? directory)
+  const { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest } = createThinkTools()
   return {
     tool: { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest },
   }

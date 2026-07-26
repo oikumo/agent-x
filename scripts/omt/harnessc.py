@@ -158,7 +158,7 @@ def parse(text: str, errors: list[str]) -> list[Record]:
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        m = re.match(r"@([a-z]+)\s+(\S+)\s*(.*)$", line)
+        m = re.match(r"@([a-z]+)\s+(\S+)(.*)$", line)
         if not m:
             errors.append(f"{OMT_REL}:{lineno}: malformed record line: {raw.strip()[:60]}")
             continue
