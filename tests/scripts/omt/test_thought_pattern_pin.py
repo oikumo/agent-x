@@ -14,8 +14,9 @@ the shared lib itself (R2 S6). These pins assert the single-source contract:
 1. exactly ONE THOUGHT_PATTERN definition repo-wide, in the lib; both
    consuming modules import it (no local redefinition);
 2. UNLOCK_WINDOW_MS agrees across the TS/Python language boundary
-   (tdd_check.py keeps its own copy — cross-language, comment-pinned both
-   sides per plan R1).
+   (the tdd package's state.py keeps its own copy — cross-language,
+   comment-pinned both sides per plan R1; R3: tdd_check.py split into
+   scripts/omt/tdd/, the constant lives in state.py).
 
 Grep-based (no hard-coded line numbers) so it survives refactors that shift
 lines but not the definitions themselves.
@@ -31,7 +32,9 @@ LIB = ".opencode/lib/omt_shared.ts"
 THINK = ".opencode/plugins/omt_think.ts"
 # R2: the think-gate was split out of omt_enforcer.ts into this lib module.
 THINK_GATE = ".opencode/lib/enforcer/think_gate.ts"
-TDD_CHECK = "scripts/omt/tdd_check.py"
+# R3: tdd_check.py split into the tdd/ package (compat shim re-exports the
+# API); the Python copy of UNLOCK_WINDOW_MS lives in state.py.
+TDD_CHECK = "scripts/omt/tdd/state.py"
 
 
 def _definition_lines(rel: str) -> list[str]:
@@ -70,7 +73,7 @@ def _eval_int_expr(expr: str) -> int:
 
 def test_unlock_window_ms_agrees_across_languages() -> None:
     """Plan R1: UNLOCK_WINDOW_MS deduped across the TS plugins into the lib;
-    tdd_check.py keeps its own copy (cross-language) — the two must agree."""
+    the tdd package keeps its own copy (cross-language) — the two must agree."""
     lib_src = (REPO_ROOT / LIB).read_text(encoding="utf-8")
     py_src = (REPO_ROOT / TDD_CHECK).read_text(encoding="utf-8")
     m_ts = re.search(r"UNLOCK_WINDOW_MS\s*=\s*([0-9 *]+)", lib_src)

@@ -49,6 +49,12 @@ HARNESS_FILES = [
     "scripts/omt/mvc_check.py",
     "scripts/omt/new_feature.py",
     "scripts/omt/tdd_check.py",
+    # meta_harness_dsl R3: the tdd package behind the tdd_check.py shim.
+    "scripts/omt/tdd/__init__.py",
+    "scripts/omt/tdd/state.py",
+    "scripts/omt/tdd/ast_checks.py",
+    "scripts/omt/tdd/gates.py",
+    "scripts/omt/tdd/cli.py",
     "tests/scripts/omt/test_omt_harness_e2e.py",
 ]
 
