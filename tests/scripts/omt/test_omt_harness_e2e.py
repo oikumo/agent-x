@@ -34,6 +34,8 @@ HARNESS_FILES = [
     ".opencode/plugins/omt_enforcer.ts",
     ".opencode/plugins/omt_status.ts",
     ".opencode/plugins/omt_think.ts",
+    ".opencode/plugins/omt_nav.ts",
+    ".opencode/lib/omt_shared.ts",
     "opencode.jsonc",
     "AGENTS.md",
     ".meta/software_development_process/omt_agent_guide.md",
@@ -92,7 +94,8 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
 
     # 1. The status plugin is standalone and the previous dynamic import failure
     # mode cannot return.
-    assert "export default async () => ({" in status
+    assert "export default async ({" in status
+    assert "initOmtShared(" in status  # R1: ctx root (worktree ?? directory) injected
     assert "tool: { omt_status }" in status
     assert "p.split" not in status
     assert "dynamic" not in status.lower()
@@ -111,13 +114,17 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     checks.append("omt_phase/omt_complete tool chain is wired and scoped")
 
     # 3. The harness now enforces this e2e test for repeated edits to the OMT
-    # enforcement surface.
-    assert "OMT_HARNESS_E2E_COMMAND" in enforcer
-    assert E2E_COMMAND in enforcer
-    assert "omtHarnessE2eStatus" in enforcer
-    assert "OMT_HARNESS_E2E_RECEIPT" in enforcer
-    assert ".meta/software_development_process/omt_agent_guide.md" in enforcer
-    checks.append("OMT harness edit guard requires this e2e receipt")
+    # enforcement surface. R1: the receipt-guard machinery (constants +
+    # isOmtHarness + omtHarnessE2eStatus) lives in the shared lib; the
+    # enforcer keeps the call site.
+    shared = _read(".opencode/lib/omt_shared.ts")
+    assert "OMT_HARNESS_E2E_COMMAND" in shared
+    assert E2E_COMMAND in shared
+    assert "omtHarnessE2eStatus" in shared
+    assert "OMT_HARNESS_E2E_RECEIPT" in shared
+    assert ".meta/software_development_process/omt_agent_guide.md" in shared
+    assert "omtHarnessE2eStatus" in enforcer  # before-hook call site
+    checks.append("OMT harness edit guard requires this e2e receipt (shared lib + enforcer call site)")
 
     # 4. Coarse permissions still force uv and deny the risky actions the meta
     # harness is meant to prevent.
@@ -186,9 +193,12 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
 
     # 9. feature_021 think-anywhere: standalone plugin + think-gate in enforcer.
     think = _read(".opencode/plugins/omt_think.ts")
-    assert "export default async () => ({" in think
-    assert "tool: { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest, omt_think_reindex }" in think
+    assert "export default async ({" in think
+    assert "initOmtShared(" in think  # R1: ctx root injected
+    assert "tool: { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest }" in think
     assert "commentSyntaxFor" in think
+    # meta_harness_dsl R6 S1: reindex tool deleted (append-only index, grep-is-truth).
+    assert "const omt_think_reindex" not in think
     assert "thinkGateDecision" in enforcer
     assert "hasConsultedThoughts" in enforcer
     assert "think_consult" in enforcer
@@ -197,10 +207,26 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert '"omt_think_remove": "allow"' in config
     assert '"omt_think_verify": "allow"' in config
     assert '"omt_think_suggest": "allow"' in config
-    assert '"omt_think_reindex": "allow"' in config
+    assert '"omt_think_reindex": "allow"' not in config
     assert "Think Anywhere" in _read("AGENTS.md")
     assert "SECTION:THINK" in _read(".meta/META_HARNESS.md")
     checks.append("feature_021 think-anywhere plugin + think-gate + docs wired")
+
+    # 10. meta_harness_dsl R1: all four plugins import the shared lib (single
+    # source for THOUGHT_PATTERN, UNLOCK_WINDOW_MS, state paths, JSONL IO,
+    # repo-root and the e2e-receipt guard), initialize it with the plugin-ctx
+    # root (worktree ?? directory, F2/F17), and no longer resolve repo paths
+    # from the process cwd.
+    nav = _read(".opencode/plugins/omt_nav.ts")
+    for name, src in (("omt_enforcer.ts", enforcer), ("omt_status.ts", status),
+                      ("omt_think.ts", think), ("omt_nav.ts", nav)):
+        assert 'from "../lib/omt_shared"' in src, (
+            f"{name} must import the shared lib (R1 single source)")
+        assert "initOmtShared(" in src, (
+            f"{name} must init the shared lib with the ctx root (worktree ?? directory)")
+        assert "process.cwd()" not in src, (
+            f"{name} must not resolve repo paths from the process cwd (R1 F2/F17)")
+    checks.append("meta_harness_dsl R1: shared lib imported + initialized by all four plugins")
 
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

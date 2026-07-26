@@ -38,7 +38,7 @@ _LEDGER_ENV = os.environ.get("OMT_LEDGER_PATH")
 LEDGER_PATH = Path(_LEDGER_ENV) if _LEDGER_ENV else REPO_ROOT / ".meta" / ".omt" / "ledger.jsonl"
 _SNAPSHOT_ENV = os.environ.get("OMT_SNAPSHOT_DIR")
 SNAPSHOT_DIR = Path(_SNAPSHOT_ENV) if _SNAPSHOT_ENV else REPO_ROOT / ".meta" / ".omt" / "tdd_snapshots"
-UNLOCK_WINDOW_MS = 8 * 60 * 60 * 1000  # 8 hours (matches enforcer)
+UNLOCK_WINDOW_MS = 8 * 60 * 60 * 1000  # 8 hours (keep in sync with .opencode/lib/omt_shared.ts — single TS source since meta_harness_dsl R1; pinned by tests/scripts/omt/test_thought_pattern_pin.py)
 
 # Two-hats gate rules: {state: {src: bool, tests: bool}}
 HAT_RULES: dict[str, dict[str, bool]] = {

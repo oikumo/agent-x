@@ -64,7 +64,7 @@ ui/
 | File | Role |
 |------|------|
 | `opencode.jsonc` | Deny: git commit/push, bare python/pip/pytest, .env, README/uv.lock/LICENSE |
-| `.opencode/plugin/omt_enforcer.ts` | Gate: `omt_phase` before src/, MVC++ lint after, TDD two-hats |
+| `.opencode/plugins/omt_enforcer.ts` | Gate: `omt_phase` before src/, MVC++ lint after, TDD two-hats |
 | `AGENTS.md` | Agent rules |
 | `.env` | Secrets (gitignored) |
 

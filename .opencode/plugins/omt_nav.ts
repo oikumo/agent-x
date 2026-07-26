@@ -6,27 +6,30 @@ import { tool } from "@opencode-ai/plugin"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { join, relative } from "node:path"
 import { execFileSync } from "node:child_process"
+// Single source (meta_harness_dsl R1): repo-root lives in the shared lib
+// (root injected at plugin-init, F2/F17 — fixes the subdir-launch divergence).
+import { initOmtShared, repoRoot } from "../lib/omt_shared"
 
-const REPO_ROOT = process.cwd()
-const META_ROOT = join(REPO_ROOT, ".meta")
-
-// Auto-discover .meta/doc/omt++/*.md so newly added docs are covered without
-// editing this list. Sorted for deterministic output.
-const OMT_PP_DIR = join(META_ROOT, "doc", "omt++")
-const omtPpFiles: string[] = existsSync(OMT_PP_DIR)
-  ? readdirSync(OMT_PP_DIR).filter(f => f.endsWith(".md")).sort().map(f => `.meta/doc/omt++/${f}`)
-  : []
-
-// Core documentation files in the META HARNESS ecosystem
-const META_FILES = [
-  ".meta/META_HARNESS.md",
-  ".meta/META.md",
-  ".meta/software_development_process/META.md",
-  ".meta/software_development_process/omt_agent_guide.md",
-  ...omtPpFiles,
-  "AGENTS.md",
-  "WORK.md",
-]
+// Core documentation files in the META HARNESS ecosystem. Computed per call
+// (lazy: the shared lib's repo root is injected at plugin-init — module-level
+// constants would capture the pre-init cwd). Auto-discovers
+// .meta/doc/omt++/*.md so newly added docs are covered without editing this
+// list. Sorted for deterministic output.
+function metaFiles(): string[] {
+  const omtPpDir = join(repoRoot(), ".meta", "doc", "omt++")
+  const omtPpFiles: string[] = existsSync(omtPpDir)
+    ? readdirSync(omtPpDir).filter(f => f.endsWith(".md")).sort().map(f => `.meta/doc/omt++/${f}`)
+    : []
+  return [
+    ".meta/META_HARNESS.md",
+    ".meta/META.md",
+    ".meta/software_development_process/META.md",
+    ".meta/software_development_process/omt_agent_guide.md",
+    ...omtPpFiles,
+    "AGENTS.md",
+    "WORK.md",
+  ]
+}
 
 // Tag patterns for structured navigation.
 // NOTE: these validate the `tag_type` input and document the canonical tag
@@ -59,12 +62,12 @@ interface NavResult {
 // interprets the pattern as a BRE regex, which is intentional for tag nav.
 function runGrep(pattern: string, files: string[]): NavResult[] {
   const results: NavResult[] = []
-  const existingFiles = files.filter(f => existsSync(join(REPO_ROOT, f)))
+  const existingFiles = files.filter(f => existsSync(join(repoRoot(), f)))
 
   if (existingFiles.length === 0) return results
 
   try {
-    const absFiles = existingFiles.map(f => join(REPO_ROOT, f))
+    const absFiles = existingFiles.map(f => join(repoRoot(), f))
     const output = execFileSync("grep", ["-n", "--", pattern, ...absFiles], {
       encoding: "utf8",
       stdio: ["pipe", "pipe", "ignore"],
@@ -78,7 +81,7 @@ function runGrep(pattern: string, files: string[]): NavResult[] {
       const match = line.match(/^(.+?):(\d+):(.*)$/)
       if (match) {
         const [, file, lineNum, content] = match
-        const relPath = relative(REPO_ROOT, file)
+        const relPath = relative(repoRoot(), file)
         results.push({
           file: relPath,
           line: parseInt(lineNum, 10),
@@ -95,7 +98,7 @@ function runGrep(pattern: string, files: string[]): NavResult[] {
 
 // Get context around a match (3 lines before and after)
 function getContext(filePath: string, lineNum: number, contextLines: number = 3): string {
-  const fullPath = join(REPO_ROOT, filePath)
+  const fullPath = join(repoRoot(), filePath)
   if (!existsSync(fullPath)) return ""
   
   try {
@@ -149,7 +152,7 @@ const omt_nav = tool({
     }
 
     // Determine which files to search
-    const filesToSearch = file ? [file] : META_FILES.filter(f => existsSync(join(REPO_ROOT, f)))
+    const filesToSearch = file ? [file] : metaFiles().filter(f => existsSync(join(repoRoot(), f)))
 
     // Build grep pattern based on tag type
     let pattern = query
@@ -190,7 +193,7 @@ const omt_list_sections = tool({
   },
   async execute(args, context) {
     const file = args?.file
-    const filesToSearch = file ? [file] : META_FILES
+    const filesToSearch = file ? [file] : metaFiles()
 
     // BRE-safe "one or more leading '#'": `##*` = first '#' literal, then
     // zero-or-more '#' (i.e. one-or-more '#'). Matches the `# SECTION:` style
@@ -221,7 +224,7 @@ const omt_cross_ref = tool({
       return "'xref' is required (e.g., xref:'XREF_GUIDE')."
     }
     const pattern = xref.startsWith("XREF_") ? xref : `XREF_.*${xref}`
-    const results = runGrep(pattern, META_FILES)
+    const results = runGrep(pattern, metaFiles())
     return results.length
       ? render(results)
       : `No references for "${xref}".`
@@ -238,7 +241,7 @@ const omt_quick_ref = tool({
   async execute(args, context) {
     const workflow = args?.workflow ?? ""
     const pattern = workflow ? `QUICK_.*${workflow}` : "^QUICK_"
-    const results = runGrep(pattern, META_FILES)
+    const results = runGrep(pattern, metaFiles())
 
     const workflows = results.map(r => {
       const match = r.content.match(/^(QUICK_[A-Z0-9_]+):\s*(.+)$/)
@@ -256,7 +259,7 @@ const omt_quick_ref = tool({
   },
 })
 
-// Standalone opencode plugin. This file lives under .opencode/plugin/, so it
+// Standalone opencode plugin. This file lives under .opencode/plugins/, so it
 // must export a default plugin FUNCTION. opencode's plugin loader (sk/nk)
 // iterates Object.values(module) and requires EACH export to be a function (or
 // an object with a .server function). The tool objects below are NOT functions,
@@ -271,6 +274,11 @@ const omt_quick_ref = tool({
 //  string -> opencode reads result.output (undefined) and .split()s it ->
 //  "undefined is not an object (evaluating 'u.split')". Fixed by returning
 //  plain strings, the simplest ToolResult (mirrors omt_enforcer.ts tools).)
-export default async () => ({
-  tool: { omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref },
-})
+// R1 (F2/F17): repo root = worktree ?? directory, injected into the shared lib
+// before any hook runs (all lib path getters are lazy — see lib header).
+export default async ({ directory, worktree }) => {
+  initOmtShared(worktree ?? directory)
+  return {
+    tool: { omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref },
+  }
+}

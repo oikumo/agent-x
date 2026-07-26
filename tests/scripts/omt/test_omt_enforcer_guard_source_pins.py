@@ -2,8 +2,10 @@
 Harness-level STATIC guard pins for omt_enforcer.ts (feature_023 deep audit).
 
 These tests exist because of two LIVE-CONFIRMED dead-guard defects (2026-07-19,
-proven by driving the real opencode 1.18.3 binary — see
-test_omt_live_opencode_guards.py):
+proven by driving the real opencode 1.18.3 binary — the live suite has since
+been reduced to the minimal smoke in test_omt_live_opencode_guards.py; these
+static pins are now the standing guard coverage, with the real-binary probe
+recipes preserved in the WORK.md scratchpad):
 
   BUG-A (before-hook contract violation, F14 mirrored):
     commit a3ffb81 ("feature_023") changed the before-hook edit chain from the
@@ -37,6 +39,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).parent.parent.parent.parent
 ENFORCER = REPO_ROOT / ".opencode" / "plugins" / "omt_enforcer.ts"
+SHARED_LIB = REPO_ROOT / ".opencode" / "lib" / "omt_shared.ts"
 E2E_TEST = REPO_ROOT / "tests" / "scripts" / "omt" / "test_omt_harness_e2e.py"
 
 
@@ -80,14 +83,19 @@ class TestBeforeHookContractPin:
 
 
 class TestHarnessPathCoveragePin:
-    """BUG-B pin: isOmtHarness must classify the REAL plugin paths."""
+    """BUG-B pin: isOmtHarness must classify the REAL plugin paths.
+
+    meta_harness_dsl R1: isOmtHarness moved to the shared lib
+    (.opencode/lib/omt_shared.ts); these pins read the lib source. The lib
+    itself is receipt-guarded via the .opencode/lib/omt_ prefix (R1 added it —
+    the guard must cover the file the guard now lives in)."""
 
     @staticmethod
     def _is_omt_harness(rel: str) -> bool:
-        """Python port of the enforcer's isOmtHarness (keep in sync — the pin
-        feeds REAL paths through the SAME literals found in the source)."""
-        src = ENFORCER.read_text(encoding="utf-8")
-        body = src[src.index("const isOmtHarness"):src.index("const getSearchPath")]
+        """Python port of the shared lib's isOmtHarness (keep in sync — the
+        pin feeds REAL paths through the SAME literals found in the source)."""
+        src = SHARED_LIB.read_text(encoding="utf-8")
+        body = src[src.index("export function isOmtHarness"):src.index("export function receiptTimestampMs")]
         exacts = set(re.findall(r'rel === "([^"]+)"', body))
         prefixes = re.findall(r'rel\.startsWith\("([^"]+)"\)', body)
         return rel in exacts or any(rel.startswith(p) for p in prefixes)
@@ -97,6 +105,7 @@ class TestHarnessPathCoveragePin:
         ".opencode/plugins/omt_nav.ts",
         ".opencode/plugins/omt_status.ts",
         ".opencode/plugins/omt_think.ts",
+        ".opencode/lib/omt_shared.ts",
     ])
     def test_plugin_files_are_harness_guarded(self, rel: str):
         assert (REPO_ROOT / rel).exists(), f"{rel} missing — path drift?"
@@ -108,8 +117,8 @@ class TestHarnessPathCoveragePin:
     def test_guard_prefixes_match_real_repo_paths(self):
         """Every path literal in isOmtHarness must match ≥1 real repo path —
         catches the whole stale-prefix defect class, not just BUG-B."""
-        src = ENFORCER.read_text(encoding="utf-8")
-        body = src[src.index("const isOmtHarness"):src.index("const getSearchPath")]
+        src = SHARED_LIB.read_text(encoding="utf-8")
+        body = src[src.index("export function isOmtHarness"):src.index("export function receiptTimestampMs")]
         literals = (re.findall(r'rel === "([^"]+)"', body)
                     + re.findall(r'rel\.startsWith\("([^"]+)"\)', body))
         stale = [lit for lit in literals

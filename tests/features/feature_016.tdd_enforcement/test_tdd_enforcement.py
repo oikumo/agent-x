@@ -94,7 +94,7 @@ class TestTddCheckEnforcerIntegration:
     """Verify the enforcer plugin source has TDD integration."""
 
     def test_enforcer_has_tdd_tools(self):
-        enforcer = (REPO_ROOT / ".opencode" / "plugin" / "omt_enforcer.ts").read_text()
+        enforcer = (REPO_ROOT / ".opencode" / "plugins" / "omt_enforcer.ts").read_text()
         assert "const omt_testlist" in enforcer
         assert "const omt_red" in enforcer
         assert "const omt_green" in enforcer
@@ -102,18 +102,18 @@ class TestTddCheckEnforcerIntegration:
         assert "const omt_done" in enforcer
 
     def test_enforcer_has_tdd_gate(self):
-        enforcer = (REPO_ROOT / ".opencode" / "plugin" / "omt_enforcer.ts").read_text()
+        enforcer = (REPO_ROOT / ".opencode" / "plugins" / "omt_enforcer.ts").read_text()
         assert "tdd_check.py gate" in enforcer
         assert "tdd_mode" in enforcer
         assert "refactorSnapshots" in enforcer
         assert "revert_needed" in enforcer
 
     def test_enforcer_has_validate_exit(self):
-        enforcer = (REPO_ROOT / ".opencode" / "plugin" / "omt_enforcer.ts").read_text()
+        enforcer = (REPO_ROOT / ".opencode" / "plugins" / "omt_enforcer.ts").read_text()
         assert "tdd_check.py validate-exit" in enforcer
 
     def test_status_has_tdd_section(self):
-        status = (REPO_ROOT / ".opencode" / "plugin" / "omt_status.ts").read_text()
+        status = (REPO_ROOT / ".opencode" / "plugins" / "omt_status.ts").read_text()
         assert "runTddStatus" in status
         assert "TDD Mode" in status
 

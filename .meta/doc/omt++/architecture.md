@@ -114,7 +114,7 @@ All: stdlib `sqlite3`, idempotent `CREATE TABLE IF NOT EXISTS`, no ORM/Alembic.
 | Vector | Chroma (local), Pinecone (cloud) |
 | Web | Tavily (Map + Extract) |
 | Persistence | stdlib sqlite3 |
-| Enforcement | opencode + `.opencode/plugin/omt_enforcer.ts` |
+| Enforcement | opencode + `.opencode/plugins/omt_enforcer.ts` |
 
 **Env:** `.env` (gitignored) — `OPENROUTER_API_KEY` prompted at boot | `--no-tui` or no TTY → console
 
@@ -125,7 +125,7 @@ All: stdlib `sqlite3`, idempotent `CREATE TABLE IF NOT EXISTS`, no ORM/Alembic.
 | File | Purpose |
 |------|---------|
 | `opencode.jsonc` | Deny: git commit/push, bare python/pip/pytest, .env; bash default ask |
-| `.opencode/plugin/omt_enforcer.ts` | OMT++ gate: blocks src/ w/o `omt_phase`; blocks tests/ w/o approval; runs mvc_check |
+| `.opencode/plugins/omt_enforcer.ts` | OMT++ gate: blocks src/ w/o `omt_phase`; blocks tests/ w/o approval; runs mvc_check |
 | `AGENTS.md` | Agent rules |
 | `scripts/omt/mvc_check.py` | MVC++ linter (View↔Model leaks, non-ABC partners, SQL outside DP, god controllers) |
 | `scripts/omt/new_feature.py` | Feature scaffolder |

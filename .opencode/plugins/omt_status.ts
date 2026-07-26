@@ -6,11 +6,12 @@ import { tool } from "@opencode-ai/plugin"
 import { existsSync, readFileSync, readdirSync, mkdirSync } from "node:fs"
 import { join, relative, dirname } from "node:path"
 import { execSync } from "node:child_process"
-
-const REPO_ROOT = process.cwd()
-const LEDGER_PATH = join(REPO_ROOT, ".meta", ".omt", "ledger.jsonl")
-const WORK_MD_PATH = join(REPO_ROOT, "WORK.md")
-const DESIGN_ROOT = join(REPO_ROOT, ".meta", "software_development_process", "4.design", "features")
+// Single source (meta_harness_dsl R1): state paths, JSONL IO, UNLOCK_WINDOW_MS
+// and repo-root live in the shared lib (root injected at plugin-init, F2/F17).
+import {
+  initOmtShared, repoRoot, ledgerPath, workMdPath, designRoot,
+  readJsonl, resolveFeatureDir, globToRegex, UNLOCK_WINDOW_MS,
+} from "../lib/omt_shared"
 
 const VALID_PHASES = ["Analysis", "Design", "Programming", "Testing"]
 const VALID_TASK_TYPES = ["bug_fix", "minor_feature", "major_feature", "new_screen", "refactor", "test", "docs"]
@@ -37,11 +38,7 @@ interface LedgerRecord {
 }
 
 function readLedger(): LedgerRecord[] {
-  if (!existsSync(LEDGER_PATH)) return []
-  const lines = readFileSync(LEDGER_PATH, "utf8").trim().split("\n")
-  return lines.map(l => {
-    try { return JSON.parse(l) } catch { return null }
-  }).filter(Boolean) as LedgerRecord[]
+  return readJsonl(ledgerPath()) as LedgerRecord[]
 }
 
 function getActiveUnlock(sessionId?: string): LedgerRecord | null {
@@ -56,19 +53,19 @@ function getActiveUnlock(sessionId?: string): LedgerRecord | null {
   const now = Date.now()
   const recent = recs.filter(r => {
     const t = Date.parse(r.ts || "")
-    return !Number.isNaN(t) && now - t < 8 * 60 * 60 * 1000
+    return !Number.isNaN(t) && now - t < UNLOCK_WINDOW_MS
   })
   return recent.length ? recent[recent.length - 1] : null
 }
 
 function resolveDesignArtifact(feature: string, explicitDoc?: string): string | null {
-  if (explicitDoc && existsSync(join(REPO_ROOT, explicitDoc))) return explicitDoc
+  if (explicitDoc && existsSync(join(repoRoot(), explicitDoc))) return explicitDoc
   if (!feature) return null
 
   const m = feature.match(/feature_(\d+)/)
   if (!m) return null
   const num = m[1]
-  const base = join(DESIGN_ROOT)
+  const base = designRoot()
   if (!existsSync(base)) return null
 
   for (const d of readdirSync(base)) {
@@ -81,26 +78,7 @@ function resolveDesignArtifact(feature: string, explicitDoc?: string): string | 
   return null
 }
 
-// Resolve the actual feature subdirectory under a `features/` parent.
-// Handles BOTH naming conventions: short "feature_004" and full
-// "feature_007.agentx_intelligent_agent_behaviour" (new_feature.py scaffolder default).
-function resolveFeatureDir(featuresParent: string, feature: string, featureNum: string): string | null {
-  try {
-    if (!existsSync(featuresParent)) return null
-    const entries = readdirSync(featuresParent, { withFileTypes: true })
-      .filter(d => d.isDirectory())
-      .map(d => d.name)
-    for (const c of [feature, featureNum]) {
-      if (c && entries.includes(c)) return join(featuresParent, c)
-    }
-    for (const p of [featureNum + ".", featureNum + "_"]) {
-      if (!featureNum || p === "." || p === "_") continue
-      const m = entries.find(e => e.startsWith(p))
-      if (m) return join(featuresParent, m)
-    }
-    return null
-  } catch { return null }
-}
+// resolveFeatureDir: single source is the shared lib (R1) — imported above.
 
 function getArtifactStatus(feature: string, taskType: string): {
   required: string[]
@@ -121,11 +99,11 @@ function getArtifactStatus(feature: string, taskType: string): {
   // [phase, pattern, features-parent-dir] — the parent is resolved to the actual
   // feature subdir via resolveFeatureDir so full-slug features are found.
   const checks: [string, string, string][] = [
-    ["Requirements", "FEATURE.md", join(REPO_ROOT, PROCESS_ROOT, "2.requirements", "features")],
-    ["Analysis", "analysis_001_*.md", join(REPO_ROOT, PROCESS_ROOT, "3.analysis", "features")],
-    ["Design", "design_*.md", join(REPO_ROOT, PROCESS_ROOT, "4.design", "features")],
-    ["Implementation", "*.md", join(REPO_ROOT, PROCESS_ROOT, "5.implementation", "features")],
-    ["Testing", "test_report.md", join(REPO_ROOT, PROCESS_ROOT, "6.testing", "features")],
+    ["Requirements", "FEATURE.md", join(repoRoot(), PROCESS_ROOT, "2.requirements", "features")],
+    ["Analysis", "analysis_001_*.md", join(repoRoot(), PROCESS_ROOT, "3.analysis", "features")],
+    ["Design", "design_*.md", join(repoRoot(), PROCESS_ROOT, "4.design", "features")],
+    ["Implementation", "*.md", join(repoRoot(), PROCESS_ROOT, "5.implementation", "features")],
+    ["Testing", "test_report.md", join(repoRoot(), PROCESS_ROOT, "6.testing", "features")],
   ]
 
   for (const [phase, pattern, featuresParent] of checks) {
@@ -134,7 +112,9 @@ function getArtifactStatus(feature: string, taskType: string): {
       const dir = resolveFeatureDir(featuresParent, feature, featureNum)
       if (dir) {
         const files = readdirSync(dir, { recursive: true })
-        exists = files.some(f => new RegExp(pattern.replace("*", ".*")).test(f))
+        // R1: converged from the inline unanchored regex to the shared
+        // globToRegex (anchored + escaped) — same answers on flat feature dirs.
+        exists = files.some(f => globToRegex(pattern).test(f))
       }
     } catch { /* ignore */ }
 
@@ -151,7 +131,7 @@ function getArtifactStatus(feature: string, taskType: string): {
 function runLintBaseline(): { errors: number; warnings: number; timestamp: string } {
   try {
     const out = execSync("uv run scripts/omt/mvc_check.py --json", {
-      cwd: REPO_ROOT,
+      cwd: repoRoot(),
       encoding: "utf8",
       timeout: 30000,
       stdio: ["ignore", "pipe", "ignore"]
@@ -166,7 +146,7 @@ function runLintBaseline(): { errors: number; warnings: number; timestamp: strin
 function runTddStatus(sessionId?: string): { tdd_mode: boolean; state: string; test_node: string | null; cycles_count: number; testlist: any } | null {
   try {
     const out = execSync(`uv run scripts/omt/tdd_check.py status --session "${sessionId || ""}"`, {
-      cwd: REPO_ROOT,
+      cwd: repoRoot(),
       encoding: "utf8",
       timeout: 10000,
       stdio: ["ignore", "pipe", "ignore"]
@@ -178,8 +158,8 @@ function runTddStatus(sessionId?: string): { tdd_mode: boolean; state: string; t
 }
 
 function getWorkMdNextTask(): string | null {
-  if (!existsSync(WORK_MD_PATH)) return null
-  const content = readFileSync(WORK_MD_PATH, "utf8")
+  if (!existsSync(workMdPath())) return null
+  const content = readFileSync(workMdPath(), "utf8")
   const lines = content.split("\n")
   for (const line of lines) {
     if (line.trim().startsWith("- [ ]") || line.trim().startsWith("- [~]")) {
@@ -241,7 +221,7 @@ const omt_status = tool({
       currentPhase = unlock.phase || "Unknown"
       const started = Date.parse(unlock.ts || "")
       const elapsed = Date.now() - started
-      const remaining = Math.max(0, 8 * 60 * 60 * 1000 - elapsed)
+      const remaining = Math.max(0, UNLOCK_WINDOW_MS - elapsed)
       expiresIn = remaining > 0 ? formatDuration(remaining) : "expired"
 
       activeUnlock = {
@@ -358,11 +338,14 @@ const omt_status = tool({
   }
 })
 
-// Standalone opencode plugin. This file lives under .opencode/plugin/, so it
+// Standalone opencode plugin. This file lives under .opencode/plugins/, so it
 // must export a plugin function, not only a helper tool object. The enforcer
 // plugin registers the gate tools; this plugin registers status independently.
-export default async () => ({
-  tool: { omt_status },
-})
-
-// OMT_LIVE_PROBE_MARKER safe to remove
+// R1 (F2/F17): repo root = worktree ?? directory, injected into the shared lib
+// before any hook runs (all lib path getters are lazy — see lib header).
+export default async ({ directory, worktree }) => {
+  initOmtShared(worktree ?? directory)
+  return {
+    tool: { omt_status },
+  }
+}

@@ -1,10 +1,10 @@
 # AGENTS.md — System Rules (compressed)
 
-> **STARTUP:** Read `WORK.md` → `AGENTS.md` → `.meta/META_HARNESS.md` → `omt_agent_guide.md`
+> **STARTUP:** Read `WORK.md` (only) at session start; summarize current state in ≤ 15 lines (in-progress / blocked / next). All other docs on demand via nav tools (`omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`).
 > **RUNTIME:** `uv` only (no bare `python`/`pip`/`pytest`). `src/` edits → `omt_phase` first.
 
 ## Enforcement
-**ENF:** mechanical via `.opencode/plugin/omt_enforcer.ts` + `opencode.jsonc`  
+**ENF:** mechanical via `.opencode/plugins/omt_enforcer.ts` + `opencode.jsonc`  
 **REF:** `.meta/META_HARNESS.md` (R1–R3, RIGOR, ERR, WRN, PROT, ESC, EXT, TREE, CMDS)
 
 ## NEVER (blocked by gate)
@@ -65,7 +65,7 @@ Persistent, grep-friendly `TA:` thought-tags dropped **inline in any non-protect
 
 **Think-gate (blocking):** editing a file that carries `TA:` thoughts is **blocked** until the session consults via `omt_think_list`. The block surfaces the file's own thoughts. **NOT bypassable by `omt_skip`** — thoughts are safety-relevant; only `omt_think_list` (active consult) clears it.
 
-**Session digest:** the first tool result of each session carries the TA: digest (session.start hook retained for future SDK support — opencode 1.18.3 never dispatches it; feature_023 Tier 1c emits on `tool.execute.after` instead), so accumulated context is recovered immediately.
+**Session digest:** the first tool result of each session carries a compact TA: digest (counts + per-file counts + stale ⚠️ + pointer; full texts via `omt_think_list` and per-file injection on read). Emitted on `tool.execute.after` (feature_023 Tier 1c; the inert `session.start` hook was deleted in meta_harness_dsl R6 — never dispatched: audited 1.18.3, re-verified 1.18.5). The index is append-only (add/verify/remove-tombstone; `omt_think_reindex` deleted R6).
 
 ## Quick Reference
 - **Declare phase:** `omt_phase{task_type:"bug_fix|minor_feature|major_feature|new_screen|refactor|test|docs", phase:"Analysis|Design|Programming|Testing", scope:"done definition"}`

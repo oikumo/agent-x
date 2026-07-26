@@ -27,6 +27,9 @@ downloads/
 eggs/
 .eggs/
 lib/
+# meta_harness_dsl R1: .opencode/lib/ is TRACKED source (shared TS lib for the
+# OMT plugins, receipt-guarded — git must see it or isGitDirty goes blind).
+!.opencode/lib/
 lib64/
 parts/
 sdist/

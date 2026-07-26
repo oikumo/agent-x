@@ -19,9 +19,16 @@
 // gate falls back to an 8-hour time window so it still functions for a single user.
 
 import { tool } from "@opencode-ai/plugin"
-import { appendFileSync, mkdirSync, existsSync, readFileSync, readdirSync, writeFileSync, statSync } from "node:fs"
-import { join, relative, isAbsolute, dirname } from "node:path"
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 import { execFileSync } from "node:child_process"
+// Single source (meta_harness_dsl R1): cross-plugin constants, state paths,
+// JSONL IO, repo-root and the e2e-receipt guard live in the shared lib.
+import {
+  initOmtShared, ledgerPath, thoughtsIndexPath, relOf, readJsonl, appendJsonl,
+  resolveFeatureDir, globToRegex, UNLOCK_WINDOW_MS, THOUGHT_PATTERN,
+  omtHarnessE2eStatus,
+} from "../lib/omt_shared"
 
 
 const EDIT_TOOLS = new Set(["edit", "write", "patch", "multiedit"])
@@ -32,9 +39,8 @@ const VALID_TASK_TYPES = new Set([
 ])
 // Task types that may not touch src/ until a design artifact exists on disk (guide §12).
 const ARTIFACT_REQUIRED = new Set(["major_feature", "new_screen"])
-const OMT_HARNESS_E2E_COMMAND = "uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q"
-const OMT_HARNESS_E2E_RECEIPT = join(".meta", ".omt", "omt_harness_e2e_last_run.json")
-const OMT_HARNESS_E2E_TEST = "tests/scripts/omt/test_omt_harness_e2e.py"
+// OMT_HARNESS_E2E_COMMAND / _RECEIPT / _TEST constants: single source is the
+// shared lib (meta_harness_dsl R1).
 
 // Valid phase transitions per guide §12
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -44,8 +50,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   Testing: ["Analysis", "Design", "Programming", "Done"],
 }
 
-// 8-hour unlock window (shared with tdd_check.py and omt_status.ts)
-const UNLOCK_WINDOW_MS = 8 * 60 * 60 * 1000
+// 8-hour unlock window: single source is the shared lib (R1); tdd_check.py
+// keeps a cross-language copy (pinned to agree).
 
 // Phase exit requirements per guide §12 — only enforced for ARTIFACT_REQUIRED task types
 const PHASE_EXIT_REQUIREMENTS: Record<string, { phase: string; patterns: string[]; description: string }[]> = {
@@ -70,39 +76,8 @@ const PHASE_EXIT_REQUIREMENTS: Record<string, { phase: string; patterns: string[
   ],
 }
 
-// Resolve the actual feature subdirectory under a `features/` parent.
-// The repo uses TWO naming conventions for non-requirements phase dirs:
-//   - short: "feature_004"                 (older features: analysis/design/impl/testing)
-//   - full:  "feature_007.agentx_intelligent_agent_behaviour"  (new_feature.py scaffolder)
-// `feature` is the full slug; `featureNum` is the short "feature_NNN" prefix.
-// Without this, full-slug features (the scaffolder default) are never found and
-// phase-exit artifact checks report false negatives.
-function resolveFeatureDir(featuresParent: string, feature: string, featureNum: string): string | null {
-  try {
-    if (!existsSync(featuresParent)) return null
-    const entries = readdirSync(featuresParent, { withFileTypes: true })
-      .filter(d => d.isDirectory())
-      .map(d => d.name)
-    // 1. exact matches (full slug first, then short)
-    for (const c of [feature, featureNum]) {
-      if (c && entries.includes(c)) return join(featuresParent, c)
-    }
-    // 2. prefix match: a full-slug dir that starts with "feature_NNN." or "feature_NNN_"
-    for (const p of [featureNum + ".", featureNum + "_"]) {
-      if (!featureNum || p === "." || p === "_") continue
-      const m = entries.find(e => e.startsWith(p))
-      if (m) return join(featuresParent, m)
-    }
-    return null
-  } catch { return null }
-}
-
-function globToRegex(pattern: string): RegExp {
-  const escaped = pattern
-    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\*/g, ".*");
-  return new RegExp(`^${escaped}$`);
-}
+// resolveFeatureDir + globToRegex: single source is the shared lib (R1) —
+// imported above.
 
 // Check if required artifacts for a phase exist for a feature
 function checkPhaseExitArtifacts(repoRoot: string, feature: string, fromPhase: string): { ok: boolean; missing: string[] } {
@@ -211,24 +186,15 @@ export function thinkGateDecision(opts: {
 // r.files includes rel. Exact-session covering consult → true; else a
 // cross-session consult within UNLOCK_WINDOW_MS covering rel → true ONLY IF
 // NOT opts.risk (the window is dropped for risk:-carrying files — a risk
-// thought demands THIS session looked). opts.root: ledger root (default
-// process.cwd(); the production call site passes the plugin `directory` —
-// identical in real opencode; root injection enables hermetic tests).
+// thought demands THIS session looked). opts.root: ledger root (default: the
+// shared lib's repo root — the production call site passes the plugin ctx
+// root explicitly; root injection enables hermetic tests).
 export function hasConsultedThoughts(
   session: string | undefined,
   rel?: string,
   opts?: { risk?: boolean; root?: string },
 ): boolean {
-  const ledgerPath = join(opts?.root ?? process.cwd(), ".meta", ".omt", "ledger.jsonl")
-  if (!existsSync(ledgerPath)) return false
-  const recs: any[] = []
-  try {
-    for (const line of readFileSync(ledgerPath, "utf8").split("\n")) {
-      const s = line.trim()
-      if (!s) continue
-      try { recs.push(JSON.parse(s)) } catch { /* skip corrupt line */ }
-    }
-  } catch { return false }
+  const recs = readJsonl(ledgerPath(opts?.root))
   const consults = recs.filter((r) => r && r.kind === "think_consult")
   if (!consults.length) return false
   const covered = (r: any): boolean => {
@@ -246,12 +212,8 @@ export function hasConsultedThoughts(
   })
 }
 
-// Anchored TA: thought pattern (feature_022 A1 / F3): matches only real
-// comment-opener thought lines, never prose mentions (META:/DATA:/string
-// literals). Covers every opener omt_think can emit (#, //, /*, <!--, --) so
-// the gate is never blind to what omt_think wrote.
-// keep in sync with omt_think.ts (byte-identical; structural test asserts it).
-const THOUGHT_PATTERN = "^\\s*(#|//|/\\*|<!--|--)\\s*TA:"
+// THOUGHT_PATTERN: single source is the shared lib (meta_harness_dsl R1) —
+// imported above; pinned by tests/scripts/omt/test_thought_pattern_pin.py.
 
 // Grep TA: in a single file (cheap; used by the think-gate before-hook).
 // Takes an absolute path so it works both at module level and inside the plugin.
@@ -272,20 +234,14 @@ export function fileThoughtsIn(absFile: string): { line: number; content: string
 }
 
 // feature_022 C1: latest verify records for path === rel whose status is
-// "stale" → their line numbers. Reads join(root, ".meta/.omt/thoughts.jsonl")
-// (root = plugin directory at the call site; injected in tests). Fail-open:
+// "stale" → their line numbers. Reads thoughts.jsonl via the shared lib
+// (root = plugin ctx root at the call site; injected in tests). Fail-open:
 // missing/corrupt index → empty set (no markers, never blocks the message).
 function staleLinesFor(root: string, rel: string): Set<number> {
   const out = new Set<number>()
   try {
-    const indexPath = join(root, ".meta", ".omt", "thoughts.jsonl")
-    if (!existsSync(indexPath)) return out
     const latest = new Map<number, string>()
-    for (const line of readFileSync(indexPath, "utf8").split("\n")) {
-      const s = line.trim()
-      if (!s) continue
-      let r: any
-      try { r = JSON.parse(s) } catch { continue }
+    for (const r of readJsonl(thoughtsIndexPath(root))) {
       if (r && r.kind === "verify" && r.path === rel && typeof r.line === "number") {
         latest.set(r.line, r.status)
       }
@@ -320,8 +276,15 @@ function thinkGateMsg(
     `\n(The block already shows these thoughts; call omt_think_list to record the consult.)`
 }
 
-export const OmtEnforcer = async ({ client, $, directory }) => {
-  const ledgerPath = join(directory, ".meta", ".omt", "ledger.jsonl")
+export const OmtEnforcer = async ({ client, $, directory: cwd, worktree }) => {
+  // F2/F17 (meta_harness_dsl R1): repo root = worktree ?? directory.
+  // `directory` is the current working directory, so a subdir launch breaks
+  // repo-relative paths exactly like a bare cwd did pre-R1; `worktree`
+  // is the git worktree path. Body references below keep the name `directory`
+  // (byte-stable e2e pins), now bound to the corrected root; the shared lib is
+  // initialized with the same value.
+  const directory = worktree ?? cwd
+  initOmtShared(directory)
 
   // --- session state for feature_020 navigation enforcement ---
   // Track which sessions have used navigation tools vs search tools
@@ -340,24 +303,12 @@ export const OmtEnforcer = async ({ client, $, directory }) => {
   // two maps above; bounded by distinct sessionIDs.
   const navRemindedSessions = new Set<string>()
 
-  // --- ledger helpers ------------------------------------------------------
-  const nowIso = () => new Date().toISOString()
-
+  // --- ledger helpers (shared lib: append adds ts; reads fail-open) ---------
   const writeLedger = (record) => {
-    mkdirSync(dirname(ledgerPath), { recursive: true })
-    appendFileSync(ledgerPath, JSON.stringify({ ts: nowIso(), ...record }) + "\n")
+    appendJsonl(ledgerPath(), record)
   }
 
-  const readLedger = () => {
-    if (!existsSync(ledgerPath)) return []
-    const out = []
-    for (const line of readFileSync(ledgerPath, "utf8").split("\n")) {
-      const s = line.trim()
-      if (!s) continue
-      try { out.push(JSON.parse(s)) } catch { /* skip corrupt line */ }
-    }
-    return out
-  }
+  const readLedger = () => readJsonl(ledgerPath())
 
   // Latest phase/skip unlocking edits for this session (exact match preferred,
   // else any record within the time window — keeps the gate usable if sessionID
@@ -484,23 +435,15 @@ export const OmtEnforcer = async ({ client, $, directory }) => {
   }
 
   // --- path classification -------------------------------------------------
-  const relOf = (raw) => {
-    const abs = isAbsolute(raw) ? raw : join(directory, raw)
-    return { abs, rel: relative(directory, abs).split("\\").join("/") }
-  }
+  // relOf(raw) → {abs, rel} is imported from the shared lib (R1); it resolves
+  // against the same root this factory was initialized with above.
   const isProtected = (rel) =>
     rel === "README.md" || rel === "uv.lock" || rel === "LICENSE" ||
     rel === ".env" || rel.startsWith(".env.")
   const isTests = (rel) => rel === "tests" || rel.startsWith("tests/")
   const isSrc = (rel) => rel.startsWith("src/")
-  const isOmtHarness = (rel) =>
-    rel === "AGENTS.md" || rel === "opencode.jsonc" ||
-    rel === ".meta/software_development_process/omt_agent_guide.md" ||
-    rel.startsWith(".opencode/plugins/omt_") ||
-    rel.startsWith("scripts/omt/") ||
-    rel.startsWith(".meta/templates/") ||
-    rel.startsWith(".meta/software_development_process/2.requirements/features/feature_006.opencode_process_enforcement/") ||
-    rel.startsWith("tests/scripts/omt/")
+  // isOmtHarness: single source is the shared lib (R1) — used inside the
+  // imported omtHarnessE2eStatus below.
 
   // feature_020: extract the repo-relative search target from a grep/glob call
   // (the `path` arg). Returns null when no path is supplied (whole-repo search).
@@ -519,54 +462,9 @@ export const OmtEnforcer = async ({ client, $, directory }) => {
     return relOf(rawStr).rel
   }
 
-  const receiptTimestampMs = () => {
-    const receipt = join(directory, OMT_HARNESS_E2E_RECEIPT)
-    if (!existsSync(receipt)) return 0
-    let parsed = 0
-    try {
-      const data = JSON.parse(readFileSync(receipt, "utf8") || "{}")
-      const t = Date.parse(data.passed_at || data.timestamp || "")
-      parsed = Number.isNaN(t) ? 0 : t
-    } catch { /* ignore invalid receipt */ }
-    try { return Math.max(parsed, statSync(receipt).mtimeMs) } catch { return parsed }
-  }
-
-  const isGitDirty = (rel) => {
-    try {
-      const out = execFileSync("git", ["status", "--porcelain", "--", rel], {
-        cwd: directory,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      })
-      return out.trim().length > 0
-    } catch {
-      // If git is unavailable, fail open. The e2e test still verifies the source guard.
-      return false
-    }
-  }
-
-  const omtHarnessE2eStatus = (rel, abs) => {
-    if (!isOmtHarness(rel)) return { ok: true, message: "" }
-    if (rel === OMT_HARNESS_E2E_TEST || rel === OMT_HARNESS_E2E_RECEIPT) {
-      return { ok: true, message: "" }
-    }
-    if (!existsSync(abs)) return { ok: true, message: "" }
-    if (!isGitDirty(rel)) return { ok: true, message: "" }
-
-    const lastPassed = receiptTimestampMs()
-    let targetMtime = 0
-    try { targetMtime = statSync(abs).mtimeMs } catch { return { ok: true, message: "" } }
-    if (lastPassed >= targetMtime) return { ok: true, message: "" }
-
-    return {
-      ok: false,
-      message:
-        `⛔ OMT++ gate: '${rel}' is part of the META HARNESS / OMT enforcement surface ` +
-        `and already has unverified changes. Run the comprehensive harness e2e test before ` +
-        `editing it again:\n  ${OMT_HARNESS_E2E_COMMAND}\n` +
-        `This test refreshes ${OMT_HARNESS_E2E_RECEIPT}.`,
-    }
-  }
+  // receiptTimestampMs / isGitDirty / omtHarnessE2eStatus: single source is
+  // the shared lib (R1) — omtHarnessE2eStatus imported above; the before-hook
+  // call site below is unchanged.
 
   // --- teaching messages ---------------------------------------------------
   const denyMsg = (rel) =>
@@ -893,11 +791,6 @@ export const OmtEnforcer = async ({ client, $, directory }) => {
   // --- hooks ---------------------------------------------------------------
   return {
     tool: { omt_phase, omt_skip, omt_complete, omt_testlist, omt_red, omt_green, omt_refactor, omt_done },
-
-    "session.start": async () => {
-      // Remind about feature_020 navigation tools on session start
-      return navReminderMsg()
-    },
 
     "tool.execute.before": async (input, output) => {
       try {

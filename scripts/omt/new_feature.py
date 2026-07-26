@@ -10,7 +10,7 @@ Usage:
     uv run scripts/omt/new_feature.py "modern ui" --type major_feature
     uv run scripts/omt/new_feature.py "modern ui" --dry-run
 
-The plugin gate (.opencode/plugin/omt_enforcer.ts) calls this automatically for
+The plugin gate (.opencode/plugins/omt_enforcer.ts) calls this automatically for
 feature-sized tasks so the design/analysis artifacts exist before src/ edits unlock.
 """
 from __future__ import annotations

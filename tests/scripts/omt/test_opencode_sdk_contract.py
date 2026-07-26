@@ -21,12 +21,12 @@ The F14 meta-lesson (feature_023.test_refactor_live_only / REFACTOR_PLAN_v2):
 runner fixtures fabricate the SDK shapes the buggy code expects and stay green
 while the real runtime drifts. The deleted feature_022 fixture-pinning class
 (TestFixturePin) pinned the fixtures themselves; with the fixtures removed by
-the v2 refactor, that 3rd pin is obsolete. The after-hook contract is now
-pinned LIVE by test_omt_live_opencode_guards.py::test_nav_reminder_and_think_digest_on_first_tool_result
-(F14c live path — real opencode binary drives the hook). The before-hook
-contract is pinned LIVE by test_omt_live_opencode_guards.py::test_protected_file_edit_blocked_without_unlock
-(BUG-A regression). Both live tests fail on the real buggy runtime — the
-mechanization the fixture pins failed to provide.
+the v2 refactor, that 3rd pin is obsolete. The after-hook F14c live path is
+also exercised LIVE by the minimal smoke in test_omt_live_opencode_guards.py
+(real binary, first tool result carries both injections); the full live guard
+suite (BUG-A/BUG-B before-hook probes) was reduced to static pins here +
+test_omt_enforcer_guard_source_pins.py, with the real-binary recipes kept in
+the WORK.md scratchpad.
 
 Runtime truth (ground the d.ts pin proxies): binary audit of the installed
 opencode-linux-x64 1.18.3 (`grep -ao 'trigger("[a-z._]*"'`) yields exactly 16
@@ -105,7 +105,9 @@ class TestVersionPin:
 # It pinned the deleted feature_022 fixture files (test_omt_think_v2_tier_{bd,c}.py)
 # which fabricated SDK hook shapes — exactly the F14 meta-lesson: runner fixtures
 # stay green while the real runtime drifts. The after/before-hook contracts are
-# now pinned LIVE by test_omt_live_opencode_guards.py (F14c + BUG-A tests).
+# pinned STATICALLY by this module + test_omt_enforcer_guard_source_pins.py;
+# the live suite (test_omt_live_opencode_guards.py) is now the minimal smoke
+# (plugins load, tools execute, after-hooks fire).
 
 
 if __name__ == "__main__":

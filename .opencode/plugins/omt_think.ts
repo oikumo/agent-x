@@ -4,7 +4,9 @@
 // after:/symbol: anchor-based insertion — drift-resistant, anchor in index;
 // Tier C: omt_think_verify placement-integrity lifecycle (verified/stale),
 // digest stale count, per-file consult records; Tier remainder: omt_think_suggest
-// AST-ranked site advisor (B2), omt_think_reindex index reconciliation (E1)).
+// AST-ranked site advisor (B2); E1 resolved by meta_harness_dsl R6: the
+// reindex/rewrite class was DELETED — the index is append-only (add / verify /
+// remove-tombstone events, latest-wins fold), grep stays the source of truth.
 //
 // Adapts the Think-Anywhere paper's on-demand reasoning to the META HARNESS as a
 // PERSISTENT, grep-friendly annotation/memory layer. opencode drops compact
@@ -16,26 +18,20 @@
 // Contract (mirrors omt_nav.ts / omt_status.ts — feature_020 defect-free):
 //   • import { tool } from "@opencode-ai/plugin"; args + tool.schema.* (DEFECT-C safe)
 //   • async execute(args, context) returns a plain string (DEFECT-D safe)
-//   • default export async () => ({ tool, "session.start", "tool.execute.after" })
+//   • default export async () => ({ tool, "tool.execute.after" })
 //   • NO named tool-object exports (DEFECT-A safe); only the default factory
 //   • file ops via execFileSync/readFileSync/writeFileSync (no shell — H3 safe)
 
 import { tool } from "@opencode-ai/plugin"
-import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs"
-import { join, relative, isAbsolute, extname, dirname } from "node:path"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { join, relative, isAbsolute, extname } from "node:path"
 import { execFileSync } from "node:child_process"
-
-const REPO_ROOT = process.cwd()
-const THOUGHTS_INDEX = join(REPO_ROOT, ".meta", ".omt", "thoughts.jsonl")
-const LEDGER_PATH = join(REPO_ROOT, ".meta", ".omt", "ledger.jsonl")
-
-// Anchored TA: thought pattern (feature_022 A1 / F3): matches only real
-// comment-opener thought lines, never prose mentions (META:/DATA:/string
-// literals). Covers every opener buildThoughtLine can emit (#, //, /*, <!--,
-// --) so list/gate are never blind to what omt_think wrote. grep -E / JS
-// RegExp compatible (\s is a GNU-grep ERE extension — confirmed on box).
-// keep in sync with omt_enforcer.ts (byte-identical; structural test asserts).
-const THOUGHT_PATTERN = "^\\s*(#|//|/\\*|<!--|--)\\s*TA:"
+// Single source (meta_harness_dsl R1): THOUGHT_PATTERN, state paths, JSONL IO
+// and repo-root live in the shared lib (root injected at plugin-init, F2/F17).
+import {
+  initOmtShared, repoRoot, ledgerPath, thoughtsIndexPath,
+  relOf as sharedRelOf, toAbs, readJsonl, appendJsonl, THOUGHT_PATTERN,
+} from "../lib/omt_shared"
 
 // Protected files: TA: tags are NEVER written here (AGENTS.md NEVER set + JSON).
 const PROTECTED_FILES = new Set(["README.md", "uv.lock", "LICENSE", ".env"])
@@ -75,65 +71,64 @@ function commentSyntaxFor(ext: string): { open: string; close: string } | null {
   return null
 }
 
+// Thin local adapter: this plugin's relOf returns the rel string only (the
+// shared lib's relOf returns {abs, rel}); toAbs is imported from the lib.
 function relOf(raw: string): string {
-  const abs = isAbsolute(raw) ? raw : join(REPO_ROOT, raw)
-  return relative(REPO_ROOT, abs).split("\\").join("/")
-}
-
-function toAbs(rel: string): string {
-  return isAbsolute(rel) ? rel : join(REPO_ROOT, rel)
+  return sharedRelOf(raw).rel
 }
 
 // Append a record to the JSONL index (best-effort structured sidecar; inline
-// thought-tags remain the source of truth).
+// thought-tags remain the source of truth). APPEND-ONLY (R6 S1): no code path
+// may rewrite this file — pinned by test_thought_pattern_pin.py.
 function appendIndex(record: Record<string, unknown>): void {
-  try {
-    mkdirSync(dirname(THOUGHTS_INDEX), { recursive: true })
-    appendFileSync(THOUGHTS_INDEX, JSON.stringify({ ts: new Date().toISOString(), ...record }) + "\n")
-  } catch { /* best-effort */ }
+  appendJsonl(thoughtsIndexPath(), record)
 }
 
-// Rewrite the index without records matching {path, line} (reconcile on remove).
-// Kind-agnostic: add AND verify records for the slot are dropped, so a removed
-// thought leaves no zombie verify state and a re-added thought starts
-// unverified (feature_022 C1).
-function reconcileIndex(path: string, line: number): void {
-  if (!existsSync(THOUGHTS_INDEX)) return
-  try {
-    const kept = readFileSync(THOUGHTS_INDEX, "utf8")
-      .split("\n").filter(s => s.trim())
-      .map(l => { try { return JSON.parse(l) } catch { return null } })
-      .filter(Boolean)
-      .filter((r: any) => !(r.path === path && r.line === line))
-    writeFileSync(THOUGHTS_INDEX, kept.map(r => JSON.stringify(r)).join("\n") + "\n")
-  } catch { /* best-effort */ }
-}
-
-// Read the JSONL index (feature_022 C1 — first read-consumer; partial F8
-// progress, full strategy is E1). Skips corrupt lines, fail-open [].
+// Read the JSONL index (append-only event log: add / verify / remove records).
+// Skips corrupt lines, fail-open [].
 function readThoughtsIndex(): any[] {
-  if (!existsSync(THOUGHTS_INDEX)) return []
-  try {
-    const out: any[] = []
-    for (const line of readFileSync(THOUGHTS_INDEX, "utf8").split("\n")) {
-      const s = line.trim()
-      if (!s) continue
-      try { out.push(JSON.parse(s)) } catch { /* skip corrupt line */ }
-    }
-    return out
-  } catch { return [] }
+  return readJsonl(thoughtsIndexPath())
 }
 
-// Latest verify status per "path:line" (verify records are append-only; the
-// latest record per slot wins). Used by the digest stale count (C1).
-function latestVerifyStatus(recs: any[]): Map<string, string> {
-  const m = new Map<string, string>()
+// Append-only event fold (meta_harness_dsl R6 S1): the index is NEVER rewritten
+// (the reconcile/reindex rewrite-by-filter class was deleted — grep is truth,
+// audit P8/F12). Records are add (no kind) / verify / remove-tombstone events;
+// the fold is latest-wins. A slot (path:line) is ALIVE when its newest
+// add/remove event is an add — a tombstoned slot reads as absent, and a
+// re-added thought (newer add-record) starts unverified (feature_022 C1
+// semantics, zero rewrites). Verify verdicts join by normalized thought TEXT
+// (identity), never path:line (audit F28: line drift must not re-attach a
+// verdict to the wrong thought; path:line is a display key only).
+function foldThoughtEvents(recs: any[]): {
+  aliveAdds: any[]
+  latestAddTsByText: Map<string, number>
+  latestVerifyByText: Map<string, { status: string; ts: number }>
+} {
+  const slotLatest = new Map<string, { kind: string; r: any }>()
+  const latestAddTsByText = new Map<string, number>()
+  const latestVerifyByText = new Map<string, { status: string; ts: number }>()
   for (const r of recs) {
-    if (r && r.kind === "verify" && typeof r.path === "string" && typeof r.line === "number") {
-      m.set(`${r.path}:${r.line}`, r.status)
+    if (!r || typeof r.path !== "string") continue
+    const ts = Date.parse(r.ts || "") || 0
+    if (r.kind === "verify") {
+      if (typeof r.thought === "string" && r.thought) {
+        const cur = latestVerifyByText.get(r.thought)
+        if (!cur || ts >= cur.ts) latestVerifyByText.set(r.thought, { status: String(r.status || ""), ts })
+      }
+      continue
+    }
+    if (r.kind === "remove") {
+      slotLatest.set(`${r.path}:${r.line}`, { kind: "remove", r })
+      continue
+    }
+    // add-record (no kind field)
+    slotLatest.set(`${r.path}:${r.line}`, { kind: "add", r })
+    if (typeof r.thought === "string" && r.thought) {
+      if (ts >= (latestAddTsByText.get(r.thought) || 0)) latestAddTsByText.set(r.thought, ts)
     }
   }
-  return m
+  const aliveAdds = [...slotLatest.values()].filter(e => e.kind === "add").map(e => e.r)
+  return { aliveAdds, latestAddTsByText, latestVerifyByText }
 }
 
 // Record a think_consult in the shared ledger so the enforcer's think-gate
@@ -142,14 +137,11 @@ function latestVerifyStatus(recs: any[]): Map<string, string> {
 // a truncated record covers only listed files — safe direction). Empty result
 // → files: [] (covers nothing; no clearance granted).
 function recordConsult(session: string | undefined, files: string[]): void {
-  try {
-    mkdirSync(dirname(LEDGER_PATH), { recursive: true })
-    appendFileSync(LEDGER_PATH, JSON.stringify({
-      ts: new Date().toISOString(), kind: "think_consult", session: session || "",
-      files: files.slice(0, 200),
-      ...(files.length > 200 ? { files_truncated: true } : {}),
-    }) + "\n")
-  } catch { /* best-effort */ }
+  appendJsonl(ledgerPath(), {
+    kind: "think_consult", session: session || "",
+    files: files.slice(0, 200),
+    ...(files.length > 200 ? { files_truncated: true } : {}),
+  })
 }
 
 // grep thought lines across a target (file or dir), honoring excludes. Returns
@@ -158,7 +150,7 @@ function recordConsult(session: string | undefined, files: string[]): void {
 // A1). A1b: .venv/__pycache__ excluded (noise dirs that polluted the digest).
 function grepThoughts(pattern: string, target: string): { file: string; line: number; content: string }[] {
   const results: { file: string; line: number; content: string }[] = []
-  const absTarget = isAbsolute(target) ? target : join(REPO_ROOT, target)
+  const absTarget = isAbsolute(target) ? target : join(repoRoot(), target)
   if (!existsSync(absTarget)) return results
   try {
     const output = execFileSync("grep", [
@@ -174,7 +166,7 @@ function grepThoughts(pattern: string, target: string): { file: string; line: nu
       if (match) {
         const [, file, lineNum, content] = match
         results.push({
-          file: relative(REPO_ROOT, file).split("\\").join("/"),
+          file: relative(repoRoot(), file).split("\\").join("/"),
           line: parseInt(lineNum, 10),
           content: content.trim(),
         })
@@ -457,7 +449,9 @@ const omt_think_list = tool({
 // --- omt_think_remove: remove a thought -------------------------------------
 const omt_think_remove = tool({
   description:
-    "Remove a TA: thought-tag line from a file (feature_021) and reconcile the JSONL index.",
+    "Remove a TA: thought-tag line from a file (feature_021) and append a " +
+    "remove-tombstone to the JSONL index (append-only, R6 S1: the index is " +
+    "never rewritten; the latest-wins fold reads a tombstoned slot as absent).",
   args: {
     path: tool.schema.string().describe("target file"),
     line: tool.schema.number().describe("1-based line of the TA: comment to remove"),
@@ -487,7 +481,11 @@ const omt_think_remove = tool({
     }
     lines.splice(idx, 1)
     writeFileSync(abs, lines.join("\n"), "utf8")
-    reconcileIndex(rel, Math.floor(lineArg))
+    // R6 S1 append-only tombstone: the index is NEVER rewritten (the
+    // reconcile-by-rewrite path was deleted — grep is truth, audit P8/F12).
+    // The fold reads a tombstoned slot as absent; a re-added thought (newer
+    // add-record) starts unverified — C1 semantics, zero rewrites.
+    appendIndex({ kind: "remove", path: rel, line: Math.floor(lineArg) })
     return `🗑 removed TA: at ${rel}:${lineArg}`
   },
 })
@@ -535,9 +533,11 @@ const omt_think_verify = tool({
     const parsed = parseThoughtLine(lines[idx])
     const text = parsed?.text || ""
     const cat = parsed?.cat || null
-    // Index lookup: latest ADD-record (no kind field) at (path,line); drift
-    // fallback: latest ADD-record with (path, thought-text). Latest wins.
-    const adds = readThoughtsIndex().filter(r => r && !r.kind && r.path === rel)
+    // Index lookup over ALIVE add-records (R6 S1 fold: tombstoned slots read
+    // as absent): latest add-record at (path,line); drift fallback: latest
+    // add-record with (path, thought-text). Latest wins.
+    const { aliveAdds } = foldThoughtEvents(readThoughtsIndex())
+    const adds = aliveAdds.filter(r => r.path === rel)
     let rec = [...adds].reverse().find(r => r.line === lineNo)
     if (!rec) rec = [...adds].reverse().find(r => r.thought === text)
     let status: "verified" | "stale"
@@ -654,166 +654,80 @@ const omt_think_suggest = tool({
   },
 })
 
-// --- omt_think_reindex: JSONL index reconciliation (feature_022 E1) ---------
-// F8 strategy decision (analysis_004 §2.2): CONSUME the index via drift-repair
-// — grep stays the gate's source of truth; the index carries B1 anchors + C1
-// verify history that grep cannot reconstruct. Dispositions per add-record:
-// keep (live, same line+text) / repair (unique text match elsewhere in file,
-// gains repaired_from) / drop (file missing, text vanished, or AMBIGUOUS >1
-// match — never silently retarget, B1 philosophy). Verify records whose slot
-// loses its add-record are pruned (cheap to regenerate). Idempotent; rewrites
-// only the index; fail-open I/O like all index writers.
-const omt_think_reindex = tool({
-  description:
-    "Reconcile the TA: thoughts index against live files (feature_022 E1): keep " +
-    "live records, repair drifted line numbers (unique text match), drop dead/" +
-    "vanished/ambiguous records, prune zombie verify records. Idempotent; " +
-    "rewrites only .meta/.omt/thoughts.jsonl. Pass path to restrict scope.",
-  args: {
-    path: tool.schema.string().optional().describe(
-      "restrict reconciliation to one repo-relative file's records (default: all recorded paths)"),
-  },
-  async execute(args, context) {
-    const filter = args?.path ? relOf(args.path) : null
-    if (!existsSync(THOUGHTS_INDEX)) {
-      return "🧹 TA: reindex — no index records (nothing to do)."
-    }
-    const recs = readThoughtsIndex()
-    const adds = recs.filter(r => r && !r.kind && typeof r.path === "string")
-    const verifies = recs.filter(r => r && r.kind === "verify" && typeof r.path === "string")
-    const passthrough = recs.filter(r => !(r && typeof r.path === "string" && (!r.kind || r.kind === "verify")))
-    // In-scope adds; out-of-scope pass through verbatim (not counted, not deduped).
-    const inScope = adds.filter(r => !filter || r.path === filter)
-    const outScope = adds.filter(r => filter && r.path !== filter)
-    // Dedupe in-scope adds by path:line — latest record wins.
-    const bySlot = new Map<string, any>()
-    let dropped = 0
-    for (const r of inScope) {
-      const key = `${r.path}:${r.line}`
-      if (bySlot.has(key)) dropped++
-      bySlot.set(key, r)
-    }
-    // File cache: path → lines | "missing" | "error" (error → skip path, keep records).
-    const cache = new Map<string, string[] | "missing" | "error">()
-    for (const r of bySlot.values()) {
-      if (cache.has(r.path)) continue
-      const abs = toAbs(r.path)
-      if (!existsSync(abs)) { cache.set(r.path, "missing"); continue }
-      try { cache.set(r.path, readFileSync(abs, "utf8").split(/\r?\n/)) }
-      catch { cache.set(r.path, "error") }
-    }
-    let kept = 0, repaired = 0
-    const skippedPaths = new Set<string>()
-    const details: string[] = []
-    const survivingAdds: any[] = []
-    const rx = new RegExp(THOUGHT_PATTERN)
-    const preview = (s: string) => {
-      const p = String(s || "").replace(/\s+/g, " ").trim()
-      return p.length > 60 ? p.slice(0, 60) + "…" : p
-    }
-    for (const r of bySlot.values()) {
-      const f = cache.get(r.path)
-      if (f === "missing") { dropped++; continue }
-      if (f === "error" || f === undefined) {
-        skippedPaths.add(r.path); survivingAdds.push(r); continue
-      }
-      const lines = f
-      const cur = (typeof r.line === "number" && r.line >= 1 && r.line <= lines.length)
-        ? parseThoughtLine(lines[r.line - 1]) : null
-      const recCat = r.category || null
-      if (cur && cur.text === r.thought && (cur.cat || null) === recCat) {
-        kept++; survivingAdds.push(r); continue
-      }
-      const matches: number[] = []
-      for (let i = 0; i < lines.length; i++) {
-        if (!rx.test(lines[i])) continue
-        const p = parseThoughtLine(lines[i])
-        if (p && p.text === r.thought && (p.cat || null) === recCat) matches.push(i + 1)
-      }
-      if (matches.length === 1) {
-        repaired++
-        details.push(`${r.path}: ${r.line}→${matches[0]} (${preview(r.thought)})`)
-        survivingAdds.push({ ...r, line: matches[0], repaired_from: r.line })
-      } else {
-        dropped++ // 0 matches = vanished; >1 = ambiguous (no silent retarget)
-      }
-    }
-    // Prune verify records whose slot has no surviving add-record.
-    const slots = new Set([...survivingAdds, ...outScope].map(r => `${r.path}:${r.line}`))
-    let pruned = 0
-    const survivingVerifies: any[] = []
-    for (const v of verifies) {
-      if (slots.has(`${v.path}:${v.line}`)) survivingVerifies.push(v)
-      else pruned++
-    }
-    try {
-      const finalRecs = [...passthrough, ...outScope, ...survivingAdds, ...survivingVerifies]
-      writeFileSync(THOUGHTS_INDEX, finalRecs.map(r => JSON.stringify(r)).join("\n") + "\n")
-    } catch { /* best-effort */ }
-    let out = `🧹 TA: reindex — kept ${kept}, repaired ${repaired}, dropped ${dropped}, verify-pruned ${pruned}` +
-      (skippedPaths.size ? `; skipped ${skippedPaths.size} path(s)` : "") + "."
-    if (details.length) {
-      out += "\n" + details.slice(0, 10).join("\n")
-      if (details.length > 10) out += `\n… (+${details.length - 10} more repairs)`
-    }
-    return out
-  },
-})
+// (meta_harness_dsl R6 S1: omt_think_reindex DELETED — grep-is-truth made the
+// reconcile/rewrite class redundant AND destructive-prone on an untracked,
+// backup-less index; audit P8/F12. Append-only events + latest-wins fold
+// deliver identical semantics — incl. C1 re-added-starts-unverified — with
+// zero rewrites. thoughts.jsonl.bak snapshot retained for the historical record.)
 
-// --- session.start: mechanical per-session digest ---------------------------
+// --- per-session digest (R6 S7 compact form) --------------------------------
+// Compact by design (audit F32/C4: a conversation-resident injection is re-paid
+// EVERY model turn — full texts × ~30 turns ≈ 10k tok/session). Counts +
+// per-file counts + stale ⚠️ survive; full texts are re-injected point-of-use
+// by D1 on file read and are one omt_think_list call away.
 function thinkDigest(): string {
   const hits = grepThoughts(THOUGHT_PATTERN, ".")
-  const files = new Set(hits.map(h => h.file)).size
   if (hits.length === 0) {
-    return "💡 THINK-ANYWHERE (feature_021): 0 thoughts yet. " +
-      "Add one with omt_think{path, thought} when you learn a gotcha."
+    return "💡 TA: 0 thoughts indexed. Drop one with omt_think{path, thought} when you learn a gotcha."
   }
-  // C1: surface current thoughts whose latest verify record is stale (drift
-  // signal). Index unreadable/corrupt → 0 stale (fail-open — the digest never
-  // breaks session.start).
-  const verify = latestVerifyStatus(readThoughtsIndex())
-  const stale = hits.filter(h => verify.get(`${h.file}:${h.line}`) === "stale")
-  const cap = 30
-  const shown = hits.slice(0, cap)
-  const rendered = shown.map(h => `${h.file}:${h.line}: ${h.content}`).join("\n")
-  let out = `💡 THINK-ANYWHERE (feature_021): ${hits.length} thought${hits.length === 1 ? "" : "s"} indexed across ${files} file${files === 1 ? "" : "s"}.` +
-    (stale.length ? ` ⚠️ ${stale.length} stale — re-check with omt_think_verify{path, line}.` : "") +
-    `\n${rendered}`
-  if (hits.length > cap) {
-    out += `\n… (+${hits.length - cap} more: omt_think_list)`
+  const files = new Set(hits.map(h => h.file))
+  // Stale join (C1/F28): verdicts matched to live hits by normalized TEXT, and
+  // only when the verdict is newer than the thought's latest add (a re-added
+  // thought starts unverified). Index unreadable/corrupt → 0 stale (fail-open
+  // — the digest never breaks a session).
+  const { latestAddTsByText, latestVerifyByText } = foldThoughtEvents(readThoughtsIndex())
+  const stale: string[] = []
+  for (const h of hits) {
+    const p = parseThoughtLine(h.content)
+    if (!p) continue
+    const v = latestVerifyByText.get(p.text)
+    if (!v || v.status !== "stale") continue
+    if (v.ts >= (latestAddTsByText.get(p.text) || 0)) stale.push(`${h.file}:${h.line}`)
   }
-  out += `\nDrop new thoughts with omt_think{path, thought}; review before editing thought-carrying files (think-gate).`
+  const perFile = new Map<string, number>()
+  for (const h of hits) perFile.set(h.file, (perFile.get(h.file) || 0) + 1)
+  const top = [...perFile.entries()].sort((a, b) => b[1] - a[1])
+  const shown = top.slice(0, 6).map(([f, n]) => `${f}(${n})`).join(" ")
+  let out = `💡 TA: ${hits.length} thought${hits.length === 1 ? "" : "s"} across ${files.size} file${files.size === 1 ? "" : "s"} — ${shown}` +
+    (top.length > 6 ? ` … (+${top.length - 6} files)` : "") +
+    (stale.length ? `\n⚠️ ${stale.length} stale: ${stale.slice(0, 5).join(", ")}${stale.length > 5 ? " …" : ""} — re-check with omt_think_verify{path, line}.` : "")
+  out += `\nFull texts: omt_think_list (auto-injected per thought-carrying file on read; think-gate applies).`
   return out
 }
 
-// feature_023 Tier 1c (F14c): LIVE session digest state. opencode 1.18.3
-// never dispatches `session.start` (binary audit, analysis_001 addendum) — the
-// "session.start" registration below is inert. Emit the digest once per
-// session on the FIRST tool.execute.after instead (the same mutation channel
-// as D1 — guaranteed agent-visible; notify()/toast is a no-op headless).
-// Process-lifetime, bounded by distinct sessionIDs.
+// feature_023 Tier 1c (kept as the R6 S3 FALLBACK): the digest rides the FIRST
+// tool.execute.after per session (mutating output.output — the guaranteed
+// agent-visible channel, headless or not). The inert "session.start" hook was
+// DELETED in R6 (never dispatched: audited 1.18.3, re-verified 1.18.5; the
+// official event list has no session.start). Moving the trigger to the
+// documented `event` hook on session.created is DEFERRED — no agent-visible
+// delivery channel from event hooks is verified on 1.18.5 headless (plan R6
+// S3 hard GATE; fallback recorded in WORK.md). Process-lifetime Set, bounded
+// by distinct sessionIDs; R2 moves it into enforcer session_state (S6).
 const digestSessions = new Set<string>()
 
 // Standalone opencode plugin (mirrors omt_nav.ts / omt_status.ts).
 // NO named tool-object exports — opencode's loader requires every export to be a
 // function (DEFECT-A safe). Only the default factory is exported.
-export default async () => ({
-  tool: { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest, omt_think_reindex },
-  // Inert today (opencode 1.18.3 never dispatches it); retained for future
-  // SDKs that do — the live path is tool.execute.after (feature_023 Tier 1c).
-  "session.start": async () => thinkDigest(),
-  "tool.execute.after": async (input, output) => {
-    // feature_023 Tier 1c: append the TA digest to the FIRST tool result per
-    // session (live path — session.start is never dispatched). Fail-open.
-    try {
-      const session = input?.sessionID || ""
-      if (!digestSessions.has(session)) {
-        digestSessions.add(session)
-        if (typeof output?.output === "string") {
-          output.output += "\n\n" + thinkDigest()
+// R1 (F2/F17): repo root = worktree ?? directory, injected into the shared lib
+// before any hook runs (all lib path getters are lazy — see lib header).
+export default async ({ directory, worktree }) => {
+  initOmtShared(worktree ?? directory)
+  return {
+    tool: { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest },
+    "tool.execute.after": async (input, output) => {
+      // Tier 1c: append the TA digest to the FIRST tool result per session.
+      // Fail-open — the digest never blocks tool results.
+      try {
+        const session = input?.sessionID || ""
+        if (!digestSessions.has(session)) {
+          digestSessions.add(session)
+          if (typeof output?.output === "string") {
+            output.output += "\n\n" + thinkDigest()
+          }
         }
-      }
-    } catch { /* fail-open — the digest never blocks tool results */ }
-  },
-})
+      } catch { /* fail-open */ }
+    },
+  }
+}
 // TA: xref: feature_022.meta_harness_think_anywhere_v2 FEATURE.md catalogs 13 flaws of this v1 (string-unaware insertion F1, unsafe # default F2, gate substring false-positives F3) + tiered fixes A-E — read before modifying

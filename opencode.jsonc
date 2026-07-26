@@ -1,16 +1,11 @@
 // agentx — LIVE opencode configuration (authoritative).
 // Coarse, declarative enforcement of the AGENTS.md "NEVER" rules. Fine-grained,
-// teaching enforcement of the OMT++ process lives in .opencode/plugin/omt_enforcer.ts.
+// teaching enforcement of the OMT++ process lives in .opencode/plugins/omt_enforcer.ts.
+// Local plugins auto-load from .opencode/plugins/ — the `plugin` array is npm-only
+// (official docs), so the omt_* plugins are deliberately NOT listed there.
 {
   "$schema": "https://opencode.ai/config.json",
   "lsp": true,
-
-  "plugin": [
-    "omt_enforcer",
-    "omt_nav.js",
-    "omt_status",
-    "omt_think"
-  ],
 
   "agent": {
     "build": {
@@ -65,6 +60,7 @@
     "list": "allow",
     "lsp": "allow",
     "skill": "allow",
+    // omt_* tool permissions — ALL explicit (F35: no implicit-default drift class).
     "omt_nav": "allow",
     "omt_list_sections": "allow",
     "omt_cross_ref": "allow",
@@ -74,6 +70,14 @@
     "omt_think_remove": "allow",
     "omt_think_verify": "allow",
     "omt_think_suggest": "allow",
-    "omt_think_reindex": "allow"
+    "omt_phase": "allow",
+    "omt_complete": "allow",
+    "omt_skip": "allow",
+    "omt_status": "allow",
+    "omt_testlist": "allow",
+    "omt_red": "allow",
+    "omt_green": "allow",
+    "omt_refactor": "allow",
+    "omt_done": "allow"
   }
 }
