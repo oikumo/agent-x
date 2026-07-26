@@ -9,7 +9,7 @@ is pinned mechanically here so it cannot recur:
    protected (F25; user hand-edits at leisure); the guard source-pins docstring
    quotes the pre-rename path BY DESIGN (F24 — it describes the bug it pins);
    per-feature docs + PoC eval docs are frozen point-in-time records (F16 —
-   rewriting them falsifies history); .ws/ holds planning docs/audit records.
+    rewriting them falsifies history); .sandbox/ holds planning docs/audit records.
 2. opencode.jsonc's `plugin` array carries NO local omt_* plugin names (F14:
    the array is npm-only; local plugins auto-load from .opencode/plugins/).
 3. Startup contract single-source (R7 T1/F30): AGENTS.md and
@@ -62,7 +62,7 @@ FROZEN_FILES = {
 FROZEN_PREFIXES = (
     ".meta/software_development_process/",  # F16: per-feature docs = frozen history
     ".meta/proof_of_concepts/",             # historical PoC eval doc
-    ".ws/",                                  # sandbox planning docs / audit records
+    ".sandbox/",                             # sandbox planning docs / audit records
 )
 
 

@@ -55,7 +55,7 @@
 - [x] **feature_023.test_refactor_live_only** — consolidated suite: Node-runner fixtures removed; source-pins + live-opencode-binary tests kept (13 verification points); 68 static + e2e ✓.
 - [x] **feature_tui_dark_mode** — TUI dark mode toggle + theme selector
 - [x] **feature_023.production_hook_effects_test** — Test 6 MVC++ gate root-caused (after-hook args on `input`, SDK contract); tests green.
-- [~] **META HARNESS DSL** (refactor.meta_harness_dsl; supersedes refactor.meta_harness) — executing `.ws/sandbox/meta_harness_refactor_plan.md` (anchor `a7163df`; workstreams R0–R8). **DONE: R0 (drift/config/hygiene) · R1 (shared lib omt_shared.ts) · R2 (enforcer split → lib/enforcer/ ×7, single bootstrap) · R3 (tdd_check.py → tdd/ package) · R4 (ledger rotation, omt_done reachable) · R5 (docs single-source: AGENTS.md↔META_HARNESS.md re-synced, test_omt_docs_drift_pins.py ×9) · R6 (think index append-only, compact digest, session.start hook deleted) · R7 (T1 startup pin, T2 WORK.md diet 17.5→10.3 KB, T3 nav-reminder deferral live-verified, T5 budget pins: AGENTS ≤5KiB/WORK ≤14KiB/scratchpad ≤6KiB/nav tip ≤512B/digest ≤1KiB; T4/T8 deferred).** Per-workstream narratives: git history of this file + plan §0 audit. **Resume: R8 (OMT-HDL, plan Appendix D).**
+- [~] **META HARNESS DSL** (refactor.meta_harness_dsl; supersedes refactor.meta_harness) — executing `.sandbox/meta_harness_refactor_plan.md` (anchor `a7163df`; workstreams R0–R8). **DONE: R0 (drift/config/hygiene) · R1 (shared lib omt_shared.ts) · R2 (enforcer split → lib/enforcer/ ×7, single bootstrap) · R3 (tdd_check.py → tdd/ package) · R4 (ledger rotation, omt_done reachable) · R5 (docs single-source: AGENTS.md↔META_HARNESS.md re-synced, test_omt_docs_drift_pins.py ×9) · R6 (think index append-only, compact digest, session.start hook deleted) · R7 (T1 startup pin, T2 WORK.md diet 17.5→10.3 KB, T3 nav-reminder deferral live-verified, T5 budget pins: AGENTS ≤5KiB/WORK ≤14KiB/scratchpad ≤6KiB/nav tip ≤512B/digest ≤1KiB; T4/T8 deferred).** Per-workstream narratives: git history of this file + plan §0 audit. **Resume: R8 (OMT-HDL, plan Appendix D) — see IN PROGRESS below for exact state.** Plan doc lives at `.sandbox/meta_harness_refactor_plan.md` (moved 2026-07-26 from `.ws/sandbox/`; staged git rename, uncommitted).
 - [x] **feature_023.deep_harness_tests** <!-- id:T-023d prio:high agent:true --> — BUG-B live test redesigned (git-dirty-first); suite 105/105 ✓; dist/ deleted (proven unused); TA index reconciled.
 
 ---
@@ -64,7 +64,6 @@
 
 ```
 FEATURES DONE (full docs in each .meta/.../FEATURE.md + test_report.md — grep those for detail):
-- feature_019 fix: invalid CSS (font-family, white-space) kills entire Textual DEFAULT_CSS parse.
 - feature_020 nav + e2e, feature_021 think, feature_022 think-v2: all shipped.
 - feature_023.meta_harness_improvement: F14-F17 fixed, 13 TDD behaviors, contract-pinning mechanized.
 - feature_tui_dark_mode: default dark (textual-dark), `k` toggles, `Ctrl+Shift+T` theme selector (21 themes).
@@ -78,10 +77,8 @@ RECURRING GOTCHAS (apply on every future task — these cost hours when re-disco
 - **Runner fixtures can't catch contract/path drift — only real-binary tests can.** Recipe: `opencode run --format json "<prompt>"` + jq tool_use events; `--pure` = A/B control; assert FILE-STATE byte-identical, snapshot+restore probe targets. opencode loads `.opencode/plugins/*.ts` directly (dist/ unused, deleted).
 - **e2e receipt guard is a SECOND-EDIT guard** (omtHarnessE2eStatus: git-dirty + mtime vs receipt) — first edit of a clean harness file is allowed BY DESIGN. Each edit bumps mtime > receipt → next edit of THAT file blocked until `uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q`. Plan multi-edit refactors as receipt-rebuild cycles (see round-robin below).
 - **BUG-B live-test recipe (git-dirty-first):** the receipt guard is content-git-status-based — os.utime/touch on a CLEAN file never engages it. Probe: snapshot bytes → write_bytes(probe) (content-dirty ⇒ stale receipt) → `opencode run` one edit, prompt forbidding skip/bash/git → assert bytes unchanged + "unverified changes" → restore in finally.
-- **RESOLVED (R6 S1):** the reindex over-prune bug class died with the tool — index is append-only (add/verify/remove-tombstone, latest-wins fold); digest stale-join keys on normalized thought TEXT (F28). Pre-R6 snapshot: `.meta/.omt/thoughts.jsonl.bak`.
 - **Plugin probes WITHOUT the live suite (R6 recipe):** `bun /tmp/probe.ts` + `await import("<abs>/.opencode/plugins/omt_<x>.ts")` + `await m.default()` → real tool map/hooks; imports resolve from `.opencode/node_modules` regardless of cwd; REPO_ROOT = process.cwd() (run from repo root). Syntax gate: `cd .opencode && bun build --target=bun --outfile=/dev/null plugins/<f>.ts`.
 - **Write-tool large-payload workaround:** full-file Writes of ~750-line guarded plugins abort with empty params. Recipe: `rm <file>` (receipt guard ok on non-existent), rebuild via sequential `cat >> ... << 'QUOTED_EOF'` chunks (~100 lines), ONE receipt refresh at the end.
-- **CLOSED (R0, F14):** opencode.jsonc `plugin` array is npm-only — omt_* entries REMOVED (local plugins auto-load from `.opencode/plugins/`); all omt_* permissions explicit (F35). Drift-pinned by test_omt_docs_drift_pins.py (R5).
 
 R1 DONE — carried-forward notes:
 - FINDING (pre-existing, still OPEN — separate bug_fix): `omt_nav`/`omt_list_sections` with an explicit `file` arg return empty — runGrep's grep argv lacks `-H`, so single-file grep omits the `file:` prefix and the `file:line:content` parser matches nothing; whole-corpus calls work. Candidate fix: add `"-H"` to the grep argv + live-verify.
@@ -99,8 +96,6 @@ PENDING FEATURES (next work):
 - feature_002.rag_retrieval_augmented_generation — scope & success criteria unset.
 
 IN PROGRESS (resume here):
-- **META HARNESS DSL** — R0–R7 DONE (excl. T4/T8 deferred); **next: R8 (OMT-HDL)** per plan Appendix D.
-
-CURRENT DEBUG:
-- (pruned per R7 T2 — DONE-feature debug narratives live in their feature dirs under .meta/.../6.testing/; scratchpad keeps CURRENT/RECURRING content only)
+- **META HARNESS DSL — R8 (OMT-HDL-1)** per `.sandbox/meta_harness_refactor_plan.md` App D; phase declared (refactor/Analysis). ANALYSIS DONE: plan §3-R8/§4/App B/D + harness sources surveyed (omt_shared, lib/enforcer ×7, omt_nav, opencode.jsonc, AGENTS.md, META_HARNESS.md). NEXT: (1) read omt_status/omt_think (think-gated → omt_think_list first); (2) survey guide tags → @doc corpus; (3) author .meta/META_HARNESS.omt v1; (4) scripts/omt/harnessc.py (check + build → IR, GENERATED AGENTS.md, nav.index, jsonc perms, report); (5) plugins read IR (gate logic stays TS); (6) verify-projections = sole drift test; (7) live-verify App B6 + nav-from-index; (8) budget report → WORK.md. HDL-2 NOT approved.
+- **SANDBOX MOVE 2026-07-26:** .ws/sandbox → .sandbox (staged rename R; drift-pin FROZEN_PREFIXES updated; receipt fresh). Uncommitted: rename + WORK.md + test_omt_docs_drift_pins.py — commit on explicit request only.
 ```
