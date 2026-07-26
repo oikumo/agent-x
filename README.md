@@ -73,8 +73,37 @@ agentx is developed with **opencode** using a mechanically enforced **META HARNE
 | **MVC++ Linter** | `scripts/omt/mvc_check.py` | Architecture checker for layer violations (View↔Model leaks, SQL outside DP, etc.) |
 | **TDD Engine** | `scripts/omt/tdd_check.py` + `omt_*` tools | Mechanically enforces Red→Green→Refactor cycles (two-hats gate) |
 | **Feature Scaffold** | `scripts/omt/new_feature.py` | Creates consistently-named feature directories from templates |
-| **Ledger** | `.meta/.omt/ledger.jsonl` | Audit trail of all phase declarations and completions |
-| **Configuration** | `opencode.jsonc`, `AGENTS.md` | Defines protected files, denied commands, and process rules |
+| **Harness DSL (source of truth)** | `.meta/META_HARNESS.omt` | OMT-HDL v1: every rule, gate, tool, constant, and budget declared as records in ONE file |
+| **Harness Compiler** | `scripts/omt/harnessc.py` | Projects the DSL → `AGENTS.md`, `opencode.jsonc` blocks, plugin IR, nav index; drift-tested |
+| **Ledger** | `.meta/.omt/ledger.jsonl` | Audit trail of all phase declarations and completions (rotated at 64 KB) |
+| **Configuration** | `opencode.jsonc`, `AGENTS.md` | Protected files, denied commands, process rules — **generated projections of the DSL, never hand-edited** |
+
+### Single Source of Truth: the META HARNESS DSL (OMT-HDL)
+
+Every rule above — deny lists, protected paths, gates and their execution order, tool schemas, TDD state machines, doc structure, size budgets — is declared in **one file**: [`.meta/META_HARNESS.omt`](.meta/META_HARNESS.omt) (OMT-HDL v1: 226 records across 18 record kinds such as `@var`, `@deny`, `@protect`, `@gate`, `@tool`, `@fsm`, `@budget`, `@doc`).
+
+A compiler projects that single source into everything the runtime and the agent consume:
+
+```text
+ .meta/META_HARNESS.omt   ← the ONLY file you edit
+           │
+           ▼  uv run scripts/omt/harnessc.py build
+ ┌──────────────────────────────────────────────────────────────┐
+ │ GENERATED PROJECTIONS (never hand-edit — drift-tested)       │
+ │  • AGENTS.md ................ agent rules (budget ≤ 5 KiB)   │
+ │  • opencode.jsonc blocks .... deny/permission rules          │
+ │  • .meta/.omt/harness.ir.json  IR consumed by the TS plugins │
+ │  • .meta/.omt/nav.index.jsonl  omt_nav search index          │
+ └──────────────────────────────────────────────────────────────┘
+```
+
+| Command | Purpose |
+|---------|---------|
+| `uv run scripts/omt/harnessc.py check` | Validate the `.omt` (schema, refs, budgets) |
+| `uv run scripts/omt/harnessc.py check --verify-projections` | **Drift test** — fails if any projection is stale or hand-edited |
+| `uv run scripts/omt/harnessc.py build` | Regenerate all projections from the `.omt` |
+
+**Why a DSL?** Constants such as the ledger rotation cap used to live in three places (TS plugin, Python engine, docs). Now `@var` records single-source them, and pin-tests assert TS == PY == `.omt`. Gate execution order, nav-gate doc paths, and size budgets (AGENTS.md ≤ 5 KiB · WORK.md ≤ 14 KiB · scratchpad ≤ 6 KiB · tool schemas ≤ 2.5 KiB) are likewise declared once and mechanically verified on every build.
 
 ### How Enforcement Works
 
@@ -155,16 +184,18 @@ Persistent, grep-friendly `TA:` thought-tags dropped **inline in any non-protect
 | `omt_complete` | Verify phase artifacts + advance to next phase |
 | `omt_testlist` / `omt_red` / `omt_green` / `omt_refactor` / `omt_done` | TDD cycle (plan → failing test → code → refactor → verify) |
 | `omt_nav` / `omt_list_sections` / `omt_cross_ref` / `omt_quick_ref` | Navigate META HARNESS docs (feature_020) |
-| `omt_think` / `omt_think_list` / `omt_think_remove` | Persistent inline `TA:` thought-tags (feature_021) |
+| `omt_think` / `omt_think_list` / `omt_think_remove` / `omt_think_suggest` / `omt_think_verify` | Persistent inline `TA:` thought-tags (feature_021/022) |
 | `uv run scripts/omt/mvc_check.py` | MVC++ architecture linter |
 | `uv run scripts/omt/tdd_check.py` | TDD enforcement engine (9 subcommands) |
 | `uv run scripts/omt/new_feature.py "<name>"` | Scaffold a feature's artifacts from `.meta/templates/` |
+| `uv run scripts/omt/harnessc.py check / build` | Harness DSL compiler: validate `.omt`, drift-test projections, regenerate |
 
 ### References
 
-- **OMT++ methodology**: `.meta/software_development_process/omt_agent_guide.md` (source of truth)
+- **Harness DSL**: `.meta/META_HARNESS.omt` (single source of truth — edit this, then `harnessc.py build`)
+- **OMT++ methodology**: `.meta/software_development_process/omt_agent_guide.md`
 - **META HARNESS design**: `.meta/software_development_process/2.requirements/features/feature_006.opencode_process_enforcement/`
-- **AGENTS.md**: Complete enforcement rules for opencode agents
+- **AGENTS.md**: Complete enforcement rules for opencode agents (GENERATED projection — do not hand-edit)
 
 ---
 
@@ -981,6 +1012,7 @@ Set `OPENROUTER_API_KEY` in your `.env` file to avoid the interactive prompt.
 - ✅ **feature_019**: Coding Agent screen (File system tools: search, read, edit, list, create with diff highlighting)
 - ✅ **feature_020**: Meta Harness Navigation (grep-optimized docs, opencode plugin tools: `omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`)
 - ✅ **feature_021**: Meta Harness Think Anywhere (persistent inline `TA:` thought-tags, `omt_think`/`omt_think_list`/`omt_think_remove`, think-gate enforcement, session digest)
+- ✅ **meta_harness_dsl (R0–R8)**: Harness as code — OMT-HDL single source (`.meta/META_HARNESS.omt`, 226 records) compiled to AGENTS.md / opencode.jsonc / plugin-IR / nav-index projections with drift tests + size budgets; 64 KB ledger rotation; enforcer split (`lib/enforcer/` ×7)
 
 ### In Progress
 - 🔄 **feature_001**: Petri-net-driven user objectives — session lifecycle (create → active → switch, SQLite-backed) is implemented; the Petri-net objective engine is stubbed (`GoalManager`) pending full integration
@@ -1023,6 +1055,7 @@ agentx is an educational project. Contributions are welcome!
 4. For major features: follow TDD cycle (`omt_testlist` → `omt_red` → `omt_green` → `omt_refactor` → `omt_done`)
 5. Run tests: `uv run pytest tests/ -v`
 6. Run MVC++ check: `uv run scripts/omt/mvc_check.py`
+7. Changing harness rules? Edit `.meta/META_HARNESS.omt` (never the projections), then `uv run scripts/omt/harnessc.py check && uv run scripts/omt/harnessc.py build`
 
 **Note**: This project uses opencode for development. All code changes must follow the META HARNESS process with visible artifacts.
 
