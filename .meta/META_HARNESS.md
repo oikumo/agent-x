@@ -28,3 +28,13 @@
   226 → 242 records. Verified: harnessc check 0 err · --verify-projections
   no drift · e2e receipt refreshed · tests/scripts/omt 116/116 · full suite
   1062 passed + 3 known feature_018.
+- **2026-08-01 (improvement003 / OPT-M):** WORK.md DONE-narrative diet — 4
+  completed-task narratives (3316 B) compacted to one-liners + pointers per
+  the new `CONV_WORK_DONE` convention record (`@doc conv.work_done`;
+  WORK.md Convention section updated). WORK.md 7767 → 5899 B
+  (~470 tok saved **every session startup**); `@budget work_md` shrunk
+  14336 → 8192 (test pin `WORK_BUDGET` updated in the same session) so
+  future DONE bloat is a compile error. Corpus 242 → 243 records.
+  Verified: harnessc check 0 err · build + --verify-projections no drift ·
+  e2e receipt refreshed · tests/scripts/omt 116/116 · full suite
+  1062 passed + 3 known feature_018.

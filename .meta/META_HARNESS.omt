@@ -258,11 +258,14 @@
 @doc gotcha.tdd_node tags="GOTCHA_TDD_NODE" : record red/green/refactor at the SAME test_node — red at f.py::C::t + green at f.py leaves latest=red blocking omt_done (recovery: omt_green at the exact red node); KNOWN_SUITE_FAILURES is shape-pinned (test_ledger_rotation.py) — grow it + pin in the same session (both harness-surface → round-robin).
 @doc gotcha.ts_no_reload tags="GOTCHA_TS_NO_RELOAD" : TS plugin edits do NOT hot-reload; gates shelling out to Python re-read it live every call → in-session gate changes go in the Python side; coverage gate scans ONLY tests/features/<feature>/ + counts abstract methods — READ gates.py/ast_checks.py/phase_gate.ts before writing make-work tests.
 
+# CONV — standing conventions (agent-behavior knowledge)
+@doc conv.work_done tags="CONV_WORK_DONE" : WORK.md completed tasks = ONE line + pointer (feature dir / git log) — narrative is paid every session startup; details live in git history + .meta/.../features/<f>/ (improvement003/OPT-M; @budget work_md tightened 14336→8192 same change)
+
 # ============================================================
 # BUDGET — compile-enforced token budgets (R7 T5/T8 → build errors; F32/F33)
 # ============================================================
 @budget agents_md max=5120 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33)
-@budget work_md max=14336 : WORK.md bytes — read at every session startup (C1)
+@budget work_md max=8192 : WORK.md bytes — read at every session startup (C1; shrunk 14336→8192 in improvement003/OPT-M after DONE-narrative diet, CONV_WORK_DONE keeps it down)
 @budget work_scratchpad max=3072 : WORK.md Agent Scratchpad section bytes (T2: CURRENT/RECURRING only; shrunk 6144→3072 in improvement002/OPT-B after gotcha relocation to @doc gotcha.*)
 @budget nav_tip max=512 : session-bootstrap nav-tip bytes (C5, conversation-resident, re-paid per turn F32)
 @budget digest_cap max=1024 : TA digest hard cap (C4, conversation-resident, re-paid per turn F32)

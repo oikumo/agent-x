@@ -6,7 +6,8 @@ The META HARNESS current state has features and characteristics that force the c
 to develop software, but always can be improved, so the improvements must be found by you. The improvement strategy is bellow.
 
 # Improvement strategy rules
-1. Focus in future coding agent token consumption minimization usage
+1. Do not consider previous iterations history, make each improvement loop iteration with a fresh start
+2. Focus in future coding agent token consumption minimization usage
 2. The main goal is to improve the coding agent performance, not human-readable artifacts, suggest the creation of a DSL for META HARNESS whenever is possible
 3. Any possible refactor opportunities must be considered when it is found
 4. Focus on META HARNESS flexibility for future changes

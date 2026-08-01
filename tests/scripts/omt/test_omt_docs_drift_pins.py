@@ -166,7 +166,7 @@ def test_omt_tool_set_is_in_sync_everywhere() -> None:
 # --- 6. R7 T5 token budget pins (F32) ---------------------------------------
 
 AGENTS_BUDGET = 5 * 1024        # rides the system prompt EVERY turn (F33)
-WORK_BUDGET = 14 * 1024         # read at every session startup
+WORK_BUDGET = 8 * 1024          # read at every session startup (improvement003/OPT-M: DONE narratives compacted to one-liners + pointers — .omt @budget work_md=8192 is the source of truth)
 SCRATCHPAD_BUDGET = 3 * 1024    # T2: CURRENT/RECURRING only (improvement002/OPT-B: gotchas relocated to @doc gotcha.* — .omt @budget work_scratchpad=3072 is the source of truth)
 NAV_TIP_BUDGET = 512            # C5: conversation-resident once per session
 DIGEST_BUDGET = 1024            # C4: conversation-resident once per session

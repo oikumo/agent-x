@@ -4,7 +4,7 @@
     "digest_cap": 1024,
     "nav_tip": 512,
     "tool_schemas": 2560,
-    "work_md": 14336,
+    "work_md": 8192,
     "work_scratchpad": 3072
   },
   "deny": [

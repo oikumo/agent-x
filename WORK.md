@@ -16,12 +16,13 @@
 **Hierarchy** - top-level task -> optional subtasks (indented 4 spaces).
 **Metadata** - optional inline comment: `<!-- id:T-123 prio:medium agent:true -->`
 **Thoughts** - separate `---` line then bullet list; tools can strip it.
+**DONE entries** - one line + pointer (feature dir / git log); narrative is paid every session startup (CONV_WORK_DONE).
 
 ---
 
 ## Tasks
 
-- [x] **R4 (meta_harness_dsl): state hygiene + latent bugs** — DONE (2026-07-26): ledger.jsonl 64 KB rotation (LEDGER_CAP_BYTES, cross-language pinned; readers scan latest archive + hot), omt_done reachable (`-m "not opencode_live"` + KNOWN_SUITE_FAILURES allowlist), TDD tests/ bootstrap documented (TDD_BOOTSTRAP). Tests: test_ledger_rotation.py (9) + 2 pins; full static 995 + 3 known feature_018 ✓.
+- [x] **R4 (meta_harness_dsl): state hygiene + latent bugs** — DONE (2026-07-26): ledger 64 KB rotation, omt_done reachable, TDD tests/ bootstrap doc. Details: git log + .sandbox/meta_harness_refactor_plan.md.
 - [x] **feature_007.agentx_intelligent_agent_behaviour**
 - [x] **Fix feature_007 bugs per BUG_FIX_PLAN.md**
 - [x] **feature_004.modern_ui**
@@ -30,7 +31,7 @@
 - [ ] **feature_001.session_user_objectives_driven_by_Petri_Net**
 - [x] **feature_006.opencode_process_enforcement**
 - [ ] **feature_002.rag_retrieval_augmented_generation**
-- [x] **feature_024.no_tui_full_features** — DONE (2026-08-01): console parity for react/coding/models/agent/fast-agent via IUIProvider + 5 console REPL views + streaming. TDD 28 behaviors / 37 tests / 9 cycles; omt_done (1055 passed + 6 allowlisted); cmd_done latent bug FIXED (latest-per-test_node collapse + 4 pins); phase-exit coverage-gate skip override wired in `gates.py` cmd_validate_exit (skip-ledger consult — phase_gate.ts advertised it but never checked; TS parity + is_abstract filter deferred). Docs: analysis_001/design_001/operation_spec_001 + implementation_notes + test_report in the feature dirs.
+- [x] **feature_024.no_tui_full_features** — DONE (2026-08-01): console parity for react/coding/models/agent/fast-agent (IUIProvider + 5 console REPL views + streaming); cmd_done latest-per-node fix; coverage-gate skip override wired. Details: .meta/.../feature_024.* dirs (analysis/design/operation_spec/impl notes/test report) + git log.
 - [x] **feature_012.tui_framework**
 - [x] **feature_010.agent_demo_screen**
 - [x] **feature_011.fast_agent**
@@ -56,9 +57,9 @@
 - [x] **feature_023.test_refactor_live_only** — consolidated suite: Node-runner fixtures removed; source-pins + live-opencode-binary tests kept (13 verification points); 68 static + e2e ✓.
 - [x] **feature_tui_dark_mode** — TUI dark mode toggle + theme selector
 - [x] **feature_023.production_hook_effects_test** — Test 6 MVC++ gate root-caused (after-hook args on `input`, SDK contract); tests green.
-- [x] **META HARNESS DSL** (refactor.meta_harness_dsl; supersedes refactor.meta_harness) — `.sandbox/meta_harness_refactor_plan.md` (anchor `a7163df`; workstreams R0–R8 **ALL DONE** 2026-07-26): ledger rotation · enforcer split (lib/enforcer/ ×7) · tdd/ package · docs single-source · think index append-only · budget pins (T5) · OMT-HDL-1 (`.meta/META_HARNESS.omt` + `scripts/omt/harnessc.py`; IR/nav.index/AGENTS.md/jsonc projections; AGENTS.md user-ADOPTED; META_HARNESS.md → GENERATED stub; 226 records 0 errors; suite 1011 + 3 known feature_018). Per-workstream narratives: git history of this file + plan §0 audit.
+- [x] **META HARNESS DSL** (refactor.meta_harness_dsl; supersedes refactor.meta_harness) — DONE (2026-07-26): workstreams R0–R8 ALL DONE (ledger rotation · enforcer split ×7 · tdd/ package · docs single-source · think index append-only · budget pins · OMT-HDL-1 .omt+harnessc → IR/nav.index/AGENTS.md/jsonc projections; AGENTS.md user-adopted). Details: .sandbox/meta_harness_refactor_plan.md (anchor a7163df) + git log.
 - [x] **feature_023.deep_harness_tests** <!-- id:T-023d prio:high agent:true --> — BUG-B live test redesigned (git-dirty-first); suite 105/105 ✓; dist/ deleted (proven unused); TA index reconciled.
-- [x] **Evaluate META HARNESS DSL + verify implementation (fix if needed)** <!-- id:T-024 prio:high agent:true --> — DONE (2026-07-26). Evaluation VERIFIED GREEN (harnessc check 0 errors/226 records · --verify-projections no drift · live bun probe: nav tools answer from nav.index.jsonl + IR tool descriptions · opencode.jsonc splice correct; WIP adopted: IR-driven harness_paths exact/prefix + stale-entry compile error + TS↔IR sync pin + g.mvc/g.tdd_after 60/70 matching runtime call order + feature_006 dir guarded). All 4 fix candidates implemented: (1) **gate order pinned** — TestGateOrderIrPin (test_omt_enforcer_guard_source_pins.py) maps gate id→hook fn via GATE_IMPL (set-equality vs IR = forcing function) and asserts omt_enforcer.ts before/after call sequence == IR gates[].order ascending, duplicate-order rejected; (2) **@var doc_paths IR-driven** — nav_gate.ts isDocPath reads IR vars.doc_paths (comma string, trailing "/" = prefix else exact) with literal fallback + TestDocPathsIrSyncPin (mirrors the harness_paths F9 kill); (3) **numeric constants .omt-sourced** — test_thought_pattern_pin.py asserts UNLOCK_WINDOW_MS / LEDGER_CAP_BYTES TS==PY==@var unlock_window_ms/ledger_cap_bytes via _omt_var_int (hard-coded third copy deleted); (4) **harnessc.py robustness** — build_ir raises clean SystemExit on missing/non-integer @version instead of IndexError/ValueError traceback (+2 tests). Verification: tests/scripts/omt 112/112 (e2e receipt fresh) · harnessc check --verify-projections 0 errors · full suite 1021 passed + 3 known feature_018 ✓. Uncommitted WIP retained per instruction (no commit without user request).
+- [x] **Evaluate META HARNESS DSL + verify implementation (fix if needed)** <!-- id:T-024 prio:high agent:true --> — DONE (2026-07-26): VERIFIED GREEN (harnessc 0 errors, live bun probe, jsonc splice); 4 fixes implemented (gate-order pin, IR-driven doc_paths, .omt-sourced numeric constants, harnessc @version robustness). Details: git log.
 
 ---
 
