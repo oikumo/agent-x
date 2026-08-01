@@ -57,7 +57,7 @@ pytestmark = [
 TIMEOUT = 240
 
 # One tool per plugin: omt_status / omt_nav / omt_think / omt_enforcer.
-PLUGIN_TOOLS = ("omt_status", "omt_list_sections", "omt_think_list", "omt_skip")
+PLUGIN_TOOLS = ("omt_status", "omt_nav", "omt_think", "omt_skip")  # OPT-H: consolidated
 
 
 def _run_opencode(prompt: str, *extra: str) -> tuple[int, list[dict], str]:
@@ -99,7 +99,7 @@ def test_plugins_load_and_tools_execute():
     """
     code, events, stderr = _run_opencode(
         "Call exactly these 4 tools in order, then reply DONE: "
-        "1) omt_status 2) omt_list_sections 3) omt_think_list "
+        "1) omt_status 2) omt_nav with op 'list_sections' 3) omt_think with op 'list' "
         "4) omt_skip with reason 'live smoke' and scope 'nav'. "
         "Do not edit any files. Do not call any other tool.")
     assert code == 0, f"opencode run failed (exit {code}): {stderr[-500:]!r}"
@@ -139,15 +139,15 @@ def test_nav_reminder_deferred_after_nav_first():
     """
     code, events, stderr = _run_opencode(
         "Call exactly these 2 tools in order, then reply DONE: "
-        "1) omt_list_sections 2) omt_status. "
+        "1) omt_nav with op 'list_sections' 2) omt_status. "
         "Do not edit any files. Do not call any other tool.")
     assert code == 0, f"opencode run failed (exit {code}): {stderr[-500:]!r}"
 
     uses = _tool_uses(events)
-    assert uses and uses[0].get("tool") == "omt_list_sections", (
-        f"expected omt_list_sections as the first tool; seen: "
+    assert uses and uses[0].get("tool") == "omt_nav", (
+        f"expected omt_nav as the first tool; seen: "
         f"{[p.get('tool') for p in uses]}")
-    nav_calls = [p for p in uses if p.get("tool") == "omt_list_sections"]
+    nav_calls = [p for p in uses if p.get("tool") == "omt_nav"]
     status_calls = [p for p in uses if p.get("tool") == "omt_status"]
     assert status_calls, "omt_status was never called"
 

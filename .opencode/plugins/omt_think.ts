@@ -219,14 +219,9 @@ function resolveAnchor(
 
 // --- the five think tools (built post-init — see createThinkTools) ----------
 function createThinkTools() {
-  // --- omt_think: add a thought inline -------------------------------------
-  const omt_think = tool({
-    description: irToolDescription("omt_think",
-      "Add a persistent TA: thought-tag inline in a non-protected file (feature_021). " +
-      "The thought becomes a language-valid single-line comment so it survives across " +
-      "sessions and is grep-retrievable. Bypasses phase/canary gates (annotation, not code). " +
-      "Address by line (1-based), after (literal substring anchor), or symbol " +
-      "(definition-name anchor, .py/.ts-family) — at most one (feature_022 B1)."),
+  // --- op=add impl: add a thought inline (dispatched via omt_think, OPT-H) -
+  const omt_think_add = tool({
+    description: "op=add impl (unregistered; dispatched via omt_think). Bypasses phase/canary. Address: line|after|symbol (one max).",
     args: {
       path: tool.schema.string().describe("repo-relative target file (must already exist)"),
       thought: tool.schema.string().describe("the thought text (single line; newlines stripped)"),
@@ -326,11 +321,7 @@ function createThinkTools() {
 
   // --- omt_think_list: retrieve thoughts (grep-backed, authoritative inline) -
   const omt_think_list = tool({
-    description: irToolDescription("omt_think_list",
-      "List TA: thought-tags (feature_021). Grep-backed retrieval over inline tags " +
-      "(the source of truth). Marks the session consulted, clearing the think-gate " +
-      "for exactly the files the listing matched (feature_022 C2 per-file consult). " +
-      "Also usable as plain `grep -rn \"TA:\" <path>`. Caps output at 50 lines."),
+    description: "op=list impl (unregistered; dispatched via omt_think). Records the consult clearing the think-gate.",
     args: {
       path: tool.schema.string().optional().describe("restrict to a file/dir (default: whole repo)"),
       category: tool.schema.string().optional().describe("filter `TA: <category>:`"),
@@ -371,10 +362,7 @@ function createThinkTools() {
 
   // --- omt_think_remove: remove a thought -----------------------------------
   const omt_think_remove = tool({
-    description: irToolDescription("omt_think_remove",
-      "Remove a TA: thought-tag line from a file (feature_021) and append a " +
-      "remove-tombstone to the JSONL index (append-only, R6 S1: the index is " +
-      "never rewritten; the latest-wins fold reads a tombstoned slot as absent)."),
+    description: "op=remove impl (unregistered; dispatched via omt_think).",
     args: {
       path: tool.schema.string().describe("target file"),
       line: tool.schema.number().describe("1-based line of the TA: comment to remove"),
@@ -420,12 +408,7 @@ function createThinkTools() {
   // RLVR-analogue feedback signal: drifted/detached thoughts are flagged stale
   // instead of silently persisting as trustworthy.
   const omt_think_verify = tool({
-    description: irToolDescription("omt_think_verify",
-      "Re-check a TA: thought's placement integrity (feature_022 C1): existence at " +
-      "the given line plus, when the index add-record carries an anchor, re-resolution " +
-      "of that anchor (drift/ambiguity/removal → stale). Structural only — never judges " +
-      "semantic truth. Appends a verified/stale record to the index (latest per " +
-      "path:line wins); the digest + think-gate surface stale thoughts."),
+    description: "op=verify impl (unregistered; dispatched via omt_think).",
     args: {
       path: tool.schema.string().describe("repo-relative file carrying the TA: comment"),
       line: tool.schema.number().describe("1-based line of the TA: comment to verify"),
@@ -514,11 +497,7 @@ function createThinkTools() {
     "print(json.dumps(out))\n"
 
   const omt_think_suggest = tool({
-    description: irToolDescription("omt_think_suggest",
-      "Rank candidate TA: insertion sites in a .py file (feature_022 B2): AST-walk " +
-      "ordered by the Think-Anywhere paper's table (Assign > Return > Expr > If > " +
-      "AugAssign), source-order tie-break; sites already carrying a thought (±1 line) " +
-      "are excluded. Read-only — suggests line/anchor targets for omt_think."),
+    description: "op=suggest impl (unregistered; dispatched via omt_think).",
     args: {
       path: tool.schema.string().describe("repo-relative .py file to analyze"),
       top: tool.schema.number().optional().describe("max sites returned (default 5, clamped 1..20)"),
@@ -577,7 +556,34 @@ function createThinkTools() {
     },
   })
 
-  return { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest }
+  // improvement006/OPT-H: ONE registered think tool; op dispatches to the
+  // impls above (18 → 7 registered omt_* tools — smaller schema block).
+  const omt_think = tool({
+    description: irToolDescription("omt_think", "TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?)."),
+    args: {
+      op: tool.schema.string().describe("add | list | remove | verify | suggest"),
+      path: tool.schema.string().optional().describe("repo-relative file (add: must exist; list: restrict scope; suggest: .py)"),
+      thought: tool.schema.string().optional().describe("op=add: thought text (single line; newlines stripped)"),
+      line: tool.schema.number().optional().describe("add: insert AFTER line (default EOF) · remove/verify: TA: line"),
+      after: tool.schema.string().optional().describe("op=add: literal substring anchor (unique match)"),
+      symbol: tool.schema.string().optional().describe("op=add: definition-name anchor (.py def/class; .ts/.js function/class/const)"),
+      category: tool.schema.string().optional().describe("add: gotcha|why|risk|xref|todo|... · list: filter"),
+      query: tool.schema.string().optional().describe("op=list: substring filter"),
+      top: tool.schema.number().optional().describe("op=suggest: max sites (default 5, clamped 1..20)"),
+    },
+    async execute(args, context) {
+      switch (args?.op ?? "add") {
+        case "add": return omt_think_add.execute(args, context)
+        case "list": return omt_think_list.execute(args, context)
+        case "remove": return omt_think_remove.execute(args, context)
+        case "verify": return omt_think_verify.execute(args, context)
+        case "suggest": return omt_think_suggest.execute(args, context)
+        default: return `⛔ omt_think: unknown op '${args?.op}' — want add|list|remove|verify|suggest`
+      }
+    },
+  })
+
+  return { omt_think }
 }
 
 // Standalone opencode plugin (mirrors omt_nav.ts / omt_status.ts).
@@ -591,9 +597,9 @@ function createThinkTools() {
 // under the injected root.
 export default async ({ directory, worktree }) => {
   initOmtShared(worktree ?? directory)
-  const { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest } = createThinkTools()
+  const { omt_think } = createThinkTools()
   return {
-    tool: { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest },
+    tool: { omt_think },
   }
 }
 // TA: xref: feature_022.meta_harness_think_anywhere_v2 FEATURE.md catalogs 13 flaws of this v1 (string-unaware insertion F1, unsafe # default F2, gate substring false-positives F3) + tiered fixes A-E — read before modifying

@@ -178,10 +178,7 @@ export function createPhaseTools(env: EnforcerEnv) {
   const { directory, $, safeLog } = env
 
   const omt_phase = tool({
-    description: irToolDescription("omt_phase",
-      "Declare your OMT++ phase before editing src/. Records task_type/phase/scope to the " +
-      "process ledger and unlocks edits according to the guide §12 matrix. This is the real " +
-      "version of AGENTS.md's PROCESS CHECK. Call once per task before touching src/."),
+    description: irToolDescription("omt_phase", "Declare phase before src/ edits (task_type/scope → ledger; §12 unlock matrix)."),
     args: {
       task_type: tool.schema.string().describe(
         "one of: bug_fix, minor_feature, major_feature, new_screen, refactor, test, docs"),
@@ -246,10 +243,7 @@ export function createPhaseTools(env: EnforcerEnv) {
   })
 
   const omt_skip = tool({
-    description: irToolDescription("omt_skip",
-      "Logged escape hatch. Unlocks edits (or the feature_020 nav gate) without a full phase " +
-      "declaration; the reason is recorded in the ledger for audit. Use sparingly (emergencies, " +
-      "approved canary tests). Scopes: src | tests | nav | all (default: all)."),
+    description: irToolDescription("omt_skip", "Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all (default all)."),
     args: {
       reason: tool.schema.string().describe("why the process is being skipped"),
       scope: tool.schema.string().optional().describe("src | tests | nav | all (default: all)"),
@@ -273,9 +267,7 @@ export function createPhaseTools(env: EnforcerEnv) {
 
   // --- omt_complete: Verify phase completion and optionally advance ---
   const omt_complete = tool({
-    description: irToolDescription("omt_complete",
-      "Verify that all required artifacts for the current phase exist, then optionally advance to the next phase. " +
-      "Use this to formally complete a phase and unlock the next one with artifact validation."),
+    description: irToolDescription("omt_complete", "Verify phase artifacts; optionally advance (Design|Programming|Testing|Done)."),
     args: {
       feature: tool.schema.string().describe("feature slug, e.g. feature_006.x"),
       advance_to: tool.schema.string().optional().describe("optional: phase to advance to after verification (Design | Programming | Testing | Done)"),

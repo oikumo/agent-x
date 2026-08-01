@@ -71,7 +71,7 @@ def cmd_testlist(args) -> dict:
         "behaviors_count": len(behaviors),
         "message": (f"✅ Test list recorded ({len(behaviors)} behaviors). State=TESTLIST.\n"
                     f"Write a test for the first behavior, then:\n"
-                    f"  omt_red{{test_node: \"...\"}}"),
+                    f"  omt_tdd{{op: \"red\", test_node: \"...\"}}"),
     }
 
 
@@ -141,7 +141,7 @@ def cmd_start(args) -> dict:
         lines.append("  ⚠️ Warnings:")
         for w in warnings:
             lines.append(f"    {w}")
-    lines.append("  src/ BLOCKED (test hat). Call omt_green when ready to write code.")
+    lines.append("  src/ BLOCKED (test hat). Call omt_tdd{op: green} when ready to write code.")
 
     return {
         "ok": True, "state": "red", "verified": True, "exit_code": exit_code,
@@ -185,7 +185,7 @@ def cmd_green(args) -> dict:
         "snapshots": snapshots,
         "message": (f"✅ GREEN — test '{test_node}' passes. Source snapshot saved.\n"
                     f"  src/ ALLOWED (code hat), tests/ BLOCKED.\n"
-                    f"  Next: omt_refactor{{...}} or omt_red{{...}} for next behavior."),
+                    f"  Next: omt_tdd{{op: \"refactor\", ...}} or omt_tdd{{op: \"red\", ...}} for next behavior."),
     }
 
 
@@ -210,14 +210,14 @@ def cmd_refactor(args) -> dict:
         "ok": True, "state": "refactor", "verified": True, "exit_code": exit_code,
         "message": (f"✅ REFACTOR — tests green. src/ unlocked for refactoring.\n"
                     f"  Each src/ edit will be verified: tests must stay green or edit is reverted.\n"
-                    f"  Call omt_green{{...}} when done, or omt_red{{...}} for next behavior."),
+                    f"  Call omt_tdd{{op: \"green\", ...}} when done, or omt_tdd{{op: \"red\", ...}} for next behavior."),
     }
 
 
 def cycles_refactor_recorded(cycles: list[dict]) -> bool:
     """Latest record per test_node decides: the ledger is append-only, so a
     cycle's red is superseded only by a green/refactor at the SAME node. A
-    lingering latest=red means an unfinished cycle and blocks omt_done.
+    lingering latest=red means an unfinished cycle and blocks omt_tdd{op: done}.
     (R4 follow-up, feature_024: the previous all-records check could never
     pass for honest red-first TDD within one ledger window — historical reds
     never leave the scanned window.)"""

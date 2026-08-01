@@ -1,9 +1,10 @@
 // OMT++ TDD two-hats enforcement (feature_016; meta_harness_dsl R2 module).
 //
 // Thin wrappers around scripts/omt/tdd_check.py (the state machine lives in
-// Python): the five omt_* TDD tools, the before-hook two-hats gate (tests/
-// and src/ branches), and the after-hook after-edit check (advisories +
-// REFACTOR revert when a refactor edit breaks tests).
+// Python): the namespaced omt_tdd tool (improvement006/OPT-H: five tools
+// consolidated into one op= dispatcher), the before-hook two-hats gate
+// (tests/ and src/ branches), and the after-hook after-edit check
+// (advisories + REFACTOR revert when a refactor edit breaks tests).
 // R8 (OMT-HDL-1): tool descriptions resolve from the compiled IR
 // (irToolDescription) with the in-source text as fallback seed.
 
@@ -13,53 +14,48 @@ import { OmtBlock, getActiveUnlock, type EnforcerEnv } from "./session_state"
 import { irToolDescription } from "../omt_shared"
 
 // --- TDD tools (thin wrappers delegating to tdd_check.py) -------------------
-const tddTool = (env: EnforcerEnv, subcmd: string, desc: string, argNames: string[]) => tool({
-  description: desc,
-  args: Object.fromEntries(
-    argNames.map(n => [n, tool.schema.string().optional()])
-  ),
-  async execute(args, context) {
-    const session = context?.sessionID || ""
-    const flags = [subcmd]
-    for (const [k, v] of Object.entries(args)) {
-      if (v !== undefined && v !== null && v !== "")
-        flags.push(`--${k.replace(/_/g, "-")}`, String(v))
-    }
-    flags.push("--session", session)
-    try {
-      const res = await env.$`uv run scripts/omt/tdd_check.py ${flags}`
-        .cwd(env.directory).quiet().nothrow()
-      const data = JSON.parse(res.stdout.toString() || "{}")
-      return data.message || JSON.stringify(data)
-    } catch (e: any) {
-      env.safeLog("warn", `tdd_check.py ${subcmd} failed: ${e?.message || e}`)
-      return `⚠️ TDD engine error: ${e?.message || e}`
-    }
-  },
-})
+// improvement006/OPT-H: one registered tool; op dispatches to the subcommands
+// (red → the engine's "start" subcommand — the tdd/ package is unchanged).
+const TDD_SUBCMD: Record<string, string> = {
+  testlist: "testlist", red: "start", green: "green", refactor: "refactor", done: "done",
+}
 
 export function createTddTools(env: EnforcerEnv) {
-  const omt_testlist = tddTool(env, "testlist",
-    irToolDescription("omt_testlist",
-      "Record the TDD test list (behaviors to implement). Sets TDD state to TESTLIST."),
-    ["behaviors", "feature"])
-  const omt_red = tddTool(env, "start",
-    irToolDescription("omt_red",
-      "Declare a failing test (TDD Red). Runs pytest to verify the test fails, then AST analysis for true-RED verification. Sets TDD state to RED (test hat: only tests/ edits allowed)."),
-    ["test_node", "target_src", "feature"])
-  const omt_green = tddTool(env, "green",
-    irToolDescription("omt_green",
-      "Declare a passing test (TDD Green). Runs pytest to verify the test passes. Sets TDD state to GREEN (code hat: only src/ edits allowed)."),
-    ["test_node", "feature"])
-  const omt_refactor = tddTool(env, "refactor",
-    irToolDescription("omt_refactor",
-      "Declare refactor state (TDD Refactor). Runs pytest to verify tests are green. Sets TDD state to REFACTOR (refactor hat: only src/ edits allowed, tests must stay green per micro-edit)."),
-    ["test_node", "feature"])
-  const omt_done = tddTool(env, "done",
-    irToolDescription("omt_done",
-      "Declare TDD completion. Runs full suite + checklist verification. Sets TDD state to DONE."),
-    ["feature"])
-  return { omt_testlist, omt_red, omt_green, omt_refactor, omt_done }
+  const omt_tdd = tool({
+    description: irToolDescription("omt_tdd", "TDD cycle driver. op=testlist(behaviors,feature) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature)."),
+    args: {
+      op: tool.schema.string().describe("testlist | red | green | refactor | done"),
+      behaviors: tool.schema.string().optional().describe("op=testlist: JSON array of behaviors"),
+      feature: tool.schema.string().optional().describe("feature slug"),
+      test_node: tool.schema.string().optional().describe("op=red/green/refactor: pytest node id"),
+      target_src: tool.schema.string().optional().describe("op=red: src file under test"),
+    },
+    async execute(args, context) {
+      const subcmd = TDD_SUBCMD[args?.op ?? ""]
+      if (!subcmd) {
+        return `⛔ omt_tdd: unknown op '${args?.op}' — want testlist|red|green|refactor|done ` +
+          "(testlist(behaviors,feature) red(test_node,target_src,feature) green(test_node,feature) refactor(test_node,feature) done(feature))."
+      }
+      const session = context?.sessionID || ""
+      const flags = [subcmd]
+      for (const k of ["behaviors", "feature", "test_node", "target_src"]) {
+        const v = args?.[k]
+        if (v !== undefined && v !== null && v !== "")
+          flags.push(`--${k.replace(/_/g, "-")}`, String(v))
+      }
+      flags.push("--session", session)
+      try {
+        const res = await env.$`uv run scripts/omt/tdd_check.py ${flags}`
+          .cwd(env.directory).quiet().nothrow()
+        const data = JSON.parse(res.stdout.toString() || "{}")
+        return data.message || JSON.stringify(data)
+      } catch (e: any) {
+        env.safeLog("warn", `tdd_check.py ${subcmd} failed: ${e?.message || e}`)
+        return `⚠️ TDD engine error: ${e?.message || e}`
+      }
+    },
+  })
+  return { omt_tdd }
 }
 
 // --- before-hook two-hats gate ----------------------------------------------

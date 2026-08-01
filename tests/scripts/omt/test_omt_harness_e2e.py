@@ -43,6 +43,7 @@ HARNESS_FILES = [
     ".opencode/lib/enforcer/tdd_hats.ts",
     ".opencode/lib/enforcer/think_gate.ts",
     ".opencode/lib/enforcer/mvc_after.ts",
+    ".opencode/lib/enforcer/gate_driver.ts",
     "opencode.jsonc",
     "AGENTS.md",
     ".meta/META_HARNESS.omt",
@@ -195,11 +196,7 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     # and tools live in lib/enforcer/tdd_hats.ts; snapshots in session_state.ts.
     tdd_hats = _read(".opencode/lib/enforcer/tdd_hats.ts")
     session_state = _read(".opencode/lib/enforcer/session_state.ts")
-    assert "const omt_testlist" in tdd_hats
-    assert "const omt_red" in tdd_hats
-    assert "const omt_green" in tdd_hats
-    assert "const omt_refactor" in tdd_hats
-    assert "const omt_done" in tdd_hats
+    assert "const omt_tdd" in tdd_hats  # OPT-H: 5 TDD tools → one op= dispatcher
     assert "tdd_check.py" in tdd_hats
     assert "tdd_mode" in tdd_hats
     assert "refactorSnapshots" in session_state
@@ -219,7 +216,7 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     think = _read(".opencode/plugins/omt_think.ts")
     assert "export default async ({" in think
     assert "initOmtShared(" in think  # R1: ctx root injected
-    assert "tool: { omt_think, omt_think_list, omt_think_remove, omt_think_verify, omt_think_suggest }" in think
+    assert "tool: { omt_think }" in think  # OPT-H: 5 think tools → one op= dispatcher
     assert "commentSyntaxFor" in think
     # meta_harness_dsl R6 S1: reindex tool deleted (append-only index, grep-is-truth).
     assert "const omt_think_reindex" not in think
@@ -227,12 +224,10 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "thinkGateDecision" in think_gate
     assert "hasConsultedThoughts" in think_gate
     assert "think_consult" in think_gate
-    assert '"omt_think": "allow"' in config
-    assert '"omt_think_list": "allow"' in config
-    assert '"omt_think_remove": "allow"' in config
-    assert '"omt_think_verify": "allow"' in config
-    assert '"omt_think_suggest": "allow"' in config
-    assert '"omt_think_reindex": "allow"' not in config
+    assert '"omt_think": "allow"' in config  # OPT-H: one consolidated think tool
+    for legacy in ("omt_think_list", "omt_think_remove", "omt_think_verify",
+                   "omt_think_suggest", "omt_think_reindex"):
+        assert f'"{legacy}": "allow"' not in config
     # improvement004/OPT-A: slim projection keeps a one-line think-gate pointer
     assert "Think gate" in _read("AGENTS.md")
     # meta_harness_dsl R8 (OMT-HDL-1): META_HARNESS.md is RETIRED to a
@@ -268,13 +263,14 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "\nexport function" not in enforcer
     assert "\nexport const" not in enforcer
     for mod in ("session_state", "nav_gate", "receipt_guard", "phase_gate",
-                "tdd_hats", "think_gate", "mvc_after"):
+                "tdd_hats", "think_gate", "mvc_after", "gate_driver"):
         assert f'from "../lib/enforcer/{mod}"' in enforcer, (
             f"composition root must import lib/enforcer/{mod} (R2 split)")
     assert ".opencode/lib/enforcer/" in shared, (
         "isOmtHarness must cover lib/enforcer/ (R2 modules are the "
         "enforcement surface — an unguarded enforcer is a BUG-B-class hole)")
     assert "sessionBootstrap" in enforcer
+    assert "runBeforeGates" in enforcer  # HDL-2 (improvement006/OPT-F): driver-owned before-chain
     assert "thinkDigest" in shared
     assert "digestSessions" not in think  # R2 S6: Tier-1c hook deleted
     assert '"tool.execute.after"' not in think  # tools-only plugin now

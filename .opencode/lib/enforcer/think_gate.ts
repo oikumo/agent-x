@@ -2,7 +2,7 @@
 // D1) — meta_harness_dsl R2 module.
 //
 //   • guardThoughts       — before-hook: block edits to thought-carrying files
-//                           until the session has consulted (omt_think_list).
+//                           until the session has consulted (omt_think op=list).
 //                           NOT bypassable by omt_skip — thoughts are
 //                           safety-relevant.
 //   • injectThoughtsOnRead — after-hook: on the FIRST read of a
@@ -125,13 +125,13 @@ function thinkGateMsg(
     `  ${rel}:${t.line}: ${t.content}${opts?.staleLines?.has(t.line) ? "  ⚠️ STALE" : ""}`,
   ).join("\n")
   return `⛔ OMT++ think-gate (feature_021): '${rel}' carries TA: thoughts. Review them ` +
-    `before editing, then clear the gate with omt_think_list{path:"${rel}"}:\n${shown}` +
+    `before editing, then clear the gate with omt_think{op:"list", path:"${rel}"}:\n${shown}` +
     (thoughts.length > 10 ? `\n  … (+${thoughts.length - 10} more)` : "") +
-    `\n(The block already shows these thoughts; call omt_think_list to record the consult.)`
+    `\n(The block already shows these thoughts; call omt_think{op:"list"} to record the consult.)`
 }
 
 // Before-hook think-gate (feature_021): block edits to thought-carrying files
-// until the session has consulted thoughts (omt_think_list). NOT bypassable by
+// until the session has consulted thoughts (omt_think op=list). NOT bypassable by
 // omt_skip — thoughts are safety-relevant warnings. Runs only for edits
 // already permitted by the protected/e2e/tests/src checks (composition-root
 // ordering). feature_022 C2: consult is checked per-file (rel); the
@@ -181,10 +181,10 @@ export async function injectThoughtsOnRead(env: EnforcerEnv, input: any, output:
           const shown = hits.slice(0, 10)
             .map((t) => `  ${rel}:${t.line}: ${t.content}`).join("\n")
           output.output += `\n\n💡 TA: thoughts in ${rel} (${hits.length}) — review ` +
-            `before editing (think-gate applies; omt_think_list{path:"${rel}"} ` +
+            `before editing (think-gate applies; omt_think{op:"list", path:"${rel}"} ` +
             `records consult):\n${shown}` +
             (hits.length > 10
-              ? `\n  … (+${hits.length - 10} more: omt_think_list{path:"${rel}"})`
+              ? `\n  … (+${hits.length - 10} more: omt_think{op:"list", path:"${rel}"})`
               : "")
         }
       }

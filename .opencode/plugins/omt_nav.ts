@@ -195,10 +195,9 @@ function escapeRegExp(s: string): string {
 //    tests (via _nav_runner.mjs calling execute() directly + JSON.stringify)
 //    never crossed opencode's ToolResult boundary, so this was invisible.
 function createNavTools() {
-  // --- omt_nav: Main navigation tool ---
-  const omt_nav = tool({
-    description: irToolDescription("omt_nav",
-      "Navigate META HARNESS documentation using structured tags (SECTION:/XREF_/CMD_/ERR_/etc.). Returns structured results for agent consumption."),
+  // --- op=nav impl: main navigation tool (dispatched via omt_nav, OPT-H) ---
+  const omt_nav_query = tool({
+    description: "op=nav impl (unregistered; dispatched via omt_nav).",
     args: {
       query: tool.schema.string().describe(
         "Search query: tag prefix (e.g., 'SECTION:', 'CMD_', 'ERR_') or keyword"),
@@ -274,8 +273,7 @@ function createNavTools() {
 
   // --- omt_list_sections: List all SECTION: headers across META HARNESS ---
   const omt_list_sections = tool({
-    description: irToolDescription("omt_list_sections",
-      "List all SECTION: headers across META HARNESS documentation with file locations."),
+    description: "op=list_sections impl (unregistered; dispatched via omt_nav).",
     args: {
       file: tool.schema.string().optional().describe(
         "Optional: specific file to list sections from"),
@@ -312,8 +310,7 @@ function createNavTools() {
 
   // --- omt_cross_ref: Resolve cross-references ---
   const omt_cross_ref = tool({
-    description: irToolDescription("omt_cross_ref",
-      "Resolve XREF_ cross-references to find related documentation sections."),
+    description: "op=cross_ref impl (unregistered; dispatched via omt_nav).",
     args: {
       xref: tool.schema.string().describe(
         "Cross-reference ID (e.g., 'XREF_GUIDE', 'XREF_RULES')"),
@@ -345,8 +342,7 @@ function createNavTools() {
 
   // --- omt_quick_ref: Get quick workflow patterns ---
   const omt_quick_ref = tool({
-    description: irToolDescription("omt_quick_ref",
-      "Get QUICK_ workflow patterns for common agent tasks."),
+    description: "op=quick_ref impl (unregistered; dispatched via omt_nav).",
     args: {
       workflow: tool.schema.string().optional().describe(
         "Workflow name or keyword (e.g., 'START_MAJOR', 'TDD', 'DEBUG')"),
@@ -395,7 +391,31 @@ function createNavTools() {
     },
   })
 
-  return { omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref }
+  // improvement006/OPT-H: ONE registered nav tool; op dispatches to the
+  // impls above (18 → 7 registered omt_* tools — smaller schema block).
+  const omt_nav = tool({
+    description: irToolDescription("omt_nav", "Harness doc nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?)."),
+    args: {
+      op: tool.schema.string().describe("nav | list_sections | cross_ref | quick_ref"),
+      query: tool.schema.string().optional().describe("op=nav: tag prefix (e.g. 'SECTION:', 'CMD_', 'ERR_') or keyword"),
+      file: tool.schema.string().optional().describe("op=nav/list_sections: specific file"),
+      tag_type: tool.schema.string().optional().describe("op=nav: SECTION, RULE, ERR, WRN, CMD, QUICK, XREF, TT, PHASE, FEAT, all"),
+      include_context: tool.schema.boolean().optional().describe("op=nav: surrounding context (default false)"),
+      xref: tool.schema.string().optional().describe("op=cross_ref: e.g. 'XREF_GUIDE'"),
+      workflow: tool.schema.string().optional().describe("op=quick_ref: e.g. 'START_MAJOR', 'TDD'"),
+    },
+    async execute(args, context) {
+      switch (args?.op ?? "nav") {
+        case "nav": return omt_nav_query.execute(args, context)
+        case "list_sections": return omt_list_sections.execute(args, context)
+        case "cross_ref": return omt_cross_ref.execute(args, context)
+        case "quick_ref": return omt_quick_ref.execute(args, context)
+        default: return `⛔ omt_nav: unknown op '${args?.op}' — want nav|list_sections|cross_ref|quick_ref`
+      }
+    },
+  })
+
+  return { omt_nav }
 }
 
 // Standalone opencode plugin. This file lives under .opencode/plugins/, so it
@@ -419,8 +439,8 @@ function createNavTools() {
 // the injected root.
 export default async ({ directory, worktree }) => {
   initOmtShared(worktree ?? directory)
-  const { omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref } = createNavTools()
+  const { omt_nav } = createNavTools()
   return {
-    tool: { omt_nav, omt_list_sections, omt_cross_ref, omt_quick_ref },
+    tool: { omt_nav },
   }
 }

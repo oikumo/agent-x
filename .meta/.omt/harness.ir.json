@@ -2,9 +2,11 @@
   "budgets": {
     "agents_md": 2560,
     "digest_cap": 1024,
+    "ir_json": 20480,
+    "nav_index": 64000,
     "nav_tip": 512,
-    "tool_schemas": 2560,
-    "work_md": 8192,
+    "tool_schemas": 1024,
+    "work_md": 4096,
     "work_scratchpad": 3072
   },
   "deny": [
@@ -156,7 +158,7 @@
       "paths": "",
       "requires": "ledger_has(think_consult)",
       "skip_ok": false,
-      "text": "consult via omt_think_list{path} \u2014 NOT skip-bypassable; risk: thoughts drop the cross-session window",
+      "text": "consult via omt_think{op:list,path} \u2014 NOT skip-bypassable; risk: thoughts drop the cross-session window",
       "tools": "edit|write|patch|multiedit",
       "when": "file_has(TA:)"
     },
@@ -233,7 +235,7 @@
       "budget": 1536,
       "id": "session_bootstrap",
       "on": "first_tool_result",
-      "text": "ONE emission per session (nav tip \u2264512B deferred when nav-first R7 T3; compact TA digest \u22641024B DIGEST_CAP_BYTES \u2014 counts + per-file counts + stale \u26a0\ufe0f + pointer, full texts via omt_think_list / D1)"
+      "text": "ONE emission per session (nav tip \u2264512B deferred when nav-first R7 T3; compact TA digest \u22641024B DIGEST_CAP_BYTES \u2014 counts + per-file counts + stale \u26a0\ufe0f + pointer, full texts via omt_think{op:list} / D1)"
     },
     {
       "budget": 1024,
@@ -296,7 +298,7 @@
     "nav_required": {
       "see": "@doc.nav.enforcement",
       "sev": "block",
-      "text": "before grep/glob on META HARNESS docs use omt_nav / omt_list_sections / omt_cross_ref / omt_quick_ref first; read and src/non-doc searches exempt; override omt_skip{scope:\"nav\"}"
+      "text": "before grep/glob on META HARNESS docs use omt_nav (op=nav|list_sections|cross_ref|quick_ref) first; read and src/non-doc searches exempt; override omt_skip{scope:\"nav\"}"
     },
     "no_phase": {
       "see": "@doc.rule.r1",
@@ -331,7 +333,7 @@
     "think_gate": {
       "see": "@doc.think.gate",
       "sev": "block",
-      "text": "'{rel}' carries TA: thoughts \u2014 review then clear with omt_think_list{path:\"{rel}\"} (the block already shows the thoughts; the call records the consult)"
+      "text": "'{rel}' carries TA: thoughts \u2014 review then clear with omt_think{op:\"list\", path:\"{rel}\"} (the block already shows the thoughts; the call records the consult)"
     },
     "wrn_ctl_ui": {
       "see": "",
@@ -430,111 +432,45 @@
   "tools": {
     "omt_complete": {
       "args": "feature,advance_to?",
-      "description": "Verify the current phase's artifacts, then optionally advance (Design | Programming | Testing | Done).",
+      "description": "Verify phase artifacts; optionally advance (Design|Programming|Testing|Done).",
       "perm": "allow",
       "tags": "CMD_OMT_COMPLETE"
     },
-    "omt_cross_ref": {
-      "args": "xref",
-      "description": "Resolve an XREF_ cross-reference to related doc sections.",
-      "perm": "allow",
-      "tags": "CMD_CROSS_REF"
-    },
-    "omt_done": {
-      "args": "feature",
-      "description": "Declare TDD completion; runs full suite + checklist; state DONE.",
-      "perm": "allow",
-      "tags": "CMD_TDD_DONE"
-    },
-    "omt_green": {
-      "args": "test_node,feature",
-      "description": "Declare a passing test (verified); state GREEN \u2014 src/ edits only.",
-      "perm": "allow",
-      "tags": "CMD_TDD_GREEN"
-    },
-    "omt_list_sections": {
-      "args": "file?",
-      "description": "List all SECTION: headers across the META HARNESS corpus.",
-      "perm": "allow",
-      "tags": "CMD_LIST_SECTIONS"
-    },
     "omt_nav": {
-      "args": "query,file?,tag_type?,include_context?",
-      "description": "Navigate META HARNESS docs by structured tag (SECTION:/CMD_/ERR_/XREF_) or keyword.",
+      "args": "op,query?,file?,tag_type?,include_context?,xref?,workflow?",
+      "description": "Harness doc nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).",
       "perm": "allow",
       "tags": "CMD_NAV"
     },
     "omt_phase": {
       "args": "task_type,scope,phase?,feature?,design_doc?,tdd?",
-      "description": "Declare your OMT++ phase before editing src/ (task_type/phase/scope \u2192 ledger; unlocks per the \u00a712 matrix).",
+      "description": "Declare phase before src/ edits (task_type/scope \u2192 ledger; \u00a712 unlock matrix).",
       "perm": "allow",
       "tags": "CMD_OMT_PHASE"
     },
-    "omt_quick_ref": {
-      "args": "workflow?",
-      "description": "Get QUICK_ workflow patterns for common agent tasks.",
-      "perm": "allow",
-      "tags": "CMD_QUICK_REF"
-    },
-    "omt_red": {
-      "args": "test_node,target_src,feature",
-      "description": "Declare a failing test (verified true RED); state RED \u2014 tests/ edits only.",
-      "perm": "allow",
-      "tags": "CMD_TDD_RED"
-    },
-    "omt_refactor": {
-      "args": "test_node,feature",
-      "description": "Declare refactor state (tests verified green); src/ only, auto-revert on break.",
-      "perm": "allow",
-      "tags": "CMD_TDD_REFACTOR"
-    },
     "omt_skip": {
       "args": "reason,scope?",
-      "description": "Logged escape hatch: unlock edits/nav without a phase declaration. Scopes: src | tests | nav | all (default all).",
+      "description": "Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all (default all).",
       "perm": "allow",
       "tags": "CMD_OMT_SKIP"
     },
     "omt_status": {
       "args": "include_ledger?",
-      "description": "OMT++ process context: phase, unlock, artifacts, lint baseline, valid next phases, WORK.md next task.",
+      "description": "Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task.",
       "perm": "allow",
       "tags": "CMD_STATUS"
     },
-    "omt_testlist": {
-      "args": "behaviors,feature",
-      "description": "Record the TDD behavior list (JSON array); sets state TESTLIST.",
+    "omt_tdd": {
+      "args": "op,behaviors?,feature?,test_node?,target_src?",
+      "description": "TDD cycle driver. op=testlist(behaviors,feature) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature).",
       "perm": "allow",
-      "tags": "CMD_TDD_LIST"
+      "tags": "CMD_TDD"
     },
     "omt_think": {
-      "args": "path,thought,line?,after?,symbol?,category?",
-      "description": "Add a persistent inline TA: thought-tag (language-valid comment; survives sessions; grep-retrievable). Bypasses phase/canary gates. Address by line | after | symbol (at most one).",
+      "args": "op,path?,thought?,line?,after?,symbol?,category?,query?,top?",
+      "description": "TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?).",
       "perm": "allow",
       "tags": "CMD_THINK"
-    },
-    "omt_think_list": {
-      "args": "path?,category?,query?",
-      "description": "List TA: thought-tags (grep is truth); records the consult that clears the think-gate for matched files.",
-      "perm": "allow",
-      "tags": "CMD_THINK_LIST"
-    },
-    "omt_think_remove": {
-      "args": "path,line",
-      "description": "Remove a TA: line; appends a remove-tombstone (index append-only).",
-      "perm": "allow",
-      "tags": "CMD_THINK_REMOVE"
-    },
-    "omt_think_suggest": {
-      "args": "path,top?",
-      "description": "Rank candidate TA: insertion sites in a .py file.",
-      "perm": "allow",
-      "tags": "CMD_THINK_SUGGEST"
-    },
-    "omt_think_verify": {
-      "args": "path,line",
-      "description": "Re-check a TA: thought's placement integrity (drift \u2192 stale).",
-      "perm": "allow",
-      "tags": "CMD_THINK_VERIFY"
     }
   },
   "vars": {
@@ -554,13 +490,15 @@
     "plugin_dir": ".opencode/plugins/",
     "process_root": ".meta/software_development_process",
     "receipt_path": ".meta/.omt/omt_harness_e2e_last_run.json",
+    "root_allowlist": "AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,src,tests,tests_automated",
     "scaffold": "uv run scripts/omt/new_feature.py",
     "search_tools": "grep|glob|rg|find",
     "shared_lib": ".opencode/lib/omt_shared.ts",
     "tdd_check": "uv run scripts/omt/tdd_check.py",
     "thought_pattern": "^\\s*(#|//|/\\*|<!--|--)\\s*TA:",
     "thoughts_path": ".meta/.omt/thoughts.jsonl",
-    "unlock_window_ms": 28800000
+    "unlock_window_ms": 28800000,
+    "work_done_max": 10
   },
   "version": 1
 }

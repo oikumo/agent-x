@@ -109,7 +109,8 @@ GATE_NEVER_EXCLUDE = {"g.protect", "g.nav"}
 # Doc records the AGENTS.md projection draws from (missing id = build error).
 AGENTS_QUICK_FLOWS = ["start_bug", "start_major", "skip_src", "status", "lint"]
 
-MEASURABLE_BUDGETS = {"agents_md", "work_md", "work_scratchpad", "tool_schemas"}
+MEASURABLE_BUDGETS = {"agents_md", "work_md", "work_scratchpad", "tool_schemas",
+                        "nav_index", "ir_json"}  # OPT-D: the two largest projections
 REPORT_ONLY_BUDGETS = {"nav_tip", "digest_cap"}  # TS-rendered; test-pinned (R7 T5)
 
 
@@ -187,6 +188,37 @@ def parse(text: str, errors: list[str]) -> list[Record]:
 
 
 # --- check -------------------------------------------------------------------
+
+
+# --- derive (improvement006/OPT-D) ---------------------------------------------
+# Projection-time expansion of mechanically-derivable nav records so the .omt
+# carries each fact ONCE: PHASE_* from @fsm phase states, TT_* from the closed
+# task-type set, SECTION from framed banner comments ("# ====" / "# TITLE — text").
+BANNER_RE = re.compile(r"^# ([A-Z][A-Z0-9_ +]+) — (.+)$")
+BANNER_FRAME_RE = re.compile(r"^# ={10,}$")
+
+
+def derive_records(c: Corpus, omt_text: str) -> None:
+    """Append derived @doc records (ph.*/tt.*/sec.*) to the corpus. Hand-written
+    copies were deleted (OPT-D); a hand record re-added under a derived id is a
+    duplicate-id build error via check_ids."""
+    fsm = c.get("fsm", "phase")
+    decl = next((r for r in c.of("phase") if r.attrs.get("requires") == "decl"), None)
+    if fsm:
+        for s in (x.strip() for x in fsm.attrs.get("states", "").split(",") if x.strip()):
+            c.records.append(Record("doc", f"ph.{s.lower()}",
+                                    {"tags": f"PHASE_{s.upper()}"}, s, fsm.line))
+    for tt in sorted(TT_SET):
+        c.records.append(Record("doc", f"tt.{tt}", {"tags": f"TT_{tt.upper()}"},
+                                tt, decl.line if decl else (fsm.line if fsm else 0)))
+    lines = omt_text.splitlines()
+    for i, raw in enumerate(lines):
+        m = BANNER_RE.match(raw.strip())
+        if m and i > 0 and BANNER_FRAME_RE.match(lines[i - 1].strip()):
+            title, text = m.group(1).strip(), m.group(2).strip()
+            rid = "sec." + title.lower().replace(" ", "_").replace("+", "")
+            c.records.append(Record("doc", rid, {"tags": "SECTION"},
+                                    f"{title} — {text}", i + 1))
 
 def check_schema(c: Corpus) -> None:
     for r in c.records:
@@ -275,9 +307,11 @@ def check_fsm_hats(c: Corpus) -> None:
         for tt in r.attrs.get("applies", "").split(","):
             if tt.strip() and tt.strip() not in TT_SET:
                 c.errors.append(f"{OMT_REL}:{r.line}: @phase {r.rid}: unknown task_type '{tt.strip()}'")
+    # improvement006/OPT-D: tt.* records are derived from TT_SET at projection
+    # time; a hand-written subset (override attempt) is an error, absence is fine.
     tt_docs = {r.rid.split(".", 1)[1] for r in c.of("doc") if r.rid.startswith("tt.")}
-    if tt_docs != TT_SET:
-        c.errors.append(f"{OMT_REL}: @doc tt.* records {sorted(tt_docs)} != task-type set {sorted(TT_SET)}")
+    if tt_docs and tt_docs != TT_SET:
+        c.errors.append(f"{OMT_REL}: @doc tt.* records {sorted(tt_docs)} != task-type set {sorted(TT_SET)} (tt.* is derived — do not hand-write a subset)")
 
 
 def check_comp_paths(c: Corpus) -> None:
@@ -298,6 +332,95 @@ def check_gate_never_coverage(c: Corpus) -> None:
             if r.rid not in GATE_NEVER and r.rid not in GATE_NEVER_EXCLUDE:
                 c.errors.append(f"{OMT_REL}:{r.line}: @gate {r.rid}: hard before-edit gate lacks a GATE_NEVER phrase (or exclusion)")
 
+
+
+# improvement006/OPT-G: repo-root hygiene. Stray root files (probe leftovers like
+# ta_digest_*.py, 2026-07-19) confuse agents; .meta/.omt *.bak contradicts the
+# append-only state model (R6 S1). Allowlist is data (@var root_allowlist).
+ROOT_VOLATILE = {".git", ".venv", ".idea", ".pytest_cache", ".ruff_cache",
+                 ".mypy_cache", "local_sessions", "test_sandbox", ".sandbox"}
+
+
+def check_root_hygiene(c: Corpus) -> None:
+    r = c.get("var", "root_allowlist")
+    if r is None:
+        c.errors.append(f"{OMT_REL}: @var root_allowlist missing (OPT-G hygiene gate needs it)")
+        return
+    allowed = {e.strip().rstrip("/") for e in r.payload.split(",") if e.strip()}
+    for entry in sorted(REPO_ROOT.iterdir()):
+        name = entry.name
+        if name in ROOT_VOLATILE or name == ".env" or name.startswith(".env."):
+            continue
+        if name not in allowed:
+            c.errors.append(f"repo root: '{name}' not in @var root_allowlist "
+                            "(stray hygiene — delete it or list it deliberately)")
+    omt_dir = REPO_ROOT / ".meta" / ".omt"
+    if omt_dir.is_dir():
+        baks = sorted(p.name for p in omt_dir.glob("*.bak"))
+        if baks:
+            c.errors.append(f".meta/.omt: stale *.bak files {baks} — state is append-only (R6 S1); delete")
+
+
+def check_work_done_max(c: Corpus) -> None:
+    """improvement006/OPT-B: WORK.md DONE rotation backstop — pending + last-5
+    DONE inline (CONV_WORK_ROTATE); older rotate to WORK_ARCHIVE.md."""
+    r = c.get("var", "work_done_max")
+    if r is None or not r.payload.isdigit() or not WORK_PATH.exists():
+        return
+    done = sum(1 for line in WORK_PATH.read_text(encoding="utf-8").splitlines()
+               if line.startswith("- [x]"))
+    if done > int(r.payload):
+        c.errors.append(f"WORK.md: {done} DONE entries > @var work_done_max={r.payload} "
+                        "— rotate older DONE to WORK_ARCHIVE.md (CONV_WORK_ROTATE)")
+
+
+# improvement006/OPT-C: the TS irToolDescription(name, seed) fallback seeds must
+# mirror the .omt @tool payloads EXACTLY (single source; seed = IR-missing
+# fallback only). Drift (e.g. omt_phase pre-006) = build error here.
+TOOL_SEED_DIRS = (".opencode/plugins", ".opencode/lib/enforcer")
+
+
+def _ts_seed(src: str, name: str) -> str | None:
+    m = re.search(rf'irToolDescription\(\s*"{re.escape(name)}"\s*,', src)
+    if not m:
+        return None
+    i, depth, in_s, esc = m.end(), 1, False, False
+    while i < len(src) and depth:
+        ch = src[i]
+        if in_s:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_s = False
+        elif ch == '"':
+            in_s = True
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        i += 1
+    lits = re.findall(r'"((?:[^"\\]|\\.)*)"', src[m.end():i - 1], re.DOTALL)
+    if not lits:
+        return None
+    return "".join(lits).replace('\\"', '"').replace("\\n", "\n").replace("\\\\", "\\")
+
+
+def check_tool_seed_sync(c: Corpus) -> None:
+    srcs = [p for d in TOOL_SEED_DIRS for p in sorted((REPO_ROOT / d).glob("*.ts"))]
+    texts = [p.read_text(encoding="utf-8") for p in srcs]
+    for r in c.of("tool"):
+        seed = None
+        for text in texts:
+            seed = _ts_seed(text, r.rid)
+            if seed is not None:
+                break
+        if seed is None:
+            c.errors.append(f"{OMT_REL}:{r.line}: @tool {r.rid}: no irToolDescription call site in {TOOL_SEED_DIRS}")
+        elif seed != r.payload:
+            c.errors.append(f"{OMT_REL}:{r.line}: @tool {r.rid}: TS fallback seed drifted from the .omt payload "
+                            f"(seed {len(seed)} B vs payload {len(r.payload)} B) — sync the seed to the single source")
 
 # --- projections ---------------------------------------------------------------
 
@@ -339,7 +462,10 @@ def render_agents(c: Corpus) -> str:
     if fsm is None:
         raise SystemExit("harnessc: error: @fsm tdd record required for AGENTS.md projection")
     states = [s.strip().lower() for s in fsm.attrs["states"].split(",")]
-    cycle = " → ".join(f"omt_{s}" for s in states)
+    if c.get("tool", "omt_tdd") is not None:
+        cycle = "omt_tdd{op: " + " → ".join(states) + "}"  # OPT-H: namespaced tool
+    else:
+        cycle = " → ".join(f"omt_{s}" for s in states)
 
     # improvement004/OPT-A: §12 table / TDD / Tools / NAV / THINK / QuickRef sections
     # collapsed to nav-pointer one-liners (~1100 B/turn saved); full rules stay
@@ -367,7 +493,7 @@ def render_agents(c: Corpus) -> str:
 - **§12 artifacts:** {decl_tts} → declaration only · {design_tts} → + design doc on disk (`new_feature.py`) · `docs` → none
 - **TDD (feature_016):** `major_feature`/`new_screen` @Programming auto-activates `{cycle}` — two-hats: RED tests/ only · GREEN/REFACTOR src/ only (auto-revert on break)
 - **Tools:** {n_tools} `omt_*` — catalog `omt_nav{{query:"CMD_", tag_type:"CMD"}}` · workflows `omt_quick_ref`
-- **Nav gate (feature_020):** nav tools before grep/glob on docs (read + src/non-doc exempt) · **Think gate (feature_021):** TA: files need `omt_think_list` consult (NOT skip-bypassable)
+- **Nav gate (feature_020):** nav tools before grep/glob on docs (read + src/non-doc exempt) · **Think gate (feature_021):** TA: files need `omt_think{{op:list}}` consult (NOT skip-bypassable)
 """
 
 
@@ -517,7 +643,7 @@ def splice_config(text: str, blocks: dict[str, list[str]]) -> str:
 
 # --- budgets -------------------------------------------------------------------
 
-def measure_budgets(c: Corpus, agents_md: str) -> dict[str, tuple[int, int | None]]:
+def measure_budgets(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str = "") -> dict[str, tuple[int, int | None]]:
     sizes: dict[str, tuple[int, int | None]] = {}
     budgets = {r.rid: int(r.attrs["max"]) for r in c.of("budget")}
     for rid in budgets:
@@ -534,6 +660,8 @@ def measure_budgets(c: Corpus, agents_md: str) -> dict[str, tuple[int, int | Non
         if len(parts) == 2:
             scratch = len(("## Agent Scratchpad" + parts[1]).encode("utf-8"))
     sizes["work_scratchpad"] = (scratch, budgets.get("work_scratchpad"))
+    sizes["nav_index"] = (len(nav_text.encode("utf-8")), budgets.get("nav_index"))
+    sizes["ir_json"] = (len(ir_text.encode("utf-8")), budgets.get("ir_json"))
     for rid in REPORT_ONLY_BUDGETS:
         if rid in budgets:
             sizes[rid] = (-1, budgets[rid])  # TS-rendered; pinned by tests (R7 T5)
@@ -556,7 +684,7 @@ def check_harness_paths(c: Corpus) -> None:
                         "matches no real repo path (stale guard)")
 
 
-def run_all_checks(c: Corpus, agents_md: str) -> dict[str, tuple[int, int | None]]:
+def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str = "") -> dict[str, tuple[int, int | None]]:
     check_schema(c)
     check_ids(c)
     check_refs(c)
@@ -565,7 +693,10 @@ def run_all_checks(c: Corpus, agents_md: str) -> dict[str, tuple[int, int | None
     check_comp_paths(c)
     check_gate_never_coverage(c)
     check_harness_paths(c)
-    sizes = measure_budgets(c, agents_md)
+    check_root_hygiene(c)
+    check_work_done_max(c)
+    check_tool_seed_sync(c)
+    sizes = measure_budgets(c, agents_md, nav_text, ir_text)
     for rid, (size, cap) in sizes.items():
         if size >= 0 and cap is not None and size > cap:
             c.errors.append(f"budget {rid}: {size} B > {cap} B (grow the budget deliberately in the same .omt edit)")
@@ -584,12 +715,14 @@ def main(argv: list[str]) -> int:
         print(f"harnessc: error: {OMT_REL} not found", file=sys.stderr)
         return 1
 
-    c = Corpus(parse(OMT_PATH.read_text(encoding="utf-8"), []))
+    omt_text = OMT_PATH.read_text(encoding="utf-8")
+    c = Corpus(parse(omt_text, []))
+    derive_records(c, omt_text)
     agents_md = render_agents(c)
     ir_text = json.dumps(build_ir(c), indent=2, sort_keys=True) + "\n"
     nav_text = render_nav_index(c)
     config_text = splice_config(CONFIG_PATH.read_text(encoding="utf-8"), config_blocks(c))
-    sizes = run_all_checks(c, agents_md)
+    sizes = run_all_checks(c, agents_md, nav_text, ir_text)
 
     if "--verify-projections" in args:
         for label, path, text in (("harness.ir.json", IR_PATH, ir_text),

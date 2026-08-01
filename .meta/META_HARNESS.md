@@ -4,7 +4,7 @@
 > meta_harness_dsl R8 (OMT-HDL-1). The single source of truth is
 > **`.meta/META_HARNESS.omt`** (OMT-HDL).
 >
-> - **Query:** `omt_nav` / `omt_list_sections` / `omt_cross_ref` / `omt_quick_ref`
+> - **Query:** `omt_nav` (op=nav|list_sections|cross_ref|quick_ref)
 >   (answers carry `.meta/META_HARNESS.omt:<line>` source lines)
 > - **Build projections:** `uv run scripts/omt/harnessc.py build`
 > - **Drift test:** `uv run scripts/omt/harnessc.py check --verify-projections`
@@ -51,3 +51,34 @@
   --verify-projections no drift · e2e receipt refreshed ·
   tests/scripts/omt 116/116 · full suite 1062 passed + 3 known
   feature_018.
+- **2026-08-01 (improvement005 / OPT-A):** per-turn injection diet —
+  nav tip 489→155 B, TA-digest tail fold, AGENTS.md maintainer
+  boilerplate trim (GENERATED header + ENF line). **−518 B every turn**;
+  AGENTS.md 2097→1962 B. Verified: harnessc 0 err · e2e ✓ ·
+  tests/scripts/omt 116/116 · full suite 1062 + 3 known feature_018.
+  (State note recorded retroactively in the improvement006 entry batch.)
+- **2026-08-01 (improvement006 / ALL OPT A–H, user mandate "do all at
+  once"):** eight options, one session. (A) @tool schema diet 1484→1174 B;
+  then (H) tool consolidation 18→7 registered tools (`omt_tdd`/`omt_nav`/
+  `omt_think` op= dispatchers; phase/skip/complete/status kept) — schemas
+  now **775 B/turn** (−48% vs loop start, budget 1024), plus ~11 fewer
+  schema headers; all call sites, messages, guides, pins and live-test
+  prompts updated. (B) WORK.md DONE rotation → `WORK_ARCHIVE.md` (pending
+  + last-5 inline): 5899→3311 B/startup; `@budget work_md`→4096; `@var
+  work_done_max` backstop; `CONV_WORK_ROTATE`. (C) harnessc
+  `check_tool_seed_sync`: the 18→7 TS `irToolDescription` fallback seeds
+  pinned ≡ .omt payloads (omt_phase drift class = build error). (D)
+  projection-time `@derive` (PHASE_/TT_ from @fsm/TT_SET, SECTION from
+  framed banners) — 36 hand records deleted; `@budget nav_index` 64000 +
+  `ir_json` 20480 (the two largest projections were unchecked). (E)
+  omt_status compact default (~1.5 KB→~350 B/call) + fixes: Feature
+  Health 0% on non-artifact features, empty Valid-Next at Done. (F)
+  **HDL-2**: `lib/enforcer/gate_driver.ts` — the before-hook chain is
+  IR-driven (order=/tools=/when= via @pred registry; generic impl for
+  pred-composed gates; specialized impls keep the exotic 20%; IR-missing
+  fallback chain; order/tools/when/msg are .omt-only edits now). (G)
+  repo-root hygiene gate (`@var root_allowlist` + `.meta/.omt *.bak`
+  sweep; 3 stray ta_digest_*.py + thoughts.jsonl.bak removed). Verified:
+  harnessc 0 err · build+verify no drift · tests/scripts/omt 116/116 ·
+  e2e ✓ · live opencode smoke 2/2 (real binary, consolidated tools) ·
+  full suite 1064 passed + 3 known feature_018 · driver/TDD probes green.

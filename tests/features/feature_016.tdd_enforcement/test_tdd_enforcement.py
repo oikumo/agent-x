@@ -99,11 +99,11 @@ class TestTddCheckEnforcerIntegration:
 
     def test_enforcer_has_tdd_tools(self):
         tdd_hats = (REPO_ROOT / ".opencode" / "lib" / "enforcer" / "tdd_hats.ts").read_text()
-        assert "const omt_testlist" in tdd_hats
-        assert "const omt_red" in tdd_hats
-        assert "const omt_green" in tdd_hats
-        assert "const omt_refactor" in tdd_hats
-        assert "const omt_done" in tdd_hats
+        # improvement006/OPT-H: the five TDD tools consolidated into one
+        # namespaced op= dispatcher (18 → 7 registered omt_* tools).
+        assert "const omt_tdd" in tdd_hats
+        for op in ("testlist", "red", "green", "refactor", "done"):
+            assert f'"{op}"' in tdd_hats or f"{op}:" in tdd_hats
 
     def test_enforcer_has_tdd_gate(self):
         tdd_hats = (REPO_ROOT / ".opencode" / "lib" / "enforcer" / "tdd_hats.ts").read_text()

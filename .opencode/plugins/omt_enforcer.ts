@@ -37,13 +37,12 @@ import { initOmtShared, relOf } from "../lib/omt_shared"
 import {
   OmtBlock, createSessionState, makeSafeLog, makeNotify, type EnforcerEnv,
 } from "../lib/enforcer/session_state"
-import { navGateBefore, sessionBootstrap } from "../lib/enforcer/nav_gate"
-import {
-  isTests, isSrc, guardProtectedPath, guardHarnessReceipt, guardTestsPath,
-} from "../lib/enforcer/receipt_guard"
-import { guardSrcPath, createPhaseTools } from "../lib/enforcer/phase_gate"
+import { navTrack, sessionBootstrap } from "../lib/enforcer/nav_gate"
+import { runBeforeGates } from "../lib/enforcer/gate_driver"
+import { isSrc } from "../lib/enforcer/receipt_guard"
+import { createPhaseTools } from "../lib/enforcer/phase_gate"
 import { createTddTools, tddAfterEdit } from "../lib/enforcer/tdd_hats"
-import { guardThoughts, injectThoughtsOnRead } from "../lib/enforcer/think_gate"
+import { injectThoughtsOnRead } from "../lib/enforcer/think_gate"
 import { mvcAfterEdit, sessionIdleSweep } from "../lib/enforcer/mvc_after"
 
 const EDIT_TOOLS = new Set(["edit", "write", "patch", "multiedit"])
@@ -77,25 +76,20 @@ export default async ({ client, $, directory: cwd, worktree }) => {
       try {
         const session = input?.sessionID || undefined
 
-        // feature_020: nav-vs-search tracking + doc-search gate
-        await navGateBefore(env, session, input, output)
+        // feature_020: nav-vs-search tracking (instrumentation — the g.nav
+        // block decision is in the data-driven chain below).
+        await navTrack(env, session, input)
 
-        if (!EDIT_TOOLS.has(input?.tool)) return
-        // SDK contract: in tool.execute.before args live on OUTPUT (input={tool,
-        // sessionID, callID} only). Reading input?.args here (a3ffb81's false
-        // "F14 fix") made raw always undefined → every edit guard dead. The
-        // AFTER hook is the one that reads input.args (genuine F14 fix).
+        // HDL-2 (improvement006/OPT-F): the gate chain is data-driven — the
+        // driver iterates IR before-gates in order=, matching tools= and
+        // evaluating when= via the @pred registry (lib/enforcer/gate_driver.ts).
+        // SDK contract: in tool.execute.before args live on OUTPUT (input=
+        // {tool, sessionID, callID} only). Reading input?.args here (a3ffb81's
+        // false "F14 fix") made raw always undefined → every edit guard dead.
+        // The AFTER hook is the one that reads input.args (genuine F14 fix).
         const raw = output?.args?.filePath ?? output?.args?.path ?? output?.args?.file
-        if (!raw) return
-        const { abs, rel } = relOf(raw)
-
-        // Guard order (pinned): protected → e2e receipt → tests/ canary →
-        // src/ phase+TDD+snapshot → think-gate (any surviving non-tests edit).
-        if (await guardProtectedPath(env, session, rel)) return
-        await guardHarnessReceipt(rel, abs)
-        if (isTests(rel)) { await guardTestsPath(env, session, rel); return }
-        if (isSrc(rel)) await guardSrcPath(env, session, rel, abs)
-        await guardThoughts(env, session, rel, abs)
+        await runBeforeGates(env, session, input, output,
+          typeof raw === "string" && raw ? raw : null)
       } catch (e: any) {
         if (e instanceof OmtBlock) throw e          // intentional gate → block the edit
         safeLog("warn", "before-hook internal error (failing open): " + (e?.message || e))

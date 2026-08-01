@@ -484,7 +484,7 @@ Component Test Plan for "SendMessage":
 
 ### Five-Tool Cycle (Mandatory Order)
 ```
-omt_testlist → omt_red → omt_green → omt_refactor → omt_done
+omt_tdd{op: testlist → red → green → refactor → done}
   (plan)         (write        (write code   (improve code    (verify
                   failing       to pass        keeping tests     full suite)
                   test)         the test)      green)
@@ -492,11 +492,11 @@ omt_testlist → omt_red → omt_green → omt_refactor → omt_done
 
 | Tool | State | Hat | Action |
 |------|-------|-----|--------|
-| `omt_testlist` | TESTLIST | — | List behaviors (test names) to implement |
-| `omt_red` | RED | test | Write ONE failing test in `tests/`. Gate verifies true RED (AST + pytest). |
-| `omt_green` | GREEN | code | Minimum `src/` code to pass test. |
-| `omt_refactor` | REFACTOR | code | Improve code. Tests must stay green. **Auto-revert if tests break.** |
-| `omt_done` | DONE | — | Full suite + checklist pass. Phase exit validated. |
+| `omt_tdd{op:testlist}` | TESTLIST | — | List behaviors (test names) to implement |
+| `omt_tdd{op:red}` | RED | test | Write ONE failing test in `tests/`. Gate verifies true RED (AST + pytest). |
+| `omt_tdd{op:green}` | GREEN | code | Minimum `src/` code to pass test. |
+| `omt_tdd{op:refactor}` | REFACTOR | code | Improve code. Tests must stay green. **Auto-revert if tests break.** |
+| `omt_tdd{op:done}` | DONE | — | Full suite + checklist pass. Phase exit validated. |
 
 ### Two-Hats Gate (Mechanical Enforcement)
 | State | `tests/` edits | `src/` edits |
@@ -508,7 +508,7 @@ omt_testlist → omt_red → omt_green → omt_refactor → omt_done
 Wrong layer edit → gate tells you which hat to switch to.
 
 ### True-RED Verification
-`omt_red` runs pytest + AST analysis. Test must:
+`omt_tdd{op:red}` runs pytest + AST analysis. Test must:
 1. Import/reference target source module (inferred from test path)
 2. Fail because behavior missing (not import error/typo)
 
@@ -518,7 +518,7 @@ Gate snapshots file pre-edit. Post-edit runs tests. If any fail:
 2. Edit blocked: "REFACTOR broke tests — edit reverted"
 3. Try different refactor approach
 
-### Coverage Gap Analysis (on `omt_done` / `omt_complete`)
+### Coverage Gap Analysis (on `omt_tdd{op:done}` / `omt_complete`)
 `tdd_check.py validate-exit`:
 - Finds all public methods in your `src/` modules
 - Checks test coverage (AST-extracted test calls)

@@ -11,9 +11,9 @@
 //                       independent, single Set in session_state).
 
 import { loadIr, relOf, thinkDigest } from "../omt_shared"
-import { OmtBlock, hasNavUnlock, type EnforcerEnv } from "./session_state"
+import { type EnforcerEnv } from "./session_state"
 
-const NAV_TOOLS = new Set(["omt_nav", "omt_list_sections", "omt_cross_ref", "omt_quick_ref"])
+const NAV_TOOLS = new Set(["omt_nav"])  // improvement006/OPT-H: consolidated
 const SEARCH_TOOLS = new Set(["grep", "glob", "read", "rg", "find"])
 
 // Whether a repo-relative path is a META HARNESS *documentation* path. The nav
@@ -71,7 +71,7 @@ export function navGateDecision(opts: {
 // relOf() calls isAbsolute/join on a non-string and the plugin crashes at
 // bootstrap ("rel.startsWith is not a function"). Coerce: arrays -> first
 // string element; non-string -> null.
-function getSearchPath(output: any): string | null {
+export function getSearchPath(output: any): string | null {
   const raw = output?.args?.path ?? output?.args?.filePath ?? output?.args?.file
   if (!raw) return null
   const rawStr = Array.isArray(raw)
@@ -81,24 +81,23 @@ function getSearchPath(output: any): string | null {
   return relOf(rawStr).rel
 }
 
-const navRequiredMsg = () =>
+export const navRequiredMsg = () =>
   `⛔ OMT++ gate (feature_020): before grep/glob on META HARNESS docs, use ` +
-  `omt_nav / omt_list_sections / omt_cross_ref / omt_quick_ref first (AGENTS.md MANDATORY). ` +
+  `omt_nav (op=nav|list_sections|cross_ref|quick_ref) first (AGENTS.md MANDATORY). ` +
   `Only fall back to grep/glob if navigation returns nothing. ` +
   `\`read\` and src/non-doc searches are exempt. To override: omt_skip{reason:"...", scope:"nav"}.\n` +
-  `Navigation tools: omt_nav{query:"SECTION:"}, omt_list_sections, omt_cross_ref{xref:"..."}, omt_quick_ref{workflow:"..."}`
+  `Examples: omt_nav{op:"nav", query:"SECTION:"}, omt_nav{op:"list_sections"}, omt_nav{op:"cross_ref", xref:"..."}, omt_nav{op:"quick_ref", workflow:"..."}`
 
 const navReminderMsg = () =>
-  `💡 NAVIGATION TIP: docs search → omt_nav/omt_list_sections/omt_cross_ref/omt_quick_ref BEFORE grep/glob (read+src exempt; skip: omt_skip{scope:"nav"}).`
+  `💡 NAVIGATION TIP: docs search → omt_nav (op=nav|list_sections|cross_ref|quick_ref) BEFORE grep/glob (read+src exempt; skip: omt_skip{scope:"nav"}).`
 
-// Before-hook branch (feature_020): track navigation vs search tool usage and
-// gate doc-scoped searches behind prior nav usage. Runs for every tool;
-// returns quickly for non-search tools.
-export async function navGateBefore(
+// Before-hook instrumentation (feature_020): track nav-vs-search usage for
+// every tool. HDL-2 (improvement006/OPT-F): the BLOCK decision moved to the
+// data-driven gate chain — lib/enforcer/gate_driver.ts IMPLS["g.nav"].
+export async function navTrack(
   env: EnforcerEnv,
   session: string | undefined,
   input: any,
-  output: any,
 ): Promise<void> {
   if (!session) return
   const toolName = input?.tool
@@ -106,33 +105,13 @@ export async function navGateBefore(
     env.state.nav.set(session, { usedNav: false, usedSearch: false, searchCount: 0 })
   }
   const state = env.state.nav.get(session)!
-
-  // Track navigation tool usage
   if (NAV_TOOLS.has(toolName)) {
     state.usedNav = true
     env.safeLog("info", `Session ${session}: navigation tool ${toolName} used`)
   }
-
-  // Nav-gate search tools — but only for documentation-scoped searches.
   if (SEARCH_TOOLS.has(toolName)) {
     state.usedSearch = true
     state.searchCount++
-
-    // M1: `read` is never gated (targeted file access).
-    // M2: grep/glob scoped to src/ or non-doc paths are never gated
-    //     (nav indexes docs, not code). No path = doc-capable.
-    const targetRel = toolName === "read" ? null : getSearchPath(output)
-    const decision = navGateDecision({
-      tool: toolName,
-      targetRel,
-      usedNav: state.usedNav,
-      navUnlock: hasNavUnlock(session),
-    })
-    if (decision === "block") {
-      env.safeLog("warn", `Session ${session}: blocked ${toolName} (doc search '${targetRel || "repo"}') without prior navigation`)
-      throw new OmtBlock(navRequiredMsg())
-    }
-    env.safeLog("info", `Session ${session}: ${toolName} allowed (nav-gate passed)`)
   }
 }
 

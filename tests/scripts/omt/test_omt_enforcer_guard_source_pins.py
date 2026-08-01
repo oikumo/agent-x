@@ -173,59 +173,64 @@ class TestHarnessPathsIrSyncPin:
 NAV_GATE = REPO_ROOT / ".opencode" / "lib" / "enforcer" / "nav_gate.ts"
 
 
-class TestGateOrderIrPin:
-    """meta_harness_dsl R8 follow-up (T-024 fix 1): the .omt @gate order=
-    attributes (compiled into IR gates[].order) must match the omt_enforcer.ts
-    hook call sequence — before: navGateBefore → guardProtectedPath →
-    guardHarnessReceipt → guardTestsPath → guardSrcPath → guardThoughts;
-    after: mvcAfterEdit → tddAfterEdit. A manual order fix in the IR (the
-    g.mvc/g.tdd_after 60/70 swap) can otherwise regress silently."""
+DRIVER = REPO_ROOT / ".opencode" / "lib" / "enforcer" / "gate_driver.ts"
 
-    # gate id -> the composition-root function implementing it. The mapping is
-    # deliberate domain knowledge; the set-equality pin below forces it to be
-    # extended the moment a gate is added/removed in the .omt.
-    GATE_IMPL = {
-        "g.nav": "navGateBefore",
-        "g.protect": "guardProtectedPath",
-        "g.receipt": "guardHarnessReceipt",
-        "g.tests": "guardTestsPath",
-        "g.phase": "guardSrcPath",
-        "g.think": "guardThoughts",
-        "g.mvc": "mvcAfterEdit",
-        "g.tdd_after": "tddAfterEdit",
-    }
 
-    def test_gate_impl_map_covers_exactly_the_ir_gates(self):
+class TestGateDriverIrPin:
+    """improvement006/OPT-F (HDL-2): the before-hook gate chain is data-driven.
+    gate_driver.ts iterates IR before-gates in ascending order= and dispatches
+    to the IMPLS registry; the composition root only calls navTrack +
+    runBeforeGates. Drift between IR order and code order (the former textual
+    call-order pin, T-024 fix 1) is structurally impossible for before-gates
+    now; these pins cover the new invariants. After-gates (g.mvc, g.tdd_after)
+    stay hardcoded in the composition root (documented HDL-2 scope boundary)
+    and keep their order pin."""
+
+    def test_impls_cover_exactly_the_ir_before_gates(self):
         import json
-        ids = {g["id"] for g in json.loads(IR.read_text(encoding="utf-8"))["gates"]}
-        assert set(self.GATE_IMPL) == ids, (
-            "GATE_IMPL drifted from IR gates: "
-            f"only-in-map={sorted(set(self.GATE_IMPL) - ids)} "
-            f"only-in-IR={sorted(ids - set(self.GATE_IMPL))}")
+        ids = {g["id"] for g in json.loads(IR.read_text(encoding="utf-8"))["gates"]
+               if g["on"] == "before"}
+        src = DRIVER.read_text(encoding="utf-8")
+        m = re.search(r"const IMPLS[^{]*\{(.*?)\n\}", src, re.DOTALL)
+        assert m, "IMPLS registry not found in gate_driver.ts"
+        impls = set(re.findall(r'"(g\.\w+)"\s*:', m.group(1)))
+        assert impls == ids, (
+            "IMPLS registry drifted from IR before-gates: "
+            f"only-in-IMPLS={sorted(impls - ids)} only-in-IR={sorted(ids - impls)} "
+            "(an IR before-gate without an impl runs as a GENERIC pred-composed "
+            "gate — register an impl or accept generic semantics deliberately)")
 
-    def test_hook_call_order_matches_ir_gate_order(self):
+    def test_driver_sorts_gates_by_ir_order(self):
+        src = DRIVER.read_text(encoding="utf-8")
+        assert re.search(r"\.sort\(\(a[^)]*\)\s*=>\s*a\.order\s*-\s*b\.order\)", src), (
+            "gate_driver must iterate before-gates in ascending IR order= "
+            "(HDL-2: order is data, not code)")
+
+    def test_composition_root_delegates_to_driver(self):
+        body = _hook_body(ENFORCER.read_text(encoding="utf-8"), "tool.execute.before")
+        assert "runBeforeGates(" in body, "before-hook must delegate to the HDL-2 driver"
+        assert "navTrack(" in body, "before-hook must run nav instrumentation"
+        for legacy in ("guardProtectedPath(", "guardHarnessReceipt(",
+                       "guardTestsPath(", "guardSrcPath(", "guardThoughts("):
+            assert legacy not in body, (
+                f"hand-ordered gate call {legacy} survived in the composition "
+                "root — HDL-2: the driver owns the before-chain")
+
+    def test_after_hook_order_matches_ir(self):
         import json
         gates = json.loads(IR.read_text(encoding="utf-8"))["gates"]
-        src = ENFORCER.read_text(encoding="utf-8")
-        for on, hook in (("before", "tool.execute.before"),
-                         ("after", "tool.execute.after")):
-            group = sorted((g for g in gates if g["on"] == on),
-                           key=lambda g: g["order"])
-            orders = [g["order"] for g in group]
-            assert len(set(orders)) == len(orders), (
-                f"on={on}: duplicate gate order values {orders} — sort ambiguous")
-            body = _hook_body(src, hook)
-            positions: list[int] = []
-            for g in group:
-                fn = self.GATE_IMPL[g["id"]]
-                pos = body.find(fn + "(")
-                assert pos >= 0, f"{hook}: {fn} (gate {g['id']}) is never called"
-                positions.append(pos)
-            sequence = [self.GATE_IMPL[g["id"]] for g in group]
-            assert positions == sorted(positions), (
-                f"{hook} call order drifted from IR gates[].order — expected "
-                f"{sequence} (ascending order={orders}); reorder the hook calls "
-                "or fix the .omt order= attributes, never one without the other")
+        group = sorted((g for g in gates if g["on"] == "after"),
+                       key=lambda g: g["order"])
+        orders = [g["order"] for g in group]
+        assert len(set(orders)) == len(orders), (
+            f"after: duplicate gate order values {orders} — sort ambiguous")
+        body = _hook_body(ENFORCER.read_text(encoding="utf-8"), "tool.execute.after")
+        impl = {"g.mvc": "mvcAfterEdit", "g.tdd_after": "tddAfterEdit"}
+        positions = [body.find(impl[g["id"]] + "(") for g in group]
+        assert all(p >= 0 for p in positions), (
+            f"after-hook: expected calls {list(impl.values())} in {body[:200]!r}")
+        assert positions == sorted(positions), (
+            f"after-hook call order drifted from IR order= {orders}")
 
 
 class TestDocPathsIrSyncPin:

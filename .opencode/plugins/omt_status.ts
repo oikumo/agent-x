@@ -174,7 +174,7 @@ function getWorkMdNextTask(): string | null {
   return null
 }
 
-function computeFeatureHealth(feature: string): {
+function computeFeatureHealth(feature: string, taskType: string): {
   requirements: number
   analysis: number
   design: number
@@ -182,7 +182,7 @@ function computeFeatureHealth(feature: string): {
   testing: number
   overall: number
 } {
-  const { present, required } = getArtifactStatus(feature, "major_feature")
+  const { present, required } = getArtifactStatus(feature, taskType)
   const phases = ["Requirements", "Analysis", "Design", "Implementation", "Testing"]
   const scores = phases.map(p => present.some(x => x.startsWith(p)) ? 1 : required.some(x => x.startsWith(p)) ? 0 : 0.5)
   const overall = scores.reduce((a, b) => a + b, 0) / scores.length
@@ -206,9 +206,7 @@ function formatDuration(ms: number): string {
 // under the injected repo root (never the pre-init cwd).
 function createStatusTool() {
   return tool({
-    description: irToolDescription("omt_status",
-      "Returns concise OMT++ process context: current phase, unlock state, artifact status, lint baseline, " +
-      "valid next phases, and WORK.md next task. Pass include_ledger=true only when audit detail is needed."),
+    description: irToolDescription("omt_status", "Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task."),
     args: {
       include_ledger: tool.schema.boolean().optional().describe(
         "Include the last five phase/skip ledger entries in the visible output and metadata. Default: false."),
@@ -250,13 +248,17 @@ function createStatusTool() {
 
       const lint = runLintBaseline()
 
+      // improvement006/OPT-E bug 2: Done has no outgoing transitions — a
+      // completed cycle restarts at Analysis, so offer the full phase set.
       const nextPhases = currentPhase !== "None" && currentPhase !== "Unknown"
-        ? VALID_TRANSITIONS[currentPhase] || []
+        ? VALID_TRANSITIONS[currentPhase] ?? ["Analysis", "Design", "Programming", "Testing"]
         : ["Analysis", "Design", "Programming", "Testing"]
 
       const featureHealth: Record<string, any> = {}
-      if (feature) {
-        featureHealth[feature] = computeFeatureHealth(feature)
+      // improvement006/OPT-E bug 1: only meaningful when the feature has
+      // artifact dirs — otherwise every score collapsed to 0%/50% noise.
+      if (feature && (present.length || required.length)) {
+        featureHealth[feature] = computeFeatureHealth(feature, taskType)
       }
 
       const nextTask = getWorkMdNextTask()
@@ -287,30 +289,19 @@ function createStatusTool() {
       }
       if (includeLedger) result.recent_ledger = recent
 
+      // improvement006/OPT-E: compact default (frequent on-demand surface);
+      // "OMT++ STATUS" banner literal preserved (live-smoke pin).
       const lines = [
-        "📊 OMT++ STATUS",
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-        `Current Phase: ${currentPhase}`,
-        activeUnlock ? `Active Unlock: ${activeUnlock.task_type} (${activeUnlock.phase}) — expires in ${activeUnlock.expires_in}` : "Active Unlock: None (src/ blocked)",
-        activeUnlock?.scope ? `Scope: ${activeUnlock.scope}` : "",
-        "",
-        `Artifacts Required: ${required.length || "none"}`,
-        ...missing.map(m => `  ❌ ${m}`),
-        ...present.map(p => `  ✅ ${p}`),
-        "",
-        `Lint Baseline: ${lint.errors >= 0 ? `${lint.errors} errors, ${lint.warnings} warnings` : "unavailable"}`,
-        "",
-        `Valid Next Phases: ${nextPhases.join(", ")}`,
-        "",
-        `WORK.md Next Task: ${nextTask || "none pending"}`,
-      ].filter(line => line !== "")
+        `📊 OMT++ STATUS — ${currentPhase} · ${activeUnlock ? `${activeUnlock.task_type !== "unknown" ? activeUnlock.task_type : `skip/${activeUnlock.scope || "all"}`} (${activeUnlock.phase || "—"}) expires ${activeUnlock.expires_in}` : "no unlock (src/ blocked)"} · lint ${lint.errors >= 0 ? `${lint.errors} err, ${lint.warnings} warn` : "unavailable"}`,
+        ...(activeUnlock?.scope ? [`Scope: ${activeUnlock.scope}`] : []),
+        `Artifacts: ${required.length ? `${required.length} required` : "none"}${missing.length ? ` — missing: ${missing.join(", ")}` : ""}${present.length ? ` · present: ${present.join(", ")}` : ""}`,
+        `Valid next: ${nextPhases.join(", ")} · Next task: ${nextTask || "none pending"}`,
+      ]
 
       if (Object.keys(featureHealth).length) {
         lines.push(
-          "",
-          "Feature Health:",
           ...Object.entries(featureHealth).map(([f, h]) =>
-            `  ${f}: overall ${Math.round(h.overall * 100)}% (R:${h.requirements} A:${h.analysis} D:${h.design} I:${h.implementation} T:${h.testing})`
+            `Feature Health ${f}: ${Math.round(h.overall * 100)}% (R:${h.requirements} A:${h.analysis} D:${h.design} I:${h.implementation} T:${h.testing})`
           )
         )
       }
@@ -319,23 +310,19 @@ function createStatusTool() {
       result.tdd_status = tddStatus
       if (tddStatus && tddStatus.tdd_mode) {
         lines.push(
-          "",
-          `TDD Mode: ACTIVE (${tddStatus.state.toUpperCase()})`,
-          ...(tddStatus.test_node ? [`  Current test: ${tddStatus.test_node}`] : []),
-          `  Cycles completed: ${tddStatus.cycles_count}`,
+          `TDD Mode: ACTIVE (${tddStatus.state.toUpperCase()})${tddStatus.test_node ? ` — ${tddStatus.test_node}` : ""} — cycles: ${tddStatus.cycles_count}`,
         )
       }
 
       if (includeLedger) {
         lines.push(
-          "",
           "Recent Ledger:",
           ...recent.map(r =>
             `  [${r.ts?.slice(11, 19)}] ${r.kind} ${r.task_type || ""} ${r.phase || ""} ${r.feature || ""} ${r.reason ? `— ${r.reason}` : ""}`
           )
         )
       } else if (statusRecords.length) {
-        lines.push("", `Recent Ledger: hidden (${statusRecords.length} records; call omt_status{include_ledger:true} if audit detail is needed)`)
+        lines.push(`Ledger: hidden (${statusRecords.length} records; omt_status{include_ledger:true} for audit detail)`)
       }
 
       return {

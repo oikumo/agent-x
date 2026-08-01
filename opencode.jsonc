@@ -65,20 +65,9 @@
       "omt_skip": "allow",
       "omt_complete": "allow",
       "omt_status": "allow",
-      "omt_testlist": "allow",
-      "omt_red": "allow",
-      "omt_green": "allow",
-      "omt_refactor": "allow",
-      "omt_done": "allow",
+      "omt_tdd": "allow",
       "omt_nav": "allow",
-      "omt_list_sections": "allow",
-      "omt_cross_ref": "allow",
-      "omt_quick_ref": "allow",
-      "omt_think": "allow",
-      "omt_think_list": "allow",
-      "omt_think_remove": "allow",
-      "omt_think_verify": "allow",
-      "omt_think_suggest": "allow"
+      "omt_think": "allow"
     // harnessc:end perm
   }
 }

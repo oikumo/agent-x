@@ -85,6 +85,8 @@ def test_no_singular_plugin_path_outside_frozen_history() -> None:
         if rel in FROZEN_FILES or any(rel.startswith(p) for p in FROZEN_PREFIXES):
             continue
         path = REPO_ROOT / rel
+        if not path.exists():
+            continue  # tracked but deleted in the worktree (pending commit)
         if path.suffix.lower() not in (".md", ".py", ".ts", ".jsonc", ".txt"):
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
@@ -118,8 +120,8 @@ def test_plugin_array_has_no_local_plugins() -> None:
 
 STARTUP_SENTENCE = (
     "Read `WORK.md` (only) at session start; summarize current state in ≤ 15 "
-    "lines (in-progress / blocked / next). All other docs on demand via nav "
-    "tools (`omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`)."
+    "lines (in-progress / blocked / next). All other docs on demand via "
+    "`omt_nav` (op=nav|list_sections|cross_ref|quick_ref)."
 )
 
 
@@ -166,7 +168,7 @@ def test_omt_tool_set_is_in_sync_everywhere() -> None:
 # --- 6. R7 T5 token budget pins (F32) ---------------------------------------
 
 AGENTS_BUDGET = 2560             # rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers — .omt @budget agents_md=2560 is the source of truth)
-WORK_BUDGET = 8 * 1024          # read at every session startup (improvement003/OPT-M: DONE narratives compacted to one-liners + pointers — .omt @budget work_md=8192 is the source of truth)
+WORK_BUDGET = 4 * 1024          # read at every session startup (improvement006/OPT-B: DONE rotation to WORK_ARCHIVE.md keeps WORK.md ~3 KB — .omt @budget work_md=4096 is the source of truth)
 SCRATCHPAD_BUDGET = 3 * 1024    # T2: CURRENT/RECURRING only (improvement002/OPT-B: gotchas relocated to @doc gotcha.* — .omt @budget work_scratchpad=3072 is the source of truth)
 NAV_TIP_BUDGET = 512            # C5: conversation-resident once per session
 DIGEST_BUDGET = 1024            # C4: conversation-resident once per session
