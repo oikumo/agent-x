@@ -214,6 +214,22 @@ def cmd_refactor(args) -> dict:
     }
 
 
+def cycles_refactor_recorded(cycles: list[dict]) -> bool:
+    """Latest record per test_node decides: the ledger is append-only, so a
+    cycle's red is superseded only by a green/refactor at the SAME node. A
+    lingering latest=red means an unfinished cycle and blocks omt_done.
+    (R4 follow-up, feature_024: the previous all-records check could never
+    pass for honest red-first TDD within one ledger window — historical reds
+    never leave the scanned window.)"""
+    if not cycles:
+        return True
+    latest_by_node: dict[str, dict] = {}
+    for c in cycles:
+        latest_by_node[c.get("test_node") or ""] = c
+    return all(c.get("state") in ("green", "refactor", "done")
+               for c in latest_by_node.values())
+
+
 def cmd_done(args) -> dict:
     exit_code, stdout, stderr = run_full_suite(timeout=120)
     failures = suite_failures(stdout)
@@ -227,9 +243,7 @@ def cmd_done(args) -> dict:
     suite_clean = exit_code == 0 or (bool(failures) and not unexpected)
 
     cycles = get_tdd_cycles(args.feature)
-    refactor_recorded = all(
-        c.get("state") in ("green", "refactor", "done") for c in cycles
-    ) if cycles else True
+    refactor_recorded = cycles_refactor_recorded(cycles)
 
     # Naming check
     test_dir = REPO_ROOT / "tests" / "features" / args.feature

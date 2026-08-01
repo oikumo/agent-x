@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from agentx.ui.interfaces import IUIProvider, IMainView, IRagView, IChatView
+from agentx.ui.interfaces import IUIProvider, IMainView, IRagView, IChatView, IReactView, ICodingView, IModelsView, IAgentView, IFastAgentView
 from agentx.ui.providers import ProviderRegistry
 
 if TYPE_CHECKING:
-    from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner
+    from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner, IModelsViewPartner, IConsoleReactViewPartner, IConsoleCodingViewPartner, IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
 
 
 class TUIProvider(IUIProvider):
@@ -61,6 +61,68 @@ class TUIProvider(IUIProvider):
         """
         from agentx.ui.tui.adapters.chat_adapter import TUIChatAdapter
         return TUIChatAdapter(controller)
+
+    # --- Console parity methods (feature_024) ---
+
+    def create_react_view(self, controller: IConsoleReactViewPartner) -> IReactView:
+        """Create TUI adapter for ReAct screen.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            TUIReactAdapter instance
+        """
+        from agentx.ui.tui.adapters.react_adapter import TUIReactAdapter
+        return TUIReactAdapter(controller)
+
+    def create_coding_view(self, controller: IConsoleCodingViewPartner) -> ICodingView:
+        """Create TUI adapter for Coding screen.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            TUICodingAdapter instance
+        """
+        from agentx.ui.tui.adapters.coding_adapter import TUICodingAdapter
+        return TUICodingAdapter(controller)
+
+    def create_models_view(self, controller: IModelsViewPartner) -> IModelsView:
+        """Create TUI adapter for Models screen.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            TUIModelsAdapter instance
+        """
+        from agentx.ui.tui.adapters.models_adapter import TUIModelsAdapter
+        return TUIModelsAdapter(controller)
+
+    def create_agent_view(self, controller: IConsoleAgentViewPartner) -> IAgentView:
+        """Create TUI adapter for Advanced Agent screen.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            TUIAgentAdapter instance
+        """
+        from agentx.ui.tui.adapters.agent_adapter import TUIAgentAdapter
+        return TUIAgentAdapter(controller)
+
+    def create_fast_agent_view(self, controller: IConsoleFastAgentViewPartner) -> IFastAgentView:
+        """Create TUI adapter for Fast Agent screen.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            TUIFastAgentAdapter instance
+        """
+        from agentx.ui.tui.adapters.fast_agent_adapter import TUIFastAgentAdapter
+        return TUIFastAgentAdapter(controller)
 
     def initialize(self) -> None:
         """Initialize Textual framework."""

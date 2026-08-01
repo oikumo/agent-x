@@ -87,6 +87,10 @@ class UIConsole:
         print(f"{UIConsoleColors.BOLD}{UIConsoleColors.PURPLE}{message}{UIConsoleColors.END}")
         print(f"{UIConsoleColors.BOLD}{UIConsoleColors.PURPLE}{'=' * 60}{UIConsoleColors.END}\n")
 
+    def stream_write(self, text: str) -> None:
+        """Write text to stdout without newline, flushing immediately for token streaming."""
+        print(text, end="", flush=True)
+
 
 
 

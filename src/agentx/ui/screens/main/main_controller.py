@@ -5,13 +5,21 @@ from typing import TYPE_CHECKING, cast
 
 from agentx.ui.screens.chat.chat_controller import ChatController
 from agentx.ui.screens.main.commands.commands import SumCommand, QuitCommand, ClearCommand, HelpCommand, \
-    AIChat, HistoryCommand, NewSessionCommand, LSCommand, RagShowCommand, VersionCommand
+    AIChat, HistoryCommand, NewSessionCommand, LSCommand, RagShowCommand, VersionCommand, \
+    ReactCommand, CodingCommand, ModelsCommand, AgentCommand, FastAgentCommand
 from agentx.ui.screens.main.commands.commands_base import Command
 from agentx.ui.screens.main.commands.commands_parser import CommandParser
 from agentx.model.session.session_manager import SessionManager
 from agentx.ui.screens.main.main_view import MainView
 from agentx.ui.interfaces import IMainViewPartner, IChatView, IRagView, IMainView
 from agentx.ui.screens.rag.rag_controller import RagController
+from agentx.ui.interfaces import (
+    IReactView,
+    ICodingView,
+    IModelsView,
+    IAgentView,
+    IFastAgentView,
+)
 
 if TYPE_CHECKING:
     from agentx.ui.interfaces import IUIProvider
@@ -20,6 +28,12 @@ if TYPE_CHECKING:
     from agentx.ui.screens.models.models_controller import ModelsController
     from agentx.ui.screens.react.react_controller import ReactController
     from agentx.ui.tui.screens.coding.coding_controller import CodingController
+    # Console parity interfaces (feature_024)
+    from agentx.ui.interfaces import (
+        IConsoleReactViewPartner,
+        IConsoleCodingViewPartner,
+        IModelsViewPartner,
+    )
 
 
 class MainController(IMainViewPartner):
@@ -40,6 +54,12 @@ class MainController(IMainViewPartner):
         self._models_controller: "ModelsController | None" = None
         self._react_controller: "ReactController | None" = None
         self._coding_controller: "CodingController | None" = None
+        # Console parity views (feature_024)
+        self._react_view: IReactView | None = None
+        self._coding_view: ICodingView | None = None
+        self._models_view: IModelsView | None = None
+        self._agent_view: IAgentView | None = None
+        self._fast_agent_view: IFastAgentView | None = None
         self.load_commands()
 
     def load_commands(self):
@@ -53,6 +73,12 @@ class MainController(IMainViewPartner):
         self.add_command(LSCommand("ls", self))
         self.add_command(RagShowCommand("rag", self))
         self.add_command(VersionCommand("version", self))
+        # Console parity commands (feature_024)
+        self.add_command(ReactCommand("react", self))
+        self.add_command(CodingCommand("coding", self))
+        self.add_command(ModelsCommand("models", self))
+        self.add_command(AgentCommand("agent", self))
+        self.add_command(FastAgentCommand("fast-agent", self))
 
     def get_session_manager(self):
         return self.session_controller
@@ -127,9 +153,12 @@ class MainController(IMainViewPartner):
             memory_config=MemoryConfig(persistent_path=session_dir),
             sandbox_root=session_dir,
         )
-        # I4: AI service wiring + C5/I1 snapshot resume happen inside the adapter.
         _agent, controller = AgentAdapter.create_agent(config, resume=True)
+        agent_view = self._provider.create_agent_view(controller) if self._provider else None
+        if agent_view is not None:
+            controller.set_view(cast("IAgentViewPartner", agent_view))
         self._agent_controller = controller
+        self._agent_view = agent_view
 
     def get_agent_controller(self) -> AgentController | None:
         """Get the agent controller for screen connection."""
@@ -170,65 +199,76 @@ class MainController(IMainViewPartner):
         )
         _agent, controller = AgentAdapter.create_agent(config, resume=True)
 
-        # Wire the no-op FastAgentTUIView as the controller's partner so
-        # run_cycle() callbacks don't crash (the modal flow queries the
-        # controller explicitly via get_cycle_summary()).
-        from agentx.agent.view.tui.fast_agent_view import FastAgentTUIView
-
-        view = FastAgentTUIView()
-        # FastAgentTUIView is registered as a virtual subclass of
-        # IAgentViewPartner (avoids the Textual/abc metaclass conflict) — the
-        # cast satisfies the static type checker (m9-style pattern).
-        controller.set_view(cast("IAgentViewPartner", view))
+        fast_agent_view = self._provider.create_fast_agent_view(controller) if self._provider else None
+        if fast_agent_view is not None:
+            # ConsoleFastAgentView acts as the controller's partner (no-op
+            # wiring acceptable for console parity).
+            controller.set_view(cast("IAgentViewPartner", fast_agent_view))
         self._fast_agent_controller = controller
+        self._fast_agent_view = fast_agent_view
 
     def get_fast_agent_controller(self) -> AgentController | None:
         """Get the Fast Agent controller for screen connection."""
         return self._fast_agent_controller
 
     def show_models(self) -> None:
-        """Create and wire a ModelsController for the Models screen.
+        """Create and wire a ModelsController for the Models screen via provider.
 
-        Reuses an already-wired controller (C5 pattern) so the selection
-        survives a close/reopen.
+        Uses the provider pattern (create_models_view) for console parity.
+        Reuses an already-wired controller (C5 pattern).
         """
         if self._models_controller is not None:
             return
         from agentx.ui.screens.models.models_controller import ModelsController
 
-        self._models_controller = ModelsController()
+        models_controller = ModelsController()
+        if self._provider is not None:
+            models_view = self._provider.create_models_view(models_controller)
+            models_controller.view = models_view
+            self._models_view = models_view
+        self._models_controller = models_controller
 
     def get_models_controller(self) -> "ModelsController | None":
         """Get the Models controller for screen connection."""
         return self._models_controller
 
     def show_react(self) -> None:
-        """Create and wire a ReactController for the ReAct screen.
+        """Create and wire a ReactController for the ReAct screen via provider.
 
-        Reuses an already-wired controller (C5 pattern) so the conversation
-        survives a close/reopen.
+        Uses the provider pattern (create_react_view) for console parity.
+        Reuses an already-wired controller (C5 pattern).
         """
         if self._react_controller is not None:
             return
         from agentx.ui.screens.react.react_controller import ReactController
 
-        self._react_controller = ReactController()
+        react_controller = ReactController()
+        if self._provider is not None:
+            react_view = self._provider.create_react_view(react_controller)
+            react_controller.view = react_view
+            self._react_view = react_view
+        self._react_controller = react_controller
 
     def get_react_controller(self) -> "ReactController | None":
         """Get the ReAct controller for screen connection."""
         return self._react_controller
 
     def show_coding(self) -> None:
-        """Create and wire a CodingController for the Coding screen.
+        """Create and wire a CodingController for the Coding screen via provider.
 
-        Reuses an already-wired controller (C5 pattern) so the conversation
-        survives a close/reopen.
+        Uses the provider pattern (create_coding_view) for console parity.
+        Reuses an already-wired controller (C5 pattern).
         """
         if self._coding_controller is not None:
             return
         from agentx.ui.tui.screens.coding.coding_controller import CodingController
 
-        self._coding_controller = CodingController()
+        coding_controller = CodingController()
+        if self._provider is not None:
+            coding_view = self._provider.create_coding_view(coding_controller)
+            coding_controller.view = coding_view
+            self._coding_view = coding_view
+        self._coding_controller = coding_controller
 
     def get_coding_controller(self) -> "CodingController | None":
         """Get the Coding controller for screen connection."""

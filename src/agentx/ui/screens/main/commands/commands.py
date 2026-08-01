@@ -148,3 +148,81 @@ class VersionCommand(Command):
 
     def run(self, arguments: list[str]) -> None:
         self.controller.print_message(f"Agent-X version {APP_VERSION}")
+
+
+# --- Console parity commands (feature_024) ---
+#
+# KEY DESIGN: ``MainController.show_*()`` wires controller+view via the
+# provider but must NOT call ``view.show()`` (TUI pushes screens instead).
+# Console commands therefore call ``show_*()`` first, then enter the view
+# REPL via ``view.show()``.
+
+
+class ReactCommand(Command):
+    def __init__(self, key: str, controller: MainController):
+        super().__init__(key, description="Open ReAct (reasoning + acting) chat session")
+        self.controller = controller
+
+    def run(self, arguments: list[str]) -> None:
+        if len(arguments) != 0:
+            self.controller.print_warring_message("invalid command")
+            return
+        self.controller.show_react()
+        if self.controller._react_view is not None:
+            self.controller._react_view.show()
+
+
+class CodingCommand(Command):
+    def __init__(self, key: str, controller: MainController):
+        super().__init__(key, description="Open Coding agent (file operations + chat)")
+        self.controller = controller
+
+    def run(self, arguments: list[str]) -> None:
+        if len(arguments) != 0:
+            self.controller.print_warring_message("invalid command")
+            return
+        self.controller.show_coding()
+        if self.controller._coding_view is not None:
+            self.controller._coding_view.show()
+
+
+class ModelsCommand(Command):
+    def __init__(self, key: str, controller: MainController):
+        super().__init__(key, description="Select AI model provider (OpenRouter, Ollama, etc.)")
+        self.controller = controller
+
+    def run(self, arguments: list[str]) -> None:
+        if len(arguments) != 0:
+            self.controller.print_warring_message("invalid command")
+            return
+        self.controller.show_models()
+        if self.controller._models_view is not None:
+            self.controller._models_view.show()
+
+
+class AgentCommand(Command):
+    def __init__(self, key: str, controller: MainController):
+        super().__init__(key, description="Open Advanced Agent (full workspace, persistent memory)")
+        self.controller = controller
+
+    def run(self, arguments: list[str]) -> None:
+        if len(arguments) != 0:
+            self.controller.print_warring_message("invalid command")
+            return
+        self.controller.show_agent()
+        if self.controller._agent_view is not None:
+            self.controller._agent_view.show()
+
+
+class FastAgentCommand(Command):
+    def __init__(self, key: str, controller: MainController):
+        super().__init__(key, description="Open Fast Agent (single-turn UX)")
+        self.controller = controller
+
+    def run(self, arguments: list[str]) -> None:
+        if len(arguments) != 0:
+            self.controller.print_warring_message("invalid command")
+            return
+        self.controller.show_fast_agent()
+        if self.controller._fast_agent_view is not None:
+            self.controller._fast_agent_view.show()

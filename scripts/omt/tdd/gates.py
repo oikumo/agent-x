@@ -8,6 +8,8 @@ Extracted from the former monolithic scripts/omt/tdd_check.py:
 """
 from __future__ import annotations
 
+import time
+
 from .ast_checks import (
     extract_test_references,
     find_untested_methods,
@@ -15,13 +17,16 @@ from .ast_checks import (
 )
 from .state import (
     REPO_ROOT,
+    UNLOCK_WINDOW_MS,
     _resolve_src_path,
     _resolve_test_path,
+    _within_window,
     diff_snapshots,
     get_current_test_node,
     get_tdd_cycles,
     get_tdd_state,
     load_snapshot,
+    read_ledger,
     run_pytest,
     snapshot_source,
 )
@@ -102,6 +107,21 @@ def cmd_after_edit(args) -> dict:
 
 def cmd_validate_exit(args) -> dict:
     feature = args.feature
+
+    # feature_024 skip override (works around the latent phase_gate.ts bug
+    # where the advertised "call omt_skip to override" never consulted the
+    # skip ledger): honor an active omt_skip{scope:"all"} here. This Python
+    # side is shelled out to LIVE on every omt_complete, so the override
+    # takes effect in-session. Window-fallback semantics (no --session is
+    # threaded through validate-exit; mirrors TS hasNavUnlock).
+    now_ms = time.time() * 1000
+    skip_override = any(
+        r.get("kind") == "skip"
+        and r.get("scope") == "all"
+        and _within_window(r, now_ms)
+        for r in read_ledger()
+    )
+
     cycles = get_tdd_cycles(feature)
     dangling: list[str] = []
     for i, c in enumerate(cycles):
@@ -129,10 +149,16 @@ def cmd_validate_exit(args) -> dict:
                 coverage_gaps.append({"file": target, "untested": untested})
 
     all_ok = len(dangling) == 0 and len(coverage_gaps) == 0
+    summary = {
+        "test_files": len(test_files), "src_files": len(all_targets),
+        "untested_methods": sum(len(g["untested"]) for g in coverage_gaps),
+    }
+    if skip_override and not all_ok:
+        return {
+            "ok": True, "dangling_reds": [], "coverage_gaps": [],
+            "summary": {**summary, "skip_override": True},
+        }
     return {
         "ok": all_ok, "dangling_reds": dangling, "coverage_gaps": coverage_gaps,
-        "summary": {
-            "test_files": len(test_files), "src_files": len(all_targets),
-            "untested_methods": sum(len(g["untested"]) for g in coverage_gaps),
-        },
+        "summary": summary,
     }

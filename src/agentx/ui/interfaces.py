@@ -161,6 +161,68 @@ class IUIProvider(ABC):
         """
         pass
 
+    # --- New methods for console parity (feature_024) ---
+
+    @abstractmethod
+    def create_react_view(self, controller: "IConsoleReactViewPartner") -> "IReactView":
+        """Create ReAct view implementation.
+        
+        Args:
+            controller: The controller that will use this view
+            
+        Returns:
+            IReactView implementation
+        """
+        pass
+
+    @abstractmethod
+    def create_coding_view(self, controller: "IConsoleCodingViewPartner") -> "ICodingView":
+        """Create Coding view implementation.
+        
+        Args:
+            controller: The controller that will use this view
+            
+        Returns:
+            ICodingView implementation
+        """
+        pass
+
+    @abstractmethod
+    def create_models_view(self, controller: "IModelsViewPartner") -> "IModelsView":
+        """Create Models selector view implementation.
+        
+        Args:
+            controller: The controller that will use this view
+            
+        Returns:
+            IModelsView implementation
+        """
+        pass
+
+    @abstractmethod
+    def create_agent_view(self, controller: "IConsoleAgentViewPartner") -> "IAgentView":
+        """Create Advanced Agent view implementation.
+        
+        Args:
+            controller: The controller that will use this view
+            
+        Returns:
+            IAgentView implementation
+        """
+        pass
+
+    @abstractmethod
+    def create_fast_agent_view(self, controller: "IConsoleFastAgentViewPartner") -> "IFastAgentView":
+        """Create Fast Agent view implementation.
+        
+        Args:
+            controller: The controller that will use this view
+            
+        Returns:
+            IFastAgentView implementation
+        """
+        pass
+
     @abstractmethod
     def initialize(self) -> None:
         """Initialize UI framework."""
@@ -343,6 +405,285 @@ class ICodingViewPartner(ABC):
     @abstractmethod
     def get_history(self) -> list:
         """Get the conversation message history."""
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close the controller and cancel any running agent."""
+        pass
+
+    @abstractmethod
+    def start_new_conversation(self) -> None:
+        """Start a new conversation (reset thread)."""
+        pass
+
+
+class IModelsView(ABC):
+    """Abstract interface for Models Selector View (console parity)."""
+
+    @abstractmethod
+    def show(self) -> None:
+        """Display models selector screen."""
+        pass
+
+    @abstractmethod
+    def show_available_providers(self, providers: list[str]) -> None:
+        """Show list of available AI providers."""
+        pass
+
+    @abstractmethod
+    def show_models_for_provider(self, provider: str, models: list[str]) -> None:
+        """Show models available for a specific provider."""
+        pass
+
+    @abstractmethod
+    def show_message(self, message: str) -> None:
+        """Show info message."""
+        pass
+
+    @abstractmethod
+    def print_error(self, message: str) -> None:
+        """Show error message."""
+        pass
+
+
+class IModelsViewPartner(ABC):
+    """Abstract partner for Models View (implemented by ModelsController)."""
+
+    @abstractmethod
+    def select_model(self, provider: str, model: str) -> None:
+        """Select a model from a provider."""
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close the view."""
+        pass
+
+
+class IReactView(ABC):
+    """Abstract interface for ReAct View (console parity)."""
+
+    @abstractmethod
+    def show(self) -> None:
+        """Display ReAct chat screen."""
+        pass
+
+    @abstractmethod
+    def show_message(self, message: str, role: str = "assistant") -> None:
+        """Show complete message."""
+        pass
+
+    @abstractmethod
+    def show_partial_message(self, message: str) -> None:
+        """Show partial (streaming) message."""
+        pass
+
+    @abstractmethod
+    def show_stream_message(self, message: str) -> None:
+        """Stream message with typing effect."""
+        pass
+
+    @abstractmethod
+    def print_error(self, message: str) -> None:
+        """Show error message."""
+        pass
+
+
+class IConsoleReactViewPartner(ABC):
+    """Abstract partner for ReAct View (implemented by ReactController) — console mode."""
+
+    @abstractmethod
+    def process_user_message(self, user_message: str) -> bool:
+        """Process a user message in ReAct mode."""
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close the view."""
+        pass
+
+    @property
+    @abstractmethod
+    def is_running(self) -> bool:
+        """Whether the agent is currently running."""
+        pass
+
+    @abstractmethod
+    def get_history(self) -> list:
+        """Get the conversation message history."""
+        pass
+
+    @abstractmethod
+    def start_new_conversation(self) -> None:
+        """Start a new conversation (reset thread)."""
+        pass
+
+
+class ICodingView(ABC):
+    """Abstract interface for Coding View (console parity)."""
+
+    @abstractmethod
+    def show(self) -> None:
+        """Display Coding agent screen."""
+        pass
+
+    @abstractmethod
+    def show_message(self, message: str, role: str = "assistant") -> None:
+        """Show complete message."""
+        pass
+
+    @abstractmethod
+    def show_partial_message(self, message: str) -> None:
+        """Show partial (streaming) message."""
+        pass
+
+    @abstractmethod
+    def show_stream_message(self, message: str) -> None:
+        """Stream message with typing effect."""
+        pass
+
+    @abstractmethod
+    def print_error(self, message: str) -> None:
+        """Show error message."""
+        pass
+
+
+class IConsoleCodingViewPartner(ABC):
+    """Abstract partner for Coding View (implemented by CodingController) — console mode."""
+
+    @abstractmethod
+    def process_user_message(self, user_message: str) -> bool:
+        """Process a user message in Coding mode."""
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close the view."""
+        pass
+
+    @property
+    @abstractmethod
+    def is_running(self) -> bool:
+        """Whether the agent is currently running."""
+        pass
+
+    @abstractmethod
+    def get_history(self) -> list:
+        """Get the conversation message history."""
+        pass
+
+    @abstractmethod
+    def start_new_conversation(self) -> None:
+        """Start a new conversation (reset thread)."""
+        pass
+
+
+class IAgentView(ABC):
+    """Abstract interface for Advanced Agent View (console parity)."""
+
+    @abstractmethod
+    def show(self) -> None:
+        """Display Advanced Agent screen."""
+        pass
+
+    @abstractmethod
+    def show_message(self, message: str, role: str = "assistant") -> None:
+        """Show complete message."""
+        pass
+
+    @abstractmethod
+    def show_partial_message(self, message: str) -> None:
+        """Show partial (streaming) message."""
+        pass
+
+    @abstractmethod
+    def show_stream_message(self, message: str) -> None:
+        """Stream message with typing effect."""
+        pass
+
+    @abstractmethod
+    def print_error(self, message: str) -> None:
+        """Show error message."""
+        pass
+
+
+class IConsoleAgentViewPartner(ABC):
+    """Abstract partner for Advanced Agent View (implemented by AgentController) — console mode."""
+
+    @abstractmethod
+    def send_message(self, user_message: str) -> bool:
+        """Send a user message to the Agent."""
+        pass
+
+    @abstractmethod
+    def cancel(self) -> None:
+        """Cancel an in-progress agent run."""
+        pass
+
+    @property
+    @abstractmethod
+    def is_running(self) -> bool:
+        """Whether the agent is currently running."""
+        pass
+
+    @abstractmethod
+    def get_history(self) -> list:
+        """Get the conversation message history."""
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close the controller and cancel any running agent."""
+        pass
+
+    @abstractmethod
+    def start_new_conversation(self) -> None:
+        """Start a new conversation (reset thread)."""
+        pass
+
+
+class IFastAgentView(ABC):
+    """Abstract interface for Fast Agent View (console parity)."""
+
+    @abstractmethod
+    def show(self) -> None:
+        """Display Fast Agent modal screen."""
+        pass
+
+    @abstractmethod
+    def show_cycle_summary(self, summary: dict) -> None:
+        """Show cycle summary result."""
+        pass
+
+    @abstractmethod
+    def print_error(self, message: str) -> None:
+        """Show error message."""
+        pass
+
+
+class IConsoleFastAgentViewPartner(ABC):
+    """Abstract partner for Fast Agent View (implemented by FastAgentController) — console mode."""
+
+    @abstractmethod
+    def send_message(self, user_message: str) -> bool:
+        """Send a user message to the Fast Agent."""
+        pass
+
+    @abstractmethod
+    def cancel(self) -> None:
+        """Cancel an in-progress agent run."""
+        pass
+
+    @property
+    @abstractmethod
+    def is_running(self) -> bool:
+        """Whether the agent is currently running."""
+        pass
+
+    @abstractmethod
+    def get_cycle_summary(self) -> dict:
+        """Get the last cycle summary."""
         pass
 
     @abstractmethod

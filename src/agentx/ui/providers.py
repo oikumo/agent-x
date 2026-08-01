@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from agentx.ui.interfaces import IMainView, IChatView, IRagView, IUIProvider
+from agentx.ui.interfaces import IMainView, IChatView, IRagView, IUIProvider, IModelsView, IReactView, ICodingView, IAgentView, IFastAgentView
 
 if TYPE_CHECKING:
-    from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner
+    from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner, IModelsViewPartner, IConsoleReactViewPartner, IConsoleCodingViewPartner, IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
 
 
 class ProviderRegistry:
@@ -123,6 +123,68 @@ class ConsoleProvider(IUIProvider):
         """
         from agentx.ui.screens.chat.chat_view import ChatView
         return ChatView(controller)  # type: ignore
+
+    # --- Console parity methods (feature_024) ---
+
+    def create_react_view(self, controller: "IConsoleReactViewPartner") -> IReactView:
+        """Create console-based ReAct view.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            ConsoleReactView instance
+        """
+        from agentx.ui.screens.react.react_view import ConsoleReactView
+        return ConsoleReactView(controller)  # type: ignore
+
+    def create_coding_view(self, controller: "IConsoleCodingViewPartner") -> ICodingView:
+        """Create console-based Coding view.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            ConsoleCodingView instance
+        """
+        from agentx.ui.screens.coding.coding_view import ConsoleCodingView
+        return ConsoleCodingView(controller)  # type: ignore
+
+    def create_models_view(self, controller: "IModelsViewPartner") -> IModelsView:
+        """Create console-based Models view.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            ConsoleModelsView instance
+        """
+        from agentx.ui.screens.models.models_view import ConsoleModelsView
+        return ConsoleModelsView(controller)  # type: ignore
+
+    def create_agent_view(self, controller: "IConsoleAgentViewPartner") -> IAgentView:
+        """Create console-based Advanced Agent view.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            ConsoleAgentView instance
+        """
+        from agentx.ui.screens.agent.agent_view import ConsoleAgentView
+        return ConsoleAgentView(controller)  # type: ignore
+
+    def create_fast_agent_view(self, controller: "IConsoleFastAgentViewPartner") -> IFastAgentView:
+        """Create console-based Fast Agent view.
+        
+        Args:
+            controller: Controller instance
+            
+        Returns:
+            ConsoleFastAgentView instance
+        """
+        from agentx.ui.screens.fast_agent.fast_agent_view import ConsoleFastAgentView
+        return ConsoleFastAgentView(controller)  # type: ignore
 
     def initialize(self) -> None:
         """Initialize console UI (no-op)."""

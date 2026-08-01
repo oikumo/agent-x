@@ -124,13 +124,18 @@ def _rotate_ledger_if_needed() -> None:
 # Known, pre-existing suite failures that must NOT block omt_done
 # (meta_harness_dsl R4; audit F6): the feature_018 react_screen trio
 # (Textual/mock failures predating the harness) and the window-flaky gate
-# probe that reads the REAL 8 h-window ledger (red exactly when a TDD session
-# is in-window — i.e. when omt_done runs). A failure OUTSIDE this set blocks.
+# probes that read the REAL 8 h-window ledger (red exactly when a TDD session
+# is in-window — i.e. when omt_done runs): the test_tdd_check subprocess
+# probe plus the feature_016 TestTddCheckCli pair (same real-ledger root;
+# allowlisted in feature_024 per user decision). A failure OUTSIDE this set
+# blocks.
 KNOWN_SUITE_FAILURES = frozenset({
     "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_mounts_and_displays_welcome",
     "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_escape_pops",
     "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_input_and_send",
     "tests/scripts/omt/test_tdd_check.py::TestTddCheckSubprocess::test_gate_returns_allowed_when_no_tdd",
+    "tests/features/feature_016.tdd_enforcement/test_tdd_enforcement.py::TestTddCheckCli::test_gate_no_tdd_allows_everything",
+    "tests/features/feature_016.tdd_enforcement/test_tdd_enforcement.py::TestTddCheckCli::test_gate_no_tdd_allows_tests",
 })
 
 

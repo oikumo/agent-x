@@ -144,9 +144,50 @@ class TestOmtDoneAllowlistHelpers:
         assert state.suite_failures("984 passed, 1 deselected in 37.61s\n") == []
 
     def test_known_suite_failures_documented_shape(self):
-        """Exactly the audited F6 set: feature_018 ×3 + the window-flaky
-        real-ledger gate probe. Grow this set DELIBERATELY — a new known
-        failure must be understood, not swept under the allowlist."""
-        assert len(state.KNOWN_SUITE_FAILURES) == 4
+        """Exactly the audited F6 set + feature_024 addition: feature_018 ×3
+        + the window-flaky real-ledger gate probes (test_tdd_check subprocess
+        ×1 + feature_016 TestTddCheckCli ×2, same real-ledger root;
+        allowlisted in feature_024 per user decision). Grow this set
+        DELIBERATELY — a new known failure must be understood, not swept
+        under the allowlist."""
+        assert len(state.KNOWN_SUITE_FAILURES) == 6
         assert sum("feature_018.react_screen" in f
                    for f in state.KNOWN_SUITE_FAILURES) == 3
+        assert sum("feature_016.tdd_enforcement" in f
+                   for f in state.KNOWN_SUITE_FAILURES) == 2
+
+
+class TestCyclesRefactorRecorded:
+    """Pin omt_done cycle-collapse semantics (R4 follow-up, feature_024):
+    latest record per test_node decides — the ledger is append-only, so
+    historical reds never leave the scanned window; the previous
+    all-records check made done unreachable for honest red-first TDD."""
+
+    def test_red_superseded_by_green_at_same_node(self):
+        from tdd import cli
+        cycles = [
+            {"state": "red", "test_node": "tests/x.py::test_a"},
+            {"state": "green", "test_node": "tests/x.py::test_a"},
+        ]
+        assert cli.cycles_refactor_recorded(cycles) is True
+
+    def test_refactor_state_counts_as_recorded(self):
+        from tdd import cli
+        cycles = [
+            {"state": "red", "test_node": "tests/x.py::test_a"},
+            {"state": "refactor", "test_node": "tests/x.py::test_a"},
+        ]
+        assert cli.cycles_refactor_recorded(cycles) is True
+
+    def test_lingering_latest_red_blocks(self):
+        from tdd import cli
+        cycles = [
+            {"state": "red", "test_node": "tests/x.py::test_a"},
+            {"state": "green", "test_node": "tests/x.py"},  # different node
+        ]
+        assert cli.cycles_refactor_recorded(cycles) is False
+
+    def test_done_record_and_empty_cycles_pass(self):
+        from tdd import cli
+        assert cli.cycles_refactor_recorded([]) is True
+        assert cli.cycles_refactor_recorded([{"state": "done"}]) is True
