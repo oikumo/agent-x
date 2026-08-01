@@ -19,3 +19,12 @@
   (~330 tok saved **every turn**); `agents_md` budget pin unchanged (5120 B).
   Verified: harnessc check 0 err/226 rec · --verify-projections no drift ·
   tests/scripts/omt 116/116 · full suite 1062 passed + 3 known feature_018.
+- **2026-08-01 (improvement002 / OPT-B):** 16 RECURRING GOTCHAS relocated from
+  the WORK.md scratchpad into nav-indexed `@doc gotcha.*` records
+  (`omt_nav{query:"GOTCHA_"}`); scratchpad keeps a pointer + top-3 inline.
+  WORK.md 12117 → 7767 B (~1100 tok saved **every session startup**);
+  scratchpad 5692 → 1342 B; `@budget work_scratchpad` shrunk 6144 → 3072
+  (test pin `SCRATCHPAD_BUDGET` updated in the same session). Corpus
+  226 → 242 records. Verified: harnessc check 0 err · --verify-projections
+  no drift · e2e receipt refreshed · tests/scripts/omt 116/116 · full suite
+  1062 passed + 3 known feature_018.

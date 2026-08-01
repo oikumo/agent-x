@@ -68,30 +68,12 @@
 FEATURES DONE (docs in each .meta/.../FEATURE.md + test_report.md):
 - feature_020 nav + e2e · feature_021 think · feature_022 think-v2 · feature_023.meta_harness_improvement (F14-F17) · feature_tui_dark_mode (default dark, `k` toggles, `Ctrl+Shift+T` 21 themes) · feature_024 console parity (react/coding/models/agent/fast-agent REPL + streaming via IUIProvider; 28 behaviors/37 tests).
 
-RECURRING GOTCHAS (apply on every future task — these cost hours when re-discovered):
-- opencode loader requires ALL named exports of a plugin .ts be functions; tool objects aren't. → plugins export ONLY `export default async () => ({tool:{...}})`. Guard test_no_named_exports_except_default pins omt_think only; others' load-guard is future work.
-- omt_done reachable post-R4 (opencode_live excluded + KNOWN_SUITE_FAILURES allowlist); default phase exit stays omt_complete{advance_to:Testing→Done}.
-- omt_think.ts and lib/enforcer/think_gate.ts are THINK-GATED (carry TA: thoughts). Before editing: omt_think_list{path:...} clears the gate.
-- omt_testlist behaviors MUST be a JSON array (tdd cli.py json.loads); prose fails 'Expecting value: line 1 column 1'.
-- **SDK contract (feature_023/F14): `tool.execute.after` has `args` on `input`, NOT `output`** (output={title,output,metadata} only); the BEFORE hook is the OPPOSITE — `args` on `output`. a3ffb81 once applied the after-fix to both → all before-hook guards silently dead. Live-confirmed; pinned by test_omt_enforcer_guard_source_pins.py.
-- **Runner fixtures can't catch contract/path drift — only real-binary tests can.** Recipe: `opencode run --format json "<prompt>"` + jq tool_use events; `--pure` = A/B control; assert FILE-STATE byte-identical, snapshot+restore probe targets. opencode loads `.opencode/plugins/*.ts` directly (dist/ unused, deleted).
-- **e2e receipt guard is a SECOND-EDIT guard** (omtHarnessE2eStatus: git-dirty + mtime vs receipt) — first edit of a clean harness file is allowed BY DESIGN. Each edit bumps mtime > receipt → next edit of THAT file blocked until `uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q`.
-- **BUG-B live-test recipe (git-dirty-first):** the receipt guard is content-git-status-based — os.utime/touch on a CLEAN file never engages it. Probe: snapshot bytes → write_bytes(probe) (content-dirty ⇒ stale receipt) → `opencode run` one edit (forbid skip/bash/git) → assert bytes unchanged → restore in finally.
-- **Plugin probes WITHOUT the live suite (R6 recipe):** `bun /tmp/probe.ts` + `await import("<abs>/.opencode/plugins/omt_<x>.ts")` + `await m.default()` → real tool map/hooks; imports resolve from `.opencode/node_modules` regardless of cwd (run from repo root). Syntax gate: `cd .opencode && bun build --target=bun --outfile=/dev/null plugins/<f>.ts`.
-- **Write-tool large-payload workaround:** full-file Writes of ~750-line guarded plugins abort with empty params. Recipe: `rm <file>` (receipt guard ok on non-existent), rebuild via sequential `cat >> ... << 'QUOTED_EOF'` chunks (~100 lines), ONE receipt refresh at the end.
-
-RECURRING GOTCHAS (harness DSL session 2026-07-26):
-- **Receipt-rebuild ROUND-ROBIN (multi-file guarded refactors):** the receipt guard is PER-FILE → ONE edit per file per round (parallel OK), ONE receipt refresh per round. The e2e file is receipt-EXEMPT; update its source pins FIRST with shape-agnostic asserts, tighten at the end.
-- **Plugin factory ctx (verified in installed d.ts):** `{project, client, $, directory, worktree}`; repo root = `worktree ?? directory`. Plugin factories call `initOmtShared(worktree ?? directory)`; shared-lib path getters are LAZY. `tool()` is identity — direct `.execute(args, ctx)` in probes hits the real function.
-- **TDD RED gate needs RUNNABLE red (exit 1); collection errors (exit 2) rejected:** for tests of not-yet-existing classes, import symbols lazily inside the test (importlib) so failures surface as test failures, not ImportError at collection. New test files need omt_skip{scope:tests} canary (TDD_BOOTSTRAP).
-- **feature_016 TestTddCheckCli test_gate_no_tdd_* fail while ANY TDD session is active in the real ledger** (environmental, same root as the allowlisted window-flaky probe) — they clear after omt_done.
+RECURRING GOTCHAS — 16 nav-indexed: omt_nav{query:"GOTCHA_"} (improvement002/OPT-B → .omt @doc gotcha.*). Top-3 by cost kept inline:
+- **TDD node-granularity:** declare red/green/refactor at the SAME test_node — red at `f.py::C::t` + green at `f.py` strands latest=red → omt_done blocked (recovery: omt_green at the exact red node).
+- **omt_testlist behaviors MUST be a JSON array** (tdd cli.py json.loads); prose fails 'Expecting value: line 1 column 1'.
+- **Receipt round-robin (harness edits):** per-file SECOND-edit guard on harness surface → ONE edit per file per e2e receipt (parallel OK), ONE refresh per round; the e2e test file itself is receipt-EXEMPT.
 
 PENDING FEATURES (next work):
 - feature_001.session_user_objectives_driven_by_Petri_Net — scope & success criteria unset.
 - feature_002.rag_retrieval_augmented_generation — scope & success criteria unset.
-
-- **TDD node-granularity (feature_024, cost an omt_done block):** record red/green/refactor at the SAME test_node — red at `f.py::C::t` + green at `f.py` leaves latest=red blocking omt_done (recovery: omt_green at exact red node). KNOWN_SUITE_FAILURES is shape-pinned (test_ledger_rotation.py) — grow it + pin in the same session; both harness-surface → round-robin receipt refreshes.
-- **TS plugin edits do NOT hot-reload; gates shelling out to Python re-read it live every call** → in-session gate changes go in the Python side (feature_024: validate-exit now honors omt_skip{scope:"all"} via gates.py skip-ledger consult; phase_gate.ts advertised but never consulted it — TS parity + is_abstract coverage-filter deferred). Coverage gate scans ONLY tests/features/<feature>/ and counts abstract methods — READ THE GATE SOURCE (gates.py/ast_checks.py/phase_gate.ts) before writing make-work tests.
-
-UNCOMMITTED HARNESS WIP (no-commit-without-request): scripts/omt/tdd/{state,cli,gates}.py + tests/scripts/omt/test_ledger_rotation.py — dirty; next edit to any needs a fresh e2e receipt first (`uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q`).
 ```

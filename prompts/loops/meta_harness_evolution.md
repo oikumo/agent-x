@@ -9,6 +9,7 @@ to develop software, but always can be improved, so the improvements must be fou
 1. Focus in future coding agent token consumption minimization usage
 2. The main goal is to improve the coding agent performance, not human-readable artifacts, suggest the creation of a DSL for META HARNESS whenever is possible
 3. Any possible refactor opportunities must be considered when it is found
+4. Focus on META HARNESS flexibility for future changes
 
 # Improvement strategy
 1. Understand deeply what is META HARNESS using the META HARNESS artifacts available **DO NOT SEARCH THE SOURCE CODE**
