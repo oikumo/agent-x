@@ -38,3 +38,16 @@
   Verified: harnessc check 0 err · build + --verify-projections no drift ·
   e2e receipt refreshed · tests/scripts/omt 116/116 · full suite
   1062 passed + 3 known feature_018.
+- **2026-08-01 (improvement004 / OPT-A):** AGENTS.md diet round 2 — the
+  §12 Phase-Artifacts table, TDD/Navigation-Enforcement/Think-Anywhere
+  paragraphs and the 5-row Quick Reference (all duplicated in nav-indexed
+  `.omt` records) collapsed in `harnessc render_agents` to a 4-bullet
+  "Process (full rules on demand via nav)" pointer block (§12 line stays
+  data-driven from `@phase`; TDD cycle from `@fsm tdd`). AGENTS.md
+  2941 → 2097 B (~210 tok saved **every turn**); `@budget agents_md`
+  shrunk 5120 → 2560 (test pin `AGENTS_BUDGET` + stale docstring budgets
+  updated in the same session); e2e assertion retargeted to the surviving
+  think-gate pointer. Verified: harnessc check 0 err · build +
+  --verify-projections no drift · e2e receipt refreshed ·
+  tests/scripts/omt 116/116 · full suite 1062 passed + 3 known
+  feature_018.

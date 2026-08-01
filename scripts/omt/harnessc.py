@@ -328,14 +328,12 @@ def render_agents(c: Corpus) -> str:
         always_parts.append(f"`{r.attrs['run']}`" if "run" in r.attrs else f"`{r.attrs['glob']}` per dir")
     always_line = " → ".join(always_parts)
 
-    rows = []
-    req_text = {"decl": "Phase declaration only",
-                "decl,design": "Phase + **design doc on disk** (`new_feature.py`)",
-                "none": "None"}
-    for r in c.of("phase"):
-        tts = " ".join(f"`{t.strip()}`" for t in r.attrs["applies"].split(","))
-        rows.append(f"| {tts} | {req_text[r.attrs['requires']]} |")
-    phase_table = "| Task Type | Artifact Required |\n|---|---|\n" + "\n".join(rows)
+    decl = next((r for r in c.of("phase") if r.attrs["requires"] == "decl"), None)
+    design = next((r for r in c.of("phase") if r.attrs["requires"] == "decl,design"), None)
+    if decl is None or design is None:
+        raise SystemExit("harnessc: error: @phase decl/decl,design records required for AGENTS.md projection")
+    decl_tts = " ".join(f"`{t.strip()}`" for t in decl.attrs["applies"].split(","))
+    design_tts = " ".join(f"`{t.strip()}`" for t in design.attrs["applies"].split(","))
 
     fsm = c.get("fsm", "tdd")
     if fsm is None:
@@ -343,8 +341,9 @@ def render_agents(c: Corpus) -> str:
     states = [s.strip().lower() for s in fsm.attrs["states"].split(",")]
     cycle = " → ".join(f"omt_{s}" for s in states)
 
-    quick = "\n".join(f"- **{rid}:** {flows[rid]}" for rid in AGENTS_QUICK_FLOWS)
-
+    # improvement004/OPT-A: §12 table / TDD / Tools / NAV / THINK / QuickRef sections
+    # collapsed to nav-pointer one-liners (~1100 B/turn saved); full rules stay
+    # nav-indexed in the .omt corpus (RULE_/NAV_/THINK_/QUICK_ records).
     return f"""# AGENTS.md — System Rules
 
 > GENERATED FROM `.meta/META_HARNESS.omt` — DO NOT EDIT. Edit the source, then `uv run scripts/omt/harnessc.py build`. Drift test: `uv run scripts/omt/harnessc.py check --verify-projections`.
@@ -364,24 +363,11 @@ def render_agents(c: Corpus) -> str:
 ## ALWAYS
 {always_line}
 
-## Phase Artifacts (§12)
-{phase_table}
-
-## TDD (feature_016)
-`major_feature`/`new_screen` in **Programming** → auto-activates: `{cycle}`.
-**Two-hats:** `RED` → tests/ edits only · `GREEN`/`REFACTOR` → src/ edits only (auto-revert if tests break).
-
-## Tools
-{n_tools} `omt_*` tools — descriptions ride the system-prompt schemas; no per-turn table (F33). Catalog: `omt_nav{{query:"CMD_", tag_type:"CMD"}}`.
-
-## Navigation Enforcement (feature_020)
-**MANDATORY:** {docs['nav.enforcement']}
-
-## Think Anywhere (feature_021)
-{docs['think.021']} {docs['think.gate_not_skip']}
-
-## Quick Reference
-{quick}
+## Process (full rules on demand via nav)
+- **§12 artifacts:** {decl_tts} → declaration only · {design_tts} → + design doc on disk (`new_feature.py`) · `docs` → none
+- **TDD (feature_016):** `major_feature`/`new_screen` @Programming auto-activates `{cycle}` — two-hats: RED tests/ only · GREEN/REFACTOR src/ only (auto-revert on break)
+- **Tools:** {n_tools} `omt_*` — catalog `omt_nav{{query:"CMD_", tag_type:"CMD"}}` · workflows `omt_quick_ref`
+- **Nav gate (feature_020):** nav tools before grep/glob on docs (read + src/non-doc exempt) · **Think gate (feature_021):** TA: files need `omt_think_list` consult (NOT skip-bypassable)
 """
 
 

@@ -233,7 +233,8 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert '"omt_think_verify": "allow"' in config
     assert '"omt_think_suggest": "allow"' in config
     assert '"omt_think_reindex": "allow"' not in config
-    assert "Think Anywhere" in _read("AGENTS.md")
+    # improvement004/OPT-A: slim projection keeps a one-line think-gate pointer
+    assert "Think gate" in _read("AGENTS.md")
     # meta_harness_dsl R8 (OMT-HDL-1): META_HARNESS.md is RETIRED to a
     # generated stub; the corpus single-source is .meta/META_HARNESS.omt.
     mh = _read(".meta/META_HARNESS.md")

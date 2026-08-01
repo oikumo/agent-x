@@ -19,7 +19,7 @@ is pinned mechanically here so it cannot recur:
    The AGENTS.md table, opencode.jsonc perm keys and CMD_ entries are
    compiler-projected from the same IR — verify-projections owns those legs.
 5. R7 T5 token budget pins (F32: conversation-resident injections re-pay EVERY
-   model turn): AGENTS.md ≤ 5 KiB; WORK.md ≤ 14 KiB with scratchpad ≤ 6 KiB;
+   model turn): AGENTS.md ≤ 2560 B; WORK.md ≤ 8 KiB with scratchpad ≤ 3 KiB;
    nav tip ≤ 0.5 KiB; TA digest hard-capped at DIGEST_CAP_BYTES ≤ 1 KiB.
 
 R8 DELETED pins (now compiler-owned): the old #5 COMP_*-paths-exist pin —
@@ -165,7 +165,7 @@ def test_omt_tool_set_is_in_sync_everywhere() -> None:
 
 # --- 6. R7 T5 token budget pins (F32) ---------------------------------------
 
-AGENTS_BUDGET = 5 * 1024        # rides the system prompt EVERY turn (F33)
+AGENTS_BUDGET = 2560             # rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers — .omt @budget agents_md=2560 is the source of truth)
 WORK_BUDGET = 8 * 1024          # read at every session startup (improvement003/OPT-M: DONE narratives compacted to one-liners + pointers — .omt @budget work_md=8192 is the source of truth)
 SCRATCHPAD_BUDGET = 3 * 1024    # T2: CURRENT/RECURRING only (improvement002/OPT-B: gotchas relocated to @doc gotcha.* — .omt @budget work_scratchpad=3072 is the source of truth)
 NAV_TIP_BUDGET = 512            # C5: conversation-resident once per session

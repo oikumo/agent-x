@@ -264,7 +264,7 @@
 # ============================================================
 # BUDGET — compile-enforced token budgets (R7 T5/T8 → build errors; F32/F33)
 # ============================================================
-@budget agents_md max=5120 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33)
+@budget agents_md max=2560 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers, 5120→2560)
 @budget work_md max=8192 : WORK.md bytes — read at every session startup (C1; shrunk 14336→8192 in improvement003/OPT-M after DONE-narrative diet, CONV_WORK_DONE keeps it down)
 @budget work_scratchpad max=3072 : WORK.md Agent Scratchpad section bytes (T2: CURRENT/RECURRING only; shrunk 6144→3072 in improvement002/OPT-B after gotcha relocation to @doc gotcha.*)
 @budget nav_tip max=512 : session-bootstrap nav-tip bytes (C5, conversation-resident, re-paid per turn F32)
