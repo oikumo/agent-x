@@ -154,7 +154,7 @@
 # ============================================================
 @doc startup tags="STARTUP" : Read `WORK.md` (only) at session start; summarize current state in ≤ 15 lines (in-progress / blocked / next). All other docs on demand via nav tools (`omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`).
 @doc runtime tags="RUNTIME" : `uv` only (no bare `python`/`pip`/`pytest`). `src/` edits → `omt_phase` first.
-@doc enforcement tags="ENF" : enforcement is mechanical via .opencode/plugins/omt_enforcer.ts (composition root) + .opencode/lib/enforcer/ ×7 + opencode.jsonc; reference = THIS file (.meta/META_HARNESS.omt) queried via omt_nav
+@doc enforcement tags="ENF" : mechanical via .opencode/plugins/omt_enforcer.ts + lib/enforcer ×7 + opencode.jsonc; reference = .meta/META_HARNESS.omt (query: omt_nav)
 @doc rule.r1 tags="RULE_R1" : src/ edit REQUIRES omt_phase{task_type,phase,scope} — task_type: bug_fix|minor_feature|major_feature|new_screen|refactor|test|docs; phase: Analysis|Design|Programming|Testing; scope: one-sentence done definition
 @doc rule.r2 tags="RULE_R2" : major_feature|new_screen REQUIRES design_*.md on disk — scaffold: uv run scripts/omt/new_feature.py "<name>" --type major_feature|new_screen
 @doc rule.r3 tags="RULE_R3" : TDD AUTO-ACTIVATES for major_feature|new_screen in Programming — omt_testlist → omt_red → omt_green → omt_refactor → omt_done

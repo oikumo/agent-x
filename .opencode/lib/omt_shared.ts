@@ -444,6 +444,6 @@ export function thinkDigest(): string {
   let out = `💡 TA: ${hits.length} thought${hits.length === 1 ? "" : "s"} across ${files.size} file${files.size === 1 ? "" : "s"} — ${shown}` +
     (top.length > 6 ? ` … (+${top.length - 6} files)` : "") +
     (stale.length ? `\n⚠️ ${stale.length} stale: ${stale.slice(0, 5).join(", ")}${stale.length > 5 ? " …" : ""} — re-check with omt_think_verify{path, line}.` : "")
-  out += `\nFull texts: omt_think_list (auto-injected per thought-carrying file on read; think-gate applies).`
+  out += ` · full texts: omt_think_list (think-gate applies).`
   return out.length > DIGEST_CAP_BYTES ? out.slice(0, DIGEST_CAP_BYTES - 1) + "…" : out
 }

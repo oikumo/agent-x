@@ -346,7 +346,7 @@ def render_agents(c: Corpus) -> str:
     # nav-indexed in the .omt corpus (RULE_/NAV_/THINK_/QUICK_ records).
     return f"""# AGENTS.md — System Rules
 
-> GENERATED FROM `.meta/META_HARNESS.omt` — DO NOT EDIT. Edit the source, then `uv run scripts/omt/harnessc.py build`. Drift test: `uv run scripts/omt/harnessc.py check --verify-projections`.
+> GENERATED from .meta/META_HARNESS.omt — DO NOT EDIT; edit the source, then `uv run scripts/omt/harnessc.py build`.
 
 > **STARTUP:** {docs['startup']}
 > **RUNTIME:** {docs['runtime']}

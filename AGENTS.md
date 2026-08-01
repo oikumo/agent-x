@@ -1,12 +1,12 @@
 # AGENTS.md — System Rules
 
-> GENERATED FROM `.meta/META_HARNESS.omt` — DO NOT EDIT. Edit the source, then `uv run scripts/omt/harnessc.py build`. Drift test: `uv run scripts/omt/harnessc.py check --verify-projections`.
+> GENERATED from .meta/META_HARNESS.omt — DO NOT EDIT; edit the source, then `uv run scripts/omt/harnessc.py build`.
 
 > **STARTUP:** Read `WORK.md` (only) at session start; summarize current state in ≤ 15 lines (in-progress / blocked / next). All other docs on demand via nav tools (`omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`).
 > **RUNTIME:** `uv` only (no bare `python`/`pip`/`pytest`). `src/` edits → `omt_phase` first.
 
 ## Enforcement
-**ENF:** enforcement is mechanical via .opencode/plugins/omt_enforcer.ts (composition root) + .opencode/lib/enforcer/ ×7 + opencode.jsonc; reference = THIS file (.meta/META_HARNESS.omt) queried via omt_nav
+**ENF:** mechanical via .opencode/plugins/omt_enforcer.ts + lib/enforcer ×7 + opencode.jsonc; reference = .meta/META_HARNESS.omt (query: omt_nav)
 
 ## NEVER (blocked by gate)
 - bash deny: `git commit *` `git push *` `python *` `python3 *` `pip *` `pip3 *` `pytest *`

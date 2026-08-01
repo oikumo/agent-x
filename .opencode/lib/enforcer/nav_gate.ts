@@ -89,13 +89,7 @@ const navRequiredMsg = () =>
   `Navigation tools: omt_nav{query:"SECTION:"}, omt_list_sections, omt_cross_ref{xref:"..."}, omt_quick_ref{workflow:"..."}`
 
 const navReminderMsg = () =>
-  `💡 NAVIGATION TIP (feature_020): Before searching META HARNESS *docs* with grep/glob, ` +
-  `try the navigation tools first:\n` +
-  `  • omt_nav{query:"SECTION:", tag_type:"CMD"} — find commands\n` +
-  `  • omt_list_sections — list all documentation sections\n` +
-  `  • omt_cross_ref{xref:"XREF_GUIDE"} — resolve cross-references\n` +
-  `  • omt_quick_ref{workflow:"START_MAJOR"} — get workflow patterns\n` +
-  `Note: \`read\` and src/code searches are exempt. To skip the nav gate: omt_skip{reason:"...", scope:"nav"}.`
+  `💡 NAVIGATION TIP: docs search → omt_nav/omt_list_sections/omt_cross_ref/omt_quick_ref BEFORE grep/glob (read+src exempt; skip: omt_skip{scope:"nav"}).`
 
 // Before-hook branch (feature_020): track navigation vs search tool usage and
 // gate doc-scoped searches behind prior nav usage. Runs for every tool;
