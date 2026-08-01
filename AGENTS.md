@@ -29,26 +29,7 @@
 **Two-hats:** `RED` → tests/ edits only · `GREEN`/`REFACTOR` → src/ edits only (auto-revert if tests break).
 
 ## Tools
-| Tool | Purpose |
-|---|---|
-| `omt_complete` | Verify the current phase's artifacts, then optionally advance… |
-| `omt_cross_ref` | Resolve an XREF_ cross-reference to related doc sections. |
-| `omt_done` | Declare TDD completion; runs full suite + checklist; state DONE. |
-| `omt_green` | Declare a passing test (verified); state GREEN — src/ edits… |
-| `omt_list_sections` | List all SECTION: headers across the META HARNESS corpus. |
-| `omt_nav` | Navigate META HARNESS docs by structured tag… |
-| `omt_phase` | Declare your OMT++ phase before editing src/… |
-| `omt_quick_ref` | Get QUICK_ workflow patterns for common agent tasks. |
-| `omt_red` | Declare a failing test (verified true RED); state RED — tests/… |
-| `omt_refactor` | Declare refactor state (tests verified green); src/ only,… |
-| `omt_skip` | Logged escape hatch: unlock edits/nav without a phase… |
-| `omt_status` | OMT++ process context: phase, unlock, artifacts, lint baseline,… |
-| `omt_testlist` | Record the TDD behavior list (JSON array); sets state TESTLIST. |
-| `omt_think` | Add a persistent inline TA: thought-tag (language-valid… |
-| `omt_think_list` | List TA: thought-tags (grep is truth); records the consult that… |
-| `omt_think_remove` | Remove a TA: line; appends a remove-tombstone (index… |
-| `omt_think_suggest` | Rank candidate TA: insertion sites in a .py file. |
-| `omt_think_verify` | Re-check a TA: thought's placement integrity (drift → stale). |
+18 `omt_*` tools — descriptions ride the system-prompt schemas; no per-turn table (F33). Catalog: `omt_nav{query:"CMD_", tag_type:"CMD"}`.
 
 ## Navigation Enforcement (feature_020)
 **MANDATORY:** scoped gate in lib/enforcer/nav_gate.ts — blocks grep/glob on doc paths until nav used; read & src/non-doc exempt; omt_skip{scope:nav} escape

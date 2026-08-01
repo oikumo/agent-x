@@ -312,9 +312,7 @@ def render_agents(c: Corpus) -> str:
         if need not in flows:
             raise SystemExit(f"harnessc: error: @flow {need} missing (AGENTS.md quickref needs it)")
 
-    def short(text: str, n: int = 64) -> str:
-        text = " ".join(text.split())
-        return text if len(text) <= n else text[:n].rsplit(" ", 1)[0] + "…"
+    n_tools = len(c.of("tool"))
 
     deny = c.of("deny")
     bash = " ".join(f"`{r.attrs['match']}`" for r in deny if r.attrs["scope"] == "bash")
@@ -345,9 +343,6 @@ def render_agents(c: Corpus) -> str:
     states = [s.strip().lower() for s in fsm.attrs["states"].split(",")]
     cycle = " → ".join(f"omt_{s}" for s in states)
 
-    tools = sorted(c.of("tool"), key=lambda r: r.rid)
-    tool_rows = "\n".join(f"| `{r.rid}` | {short(r.payload)} |" for r in tools)
-
     quick = "\n".join(f"- **{rid}:** {flows[rid]}" for rid in AGENTS_QUICK_FLOWS)
 
     return f"""# AGENTS.md — System Rules
@@ -377,9 +372,7 @@ def render_agents(c: Corpus) -> str:
 **Two-hats:** `RED` → tests/ edits only · `GREEN`/`REFACTOR` → src/ edits only (auto-revert if tests break).
 
 ## Tools
-| Tool | Purpose |
-|---|---|
-{tool_rows}
+{n_tools} `omt_*` tools — descriptions ride the system-prompt schemas; no per-turn table (F33). Catalog: `omt_nav{{query:"CMD_", tag_type:"CMD"}}`.
 
 ## Navigation Enforcement (feature_020)
 **MANDATORY:** {docs['nav.enforcement']}
