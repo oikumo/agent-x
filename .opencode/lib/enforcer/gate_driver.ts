@@ -196,6 +196,8 @@ const IMPLS: Record<string, GateImpl> = {
   "g.phase": async (_gate, ctx) => { await guardSrcPath(ctx.env, ctx.session, ctx.rel!, ctx.abs!) },
   // Thought-carrying files need a per-file omt_think{op:list} consult (not skip-able).
   "g.think": async (_gate, ctx) => { await guardThoughts(ctx.env, ctx.session, ctx.rel!, ctx.abs!) },
+  // KB consult gate: src/ edits need prior omt_kb_nav consult (genericImpl handles requires=).
+  "g.kb": undefined,
 }
 
 // Generic impl: a before-gate with NO registered impl is fully pred-composed —
@@ -223,6 +225,7 @@ const FALLBACK_GATES = [
   { id: "g.tests", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(tests/)", requires: "", msg: "tests_canary", hard: true, skip_ok: true, order: 30 },
   { id: "g.phase", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(src/)", requires: "", msg: "no_phase", hard: true, skip_ok: true, order: 40 },
   { id: "g.think", on: "before", tools: "edit|write|patch|multiedit", when: 'file_has("TA:")', requires: "", msg: "think_gate", hard: true, skip_ok: false, order: 50 },
+  { id: "g.kb", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(src/)", requires: "session_flag(kb_consulted)", msg: "kb_required", hard: true, skip_ok: false, order: 55 },
 ]
 
 // Composition-root entry point (HDL-2): run every IR before-gate in order=.

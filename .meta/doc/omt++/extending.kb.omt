@@ -1,0 +1,13 @@
+@version akb_hdl n=1
+
+@doc before tags="EXT_BEFORE,TIER_CORE" tier=core : Before every change: 1.read WORK+AGENTS. 2.omt_phase→type,scope,phase,feature. bug/minor/refactor→declare. major/new_screen→design_doc. Scaffold: new_feature.py. 3.mvc_check(0). 4.Tests: omt_skip{scope:tests}.
+
+@doc cmd_add tags="EXT_CMD,TIER_EXTENDED" refs="doc.command" tier=extended : 1. Command subclass: __init__(key,controller), run(args)→controller-only. 2. Register: MainController.load_commands→add_command. 3. typed→help auto. New screen: add controller.show_+screen triad §SCREEN.
+
+@doc screen_add tags="EXT_SCREEN,TIER_EXTENDED" refs="doc.mvcpp,doc.partner,doc.provider" tier=extended : MVC++ triad. 1.Scaffold: new_feature.py. 2.Triad: ctrl(I*VP)+view(I*V). 3.Console: UIConsole. 4.TUI: screen+adapter. 5.Wire: key→show→push. 6.Test: pilot e2e.
+
+@doc tool_add tags="EXT_TOOL,TIER_EXTENDED" refs="doc.agent_tools" tier=extended : 1.Implement tools/<tool>.py: ISensor sense+schema; IActuator validate+act+schema. Hybrid: both. 2.Register: Agent._register_builtin_tools→_safe_register_sensor/actuator(tool).
+
+@doc checklist tags="EXT_CHECKLIST,TIER_CORE" tier=core : MVC++: View∉Model, Ctrl→PartnerABC, SQL→DP. Partner: ABC+abstractmethod, I*VP, ctor inject. Files: layer/screen/layer. Classes: Ctrl,View,Adapter,DP_*. TDD: major→RED→GREEN→REFACTOR. Phase: phase pre-src, complete advance.
+
+@doc quickref tags="EXT_QUICKREF,TIER_REFERENCE" tier=reference : New cmd→commands/commands.py+main_controller.py. New screen console→<screen>_controller+<screen>_view. New screen TUI→+<screen>_screen+<screen>_adapter+provider.py. New tool→agent/tools/<tool>+agent.py. New DP table→schema_db.py+repositories+agent_db. New AI→providers/LLMProvider+service.py factory.

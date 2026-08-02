@@ -261,6 +261,28 @@ export function loadNavIndex(root?: string): any[] | null {
   return recs.length ? recs : null
 }
 
+// --- KB (Application Knowledge Base) index (feature_kb_akb) ------------------
+export function kbIndexPath(root?: string): string {
+  return join(root ?? REPO_ROOT, ".meta", ".omt", "kb.index.jsonl")
+}
+
+export function kbIrPath(root?: string): string {
+  return join(root ?? REPO_ROOT, ".meta", ".omt", "kb.ir.json")
+}
+
+export function loadKbIndex(root?: string): any[] | null {
+  const recs = readJsonl(kbIndexPath(root))
+  return recs.length ? recs : null
+}
+
+export function loadKbIr(root?: string,): any | null {
+  try {
+    const p = kbIrPath(root)
+    if (!existsSync(p)) return null
+    return JSON.parse(readFileSync(p, "utf8"))
+  } catch { return null }
+}
+
 // --- OMT-HDL-1 IR accessors (improvement007/OPT-E) ---------------------------
 // The .omt records (compiled into the IR) are the FUNCTIONAL source for the
 // values below; each FALLBACK_* literal keeps its guard alive when the

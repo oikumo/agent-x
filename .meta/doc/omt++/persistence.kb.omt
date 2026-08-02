@@ -1,0 +1,17 @@
+@version akb_hdl n=1
+
+@doc persist_convention tags="PERSIST_CONVENTION,TIER_CORE" tier=core : stdlib sqlite3 only. No ORM/Alembic. DDL=idempotent CREATE TABLE IF NOT EXISTS. DB created on first use. ALL SQL∈DP_*/Database classes, never controllers/views. Enforced: mvc_check SQL_OUTSIDE_DP.
+
+@doc persist_dbs tags="PERSIST_DBS,TIER_CORE" tier=core : 3 DBs. session.db→DP_Session→history+users. rag.db→DP_Rag→ingestion. agent_session.db→DP_agent→snapshots+memory+policy+goals+reflection. Naming: session+agent both define SessionDatabase→distinct modules.
+
+@doc persist_agent_schema tags="PERSIST_AGENT_SCHEMA,TIER_CORE" tier=core : agents(id,name,autonomy,cfg). snaps(agent,ver,volatile,policy,goals,ref_pos). mem(tier,cont,meta). policy(cond,action,pri,enab). goals(par,desc,type,status,pri,crit). rf(trace,critique,props). JSON blobs.
+
+@doc persist_session_schema tags="PERSIST_SESSION_SCHEMA,TIER_REFERENCE" tier=reference : TableHistory(id,command,created_at). TableUser(id,name,age). _select_all allowlisted {history,users}. Command history stored per session.
+
+@doc persist_rag_schema tags="PERSIST_RAG_SCHEMA,TIER_REFERENCE" tier=reference : TableIngestion(id,vector_db_path,created_at). RAG bulk data NOT in sqlite: Chroma vectorstore <repo>/db/ + JSONL docs <repo>/docs/.
+
+@doc persist_filesystem tags="PERSIST_FS,TIER_CORE" tier=core : local_sessions/→current/→session.db+agent_session.db+backup_<ts>+rag/<repo>/rag.db+Chroma db/+docs JSONL. Session dirs timestamped. Safe deletion allowed_list [local_sessions]. Agent sandbox_root→session dir.
+
+@doc persist_dp_classes tags="PERSIST_DP,TIER_CORE" tier=core : SessionDatabase(session)→history. RagDatabase→ingestion. SessionRepository(agent)→snapshot+latest. GoalRepo→tree. MemoryRepo→recent. PolicyRepo→all. ReflectionRepo→recent. All parameterised sqlite3 queries.
+
+@xref persist_xref tags="PERSIST_XREF,TIER_REFERENCE" : →data_flow.md §9 Agent Persistence. →architecture.md §DP Pattern. →subsystems.md §agent.persist,subsys.RAG,subsys.session

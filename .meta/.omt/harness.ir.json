@@ -3,13 +3,14 @@
     "agents_md": 2560,
     "digest_cap": 1024,
     "ir_json": 20480,
+    "kb_index": 32768,
     "meta_harness_md": 2048,
     "meta_md": 6144,
     "nav_index": 64000,
     "nav_tip": 512,
-    "tool_args": 1536,
+    "tool_args": 1792,
     "tool_schemas": 1024,
-    "work_md": 4096,
+    "work_md": 5120,
     "work_scratchpad": 3072
   },
   "deny": [
@@ -191,6 +192,19 @@
       "text": "block NEWLY introduced hard MVC++ violations (delta vs pre-edit snapshot; correct-forward)",
       "tools": "edit|write|patch|multiedit",
       "when": "path_in(src/**/*.py)"
+    },
+    {
+      "hard": true,
+      "id": "g.kb",
+      "msg": "kb_required",
+      "on": "before",
+      "order": 55,
+      "paths": "",
+      "requires": "session_flag(kb_consulted)",
+      "skip_ok": false,
+      "text": "KB consult \u2014 src/ edits need prior omt_kb_nav consult (feature_kb_akb)",
+      "tools": "edit|write|patch|multiedit",
+      "when": "path_in(src/)"
     }
   ],
   "generated_from": ".meta/META_HARNESS.omt",
@@ -287,6 +301,11 @@
       "see": "",
       "sev": "block",
       "text": "View imports Model (ui/ \u2190 model.*) \u2014 BLOCK"
+    },
+    "kb_required": {
+      "see": "",
+      "sev": "block",
+      "text": "KB consult required \u2014 run omt_kb_nav{op:list} or omt_kb_nav{op:nav,query} before editing src/ (feature_kb_akb)"
     },
     "mvc_new_hard": {
       "see": "@msg.err_v2m",
@@ -439,6 +458,12 @@
       "perm": "allow",
       "tags": "CMD_OMT_COMPLETE"
     },
+    "omt_kb_nav": {
+      "args": "op,query?,file?,tag_type?,include_context?,xref?,workflow?",
+      "description": "App Knowledge Base nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).",
+      "perm": "allow",
+      "tags": "CMD_KB_NAV"
+    },
     "omt_nav": {
       "args": "op,query?,file?,tag_type?,include_context?,xref?,workflow?",
       "description": "Harness doc nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).",
@@ -493,7 +518,7 @@
     "plugin_dir": ".opencode/plugins/",
     "process_root": ".meta/software_development_process",
     "receipt_path": ".meta/.omt/omt_harness_e2e_last_run.json",
-    "root_allowlist": "AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,src,tests,tests_automated",
+    "root_allowlist": "AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,src,tests,tests_automated,.projects,workflows",
     "scaffold": "uv run scripts/omt/new_feature.py",
     "search_tools": "grep|glob|rg|find",
     "shared_lib": ".opencode/lib/omt_shared.ts",

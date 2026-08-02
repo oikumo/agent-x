@@ -23,7 +23,7 @@
 
 ## Tasks
 
-- [~] **feature_kb_akb.application_knowledge_base** — IN PROGRESS (2026-08-02): Full migration of 6 `.meta/doc/omt++/*.md` → `.kb.omt` + `kb_compiler.py` + `omt_kb_nav.ts` plugin + `g.kb` gate. **PAUSED for resume.** Analysis complete, plan approved, ready to begin implementation. Resume: read `.projects/meta/feature_kb_akb/CURRENT_STATE.md` then `omt_phase{task_type:major_feature, scope:"AKB: compiler + 6 .kb.omt migrations + omt_kb_nav + g.kb gate + tests", feature:feature_kb_akb}`.
+- [x] **feature_kb_akb.application_knowledge_base** — DONE (2026-08-02 session 5): **AKB COMPLETE** — 6 `.kb.omt` files (62 records), zero-error compile, budget OK (23.4KB < 32KB). omt_kb_nav.ts plugin implemented (4 ops: nav/list_sections/cross_ref/quick_ref). g.kb gate blocks src/ edits without prior KB consult (order=55). g.kb added to GATE_NEVER + FALLBACK_GATES + IMPLS. kb.index.jsonl + kb.ir.json generated to .meta/.omt/. AGENTS.md has KB pointer. All 171 omt tests pass. Details: .projects/meta/feature_kb_akb/ + git log.
 - [ ] **feature_001.session_user_objectives_driven_by_Petri_Net**
 - [ ] **feature_002.rag_retrieval_augmented_generation**
 - [x] **improvement007.meta_harness_evolution (ALL OPT A–I)** — DONE (2026-08-01): R1–R11 ({@var.x} interpolation · grammar-vocab check · arg diet 1609→1285 B + tool_args budget · TS+py consume IR (7 mirrors deleted) · after-gates in gate_driver · IR gate msgs + orphan check · derive round 2 (14 hand → 13 derived + 2 pruned) · META_HARNESS/META diet · guide dedup 27.5→23.9 KB + §15 drift fix + @xref guide 6→16); 163/163 omt · full suite 1109+3 known · live smoke 2/2. Details: .sandbox/meta/improvement007/OUTCOME.md + git log.

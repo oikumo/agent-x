@@ -1,0 +1,29 @@
+@version akb_hdl n=1
+
+@feature catalog tags="FEAT_CATALOG,TIER_REFERENCE" tier=reference : F001⏳Petri-net F002⏳RAG F004✅TUI F005✅FSTool F006✅Gate F007✅169t F010✅Demo F011✅Fast44t F020✅Nav54t F021✅TA30t F022✅TkV2. Empty: F008+F009.
+
+@feature f001 tags="FEAT_F001,TIER_REFERENCE" tier=reference : Petri-net session objectives. IGoalManager impl swapping stub agent/model/goal/manager.py. Scope unset, WORK.md pending.
+
+@feature f002 tags="FEAT_F002,TIER_REFERENCE" tier=reference : RAG retrieval+generation. Ingest web+local docs→Chroma→query chain. Partially built, design doc pending. src/agentx/model/rag/.
+
+@feature f004 tags="FEAT_F004,TIER_EXTENDED" tier=extended : Textual TUI, screen nav Main→Chat→RAG→Agent, streaming chat, non-blocking RAG. Dual-path fix: push_screen+show_* wiring. TUIChatAdapter single widget. src/agentx/ui/tui/.
+
+@feature f005 tags="FEAT_F005,TIER_EXTENDED" tier=extended : Agentic filesystem tools folded→F007 ToolRegistry as FileSystemTool hybrid sensor/actuator. src/agentx/agent/model/tools/filesystem_tool.py.
+
+@feature f006 tags="FEAT_F006,TIER_CORE" tier=core : OMT++ enforcement: mvc_check.py lint, new_feature.py scaffold, omt_enforcer.ts gate, omt_status.ts, opencode.jsonc deny rules. omt_phase→src/ edits, omt_complete→advance.
+
+@feature f007 tags="FEAT_F007,TIER_CORE" refs="doc.agent_overview,flow.agent_cycle,flow.persist" tier=core : Agent P→D→ACT→R. GoalManager, PolicyEngine DSL, MemoryManager, ReflectionEngine critique/safety/propose, ToolRegistry. agent_session.db+Snapshot. 169tests, MVC++ 0/0. src/agentx/agent/.
+
+@feature f010 tags="FEAT_F010,TIER_EXTENDED" refs="doc.agent_overview,flow.demo" tier=extended : AgentDemoScreen. d/demo[1|2]→seed+run. S1: FileReader, S2: KnowledgeAssistant multi-step. Fixed bug: tools reading cmd→.action not .parameters. src/agentx/agent/view/tui/demo_screen.py.
+
+@feature f011 tags="FEAT_F011,TIER_EXTENDED" refs="doc.agent_overview,doc.fast_agent" tier=extended : Fast Agent Modal UX. f/⚡→Goal→Running→Reflection→Result modals. Single goal NL, auto-run pauses on reflection. ModalScreen marsh-dismissed. 44tests MVC++. src/agentx/agent/view/tui/fast_agent*.
+
+@feature f020 tags="FEAT_F020,TIER_CORE" tier=core : MetaHarness Nav. Signals: SECTION,RULE,ERR,XREF. 4 tools omt_nav+list+map+quickref. nav-gate blocks grep/glob on docs. Defects1-4 fixed. 54tests. .opencode/plugins/omt_nav.ts.
+
+@feature f021 tags="FEAT_F021,TIER_CORE" tier=core : Think Anywhere. TA: thought-tags, grep-backed, inline. 5 tools omt_think+list+remove+check+suggest. Digest+think-gate, non-bypassable. Protected: .env*,README,uv.lock,LICENSE,.json. 30tests. .opencode/plugins/omt_think.ts.
+
+@feature f022 tags="FEAT_F022,TIER_CORE" tier=core : Think-v2: anchored THOUGHT_PATTERN, after:/symbol: insertion+comment_syntax map, string-context guard. Read-time inject once/session. Stale lifecycle+risk-first gate weight. Suggest AST ranker, reindex drift repair.
+
+@xref features_xref tags="FEATURES_XREF,TIER_REFERENCE" : →.meta/META_HARNESS.md SECTION:RULES,SECTION:TDD,SECTION:RIGOR. →omt_agent_guide.md §12Arrabits,§13Checklist. →subsystems.md Agent,RAG,Session,AI,UI,Demo,Utils. →architecture.md,data_flow.md,persistence.md,extending.md.
+
+@doc crosscutting tags="FEAT_CROSSCUT,TIER_REFERENCE" tier=reference : Persistence: sqlite3 no ORM, 3DBS session+rag+agent. AI-optional: reflect skipped without AI. Two UIs: Console+TUI share controllers via provider pattern. ~1060 tests including Textual pilot e2e.

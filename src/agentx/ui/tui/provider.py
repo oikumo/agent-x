@@ -12,7 +12,7 @@ from agentx.ui.interfaces import IUIProvider, IMainView, IRagView, IChatView, IR
 from agentx.ui.providers import ProviderRegistry
 
 if TYPE_CHECKING:
-    from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner, IModelsViewPartner, IConsoleReactViewPartner, IConsoleCodingViewPartner, IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
+    from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner, IModelsViewPartner, IReactViewPartner, ICodingViewPartner, IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
 
 
 class TUIProvider(IUIProvider):
@@ -64,7 +64,7 @@ class TUIProvider(IUIProvider):
 
     # --- Console parity methods (feature_024) ---
 
-    def create_react_view(self, controller: IConsoleReactViewPartner) -> IReactView:
+    def create_react_view(self, controller: IReactViewPartner) -> IReactView:
         """Create TUI adapter for ReAct screen.
         
         Args:
@@ -76,7 +76,7 @@ class TUIProvider(IUIProvider):
         from agentx.ui.tui.adapters.react_adapter import TUIReactAdapter
         return TUIReactAdapter(controller)
 
-    def create_coding_view(self, controller: IConsoleCodingViewPartner) -> ICodingView:
+    def create_coding_view(self, controller: ICodingViewPartner) -> ICodingView:
         """Create TUI adapter for Coding screen.
         
         Args:

@@ -1,0 +1,19 @@
+@version akb_hdl n=1
+
+@flow boot tags="FLOW_BOOT,TIER_CORE" refs="doc.provider,doc.mvcpp" tier=core : load_dotenv→prompt API key→main(). provider=TUIProvider if isatty AND not --no-tui else ConsoleProvider. initialize→MainController→create_main_view→show(). TUI err→ConsoleProvider fallback.
+
+@flow nav tags="FLOW_NAV,TIER_CORE" refs="doc.provider,doc.command" tier=core : on_mount→push MainScreen. c→chat, r→rag, ag→agent. typed→run_command→CommandParser→Command.run. esc/q→pop/quit. Dual-path: action_open pushes screen AND calls controller.show.
+
+@flow agent_cycle tags="FLOW_AGENT_CYCLE,TIER_CORE" refs="doc.agent_overview,doc.mvcpp" tier=core : PERCEIVE→sensors→mem. DECIDE→PolicyEngine→command. ACT→ToolRegistry→result. REFLECT→proposals. Inv1cmd/corr, tool-scoped, noAI→skip.
+
+@flow demo tags="FLOW_DEMO,TIER_EXTENDED" refs="feature.f010,doc.agent_overview" tier=extended : d/demo→AgentDemoScreen. mount→load→clear→seed→submit→policy→auto 1cycle. r re-run, x reset, esc back. S1: FileReader. S2: KnowledgeAssistant multi-step→read→write→idle.
+
+@flow chat tags="FLOW_CHAT,TIER_EXTENDED" refs="doc.partner,doc.ui" tier=extended : User→ChatScreen→ChatController.process→HumanMessage→stream(llm,history)→chunk→show_partial→AIMessage→show_stream. Controller builds AIService+openrouter. _extract_chunk: list/None.
+
+@flow rag_ingest tags="FLOW_RAG_INGEST,TIER_EXTENDED" refs="doc.rag,doc.persist_rag_schema" tier=extended : i→RagController→Rag.web_ingestion. RagDB.insert→Chroma→WebExtract(TavilyMap+Extract)→WebIngestionApp→crawl→JSONL→TextSplitter(4000,200)→concurrent aadd_docs→Chroma.
+
+@flow rag_query tags="FLOW_RAG_QUERY,TIER_EXTENDED" refs="doc.rag" tier=extended : question→RagChatController→Rag.query(prompt,history). RagQuery.ask→history_aware_retriever→retrieval_chain(stuff_documents)→chain.invoke→answer+sources→RagChatHistory.
+
+@flow session tags="FLOW_SESSION,TIER_CORE" refs="doc.persist_session_schema,doc.session" tier=core : new→SessionManager.create_new→backupCurrent→timestamp_dir→initDB. each cmd→insert_history. sess=working dir. RAG repos→<sess>/rag/. agent_session.db→session dir or "."
+
+@flow persist tags="FLOW_PERSIST,TIER_CORE" refs="doc.dp,doc.persist_agent_schema,doc.agent_overview" tier=core : Agent.persist→Snapshot(config,volatile,policy,goals,reflex)→DB.save→PERCEIVE. resume→clear_stale→restore configN7,policyN3,goalsN8,volN1,reflexM2,reregisterC1→AI reinjectedC3. AgentAdapter.create(resume)→latest snapshotI1.

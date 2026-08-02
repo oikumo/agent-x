@@ -30,8 +30,8 @@ if TYPE_CHECKING:
     from agentx.ui.tui.screens.coding.coding_controller import CodingController
     # Console parity interfaces (feature_024)
     from agentx.ui.interfaces import (
-        IConsoleReactViewPartner,
-        IConsoleCodingViewPartner,
+        IReactViewPartner,
+        ICodingViewPartner,
         IModelsViewPartner,
     )
 

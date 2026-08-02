@@ -1,0 +1,33 @@
+@version akb_hdl n=1
+
+@doc agent_overview tags="SUBSYS_AGENT,TIER_CORE" tier=core : MVC++ self-contained. P→D→ACT→REF. Model: Agent+GoalManager+PolicyEngine+Memory+Reflection+ToolRegistry+persist. Controller: AgentController. View: console+tui. Wiring: AgentAdapter. Contracts: 8ABCPartners.
+
+@doc agent_facade tags="SUBSYS_AGENT_FACADE,TIER_CORE" tier=core : Agent(model/agent.py): single entry. API: run_cycle,submit_goal,update_policy,clear,persist/resume/load_snap,register/unreg/list_tools,execute/health,list_pend/approve,list_rules/goals,query_mem,get_status.
+
+@doc agent_goals tags="SUBSYS_AGENT_GOALS,TIER_CORE" tier=core : GoalManager→IGoalManager. AND/OR tree, priority-activate. Single-active goal. update_status→promote next PENDING. apply/revert_adjustment→reflection-driven+rollback. load_from_repository→restore tree(N8). clear→empty tree.
+
+@doc agent_policy tags="SUBSYS_AGENT_POLICY,TIER_CORE" tier=core : PolicyEngine: evaluate ctx→decision. DSL: tokenizer+AST, has_obs, goal_blocked, memory_match, AND/OR/NOT. add_rule_safely→compile+conflict(<10p,>0.8overlap). Conflict: priority, tool+action overlap. Rules→PolicyRepo.
+
+@doc agent_memory tags="SUBSYS_AGENT_MEMORY,TIER_CORE" tier=core : MemoryManager: volatile LRU+persistent repo. store/retrieve/consolidate/evict. export/import_volatile→snapshot. apply/revert_update→reflection. clear_volatile. context_memory_limit→bounds.
+
+@doc agent_reflection tags="SUBSYS_AGENT_REFLECTION,TIER_CORE" tier=core : ReflectionEngine→Entry(critique+proposals). critique→strengths/weaknesses, safety→deny-list, proposals→GOAL/MEM/TOOL/POLICY+rollback. Approve: pending→approve_proposal. AI-optional: skip if no AI wired.
+
+@doc agent_tools tags="SUBSYS_AGENT_TOOLS,TIER_CORE" tier=core : ToolRegistry: FileSystemTool(hybrid,MAX2000), RagSensorTool(hybrid), SessionTool(hybrid,save/status). _decision_to_command→tool_id+action→ActuatorCommand. Fixed: tools read command.action not command.parameters (F010).
+
+@doc aontpresist tags="SUBSYS_AGENT_PERSIST,TIER_CORE" refs="doc.persist_agent_schema,flow.persist" tier=core : SessionDB (DBS) +4 repos: Goal+Memory+Policy+Reflection. Schema schema_db.py idempotent DDL. SessionSnapshot: config+v.taripol+mem+policy+goals+reflection_pos.→persistence.md§3.
+
+@doc agent_controllers tags="SUBSYS_AGENT_CTRLS,TIER_CORE" tier=core : AgentController: submit_goal,run_cycle,update_policy,save_snapshot,list_*,approve,reset,load_demo,get_cycle. Session+Tool controllers thin. AgentScreen keys: q/r/s/d/esc.
+
+@doc agent_types tags="SUBSYS_AGENT_TYPES,TIER_REFERENCE" tier=reference : 38 types→types.py. AgentState,AutonomyLevel,GoalType/Status,ActionType,RuleSrc,MemTier,AgentCfg,Goal,PolicyRule/Action,SuccCriteria,ActCmd/Result,ReflectionEntry,Proposal,SessionSnap. Plain dataclasses.
+
+@doc rag tags="SUBSYS_RAG,TIER_EXTENDED" tier=extended : Rag orch: query,web_ingest,has_data. DB→ingestion+providers. Query→history_retriever+stuff+chain. WebIngest→Tavily+Extract+Splitter(4000,200)→concurrent→Chroma. Levels: Low/Mid/High.
+
+@doc session tags="SUBSYS_SESSION,TIER_EXTENDED" tier=extended : Session entity→dirs under local_sessions/. SessionManager: get_current, dir_rag, history. SessionDB→history+users, allowlist-guarded. new→backup→timestamp_dir. Command history→MainController.run_cmd→session.db.
+
+@doc ai tags="SUBSYS_AI,TIER_CORE" tier=core : AIService→openrouter(default)/local/gemini/ollama. LLMProvider(ABC)+LlamaCpp+OpenAI+OpenRouter. Vector: Chroma(OpenAI/Ollama)+Pinecone. Adapter→IAI/ServicePartner for ReflectionEngine. OPENROUTER_API_KEY boot prompt.
+
+@doc ui tags="SUBSYS_UI,TIER_EXTENDED" tier=extended : Screen triads: Main, Chat, RAG, Agent. Sub: repo select/create/chat/ingest. Keys: q/ESC back, c/r/ag/h/ctrl+l. 10cmds: help,history,chat,new,quit,clear,rag,sum. Issues: ChatView local ABC, "waning" typo, show_react dead import.
+
+@doc to tags="SUBSYS_DEMO,TIER_REFERENCE" tier=reference : DemoScenario data. Type1: FileReader 1cycle. Type3: KnowledgeAssistant multi-step(notes→summary). Published→Agent/Consisth; seed_sandbox, controller xlates specs→Goal+PolicyRule.
+
+@doc utils tags="SUBSYS_UTILS_REFERENCE" tier=reference : constants.py→btS_OP_VERSION, SESSION_DEFAULT_TEMP_DIR,Xertion, allowed deletion. utils.py→safe_int,clear_console,dir creation timestamped, safe deletion. utils_dirflz→pathlib toolkit. utils_input→valid_url.

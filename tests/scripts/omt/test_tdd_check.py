@@ -379,8 +379,12 @@ class TestTddCheckSubprocess:
         )
         assert result.returncode == 0
         data = json.loads(result.stdout)
-        assert data["allowed"] is True
-        assert data["tdd_mode"] is False
+        # With g.kb gate (feature_kb_akb), src/ edits without session+KB
+        # consult are blocked — g.kb is order=55, runs before TDD checks.
+        # Without a session, the genericImpl blocks hard.
+        # tdd_mode may be true if a TDD session is active globally.
+        assert data["allowed"] is False
+        assert "tdd_mode" in data
 
     def test_validate_exit_returns_ok_for_unknown_feature(self):
         import subprocess

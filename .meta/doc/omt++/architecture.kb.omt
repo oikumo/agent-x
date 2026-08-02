@@ -1,0 +1,19 @@
+@version akb_hdl n=1
+
+@doc mvcpp tags="ARCH_MVCPP,TIER_CORE" refs="doc.partner,doc.dp,flow.boot" tier=core : View←Model BLOCK, Model←View BLOCK, Controller≤300, print∉Controller, SQL→DP only. Import rules: Controller→Model+ViewPartner, View→ControllerPartner only, Model→∅UI. Enforced: mvc_check 0err.
+
+@doc partner tags="ARCH_PARTNER,TIER_CORE" refs="doc.mvcpp" tier=core : View→I*ViewPartner(ABC), Controller→I*View(ABC). ABC+@abstractmethod only. Console: virtual subclass register. Interfaces: Main/Chat/RAG/Agent +7 in agent/interfaces.py.
+
+@doc fast_agent tags="ARCH_FAST_AGENT,TIER_EXTENDED" refs="doc.partner,feature.f011" tier=extended : f-key / ⚡FastAgent. ModalStack: GoalModal→RunningModal→ReflectionModal→ResultModal. Auto-run pauses on reflection. FastAgentTUIView→no-op IAgentViewPartner.
+
+@doc provider tags="ARCH_PROVIDER,TIER_CORE" refs="doc.partner" tier=core : main→ProviderRegistry.get_default(). TUIProvider→TUIAdapter→MainTUIScreen|IMainView. ConsoleProvider→MainView|IMainView. Adapters=thin delegates. Fallback: TUI exception→ConsoleProvider.
+
+@doc command tags="ARCH_COMMAND,TIER_EXTENDED" tier=extended : ui/screens/main/commands/. Command(ABC): __init__(key,controller), run(args). CommandParser→CommandData. 10 concrete cmds, MainController.load_commands().
+
+@doc dp tags="ARCH_DP,TIER_CORE" refs="doc.persist_convention" tier=core : ALL SQL ∈ DP_* classes. DP_Session: session.db, DP_Rag: rag.db, DP_agent: agent_session.db. stdlib sqlite3, idempotent CREATE TABLE IF NOT EXISTS. No ORM/Alembic. Enforced: mvc_check SQL_OUTSIDE_DP.
+
+@doc stack tags="ARCH_STACK,TIER_REFERENCE" tier=reference : Python uv, Textual TUI, LangChain LLM, OpenRouter(default)/OpenAI/Gemini/Ollama/llama.cpp providers, Chroma(local)/Pinecone(cloud) vectors, Tavily web, sqlite3 stdlib. opencode+.opencode/plugins/omt_enforcer.ts enforcement.
+
+@doc config tags="ARCH_CONFIG,TIER_REFERENCE" tier=reference : opencode.jsonc→deny:git,py,pip,env. omt_enforcer.ts→process gate. AGENTS.md→agent rules. mvc_check.py→linter. new_feature.py→scaffolder. omt_phase→src/ edits, omt_complete→phase advance.
+
+@doc Decisions tags="ARCH_DECISIONS,TIER_CORE" tier=core : No ORM/Alembic. Agent→SessionSnapshot. Single-active goal→GoalManager. Reflection AI-optional, skipped without AI. .env gitignored, OPENROUTER_API_KEY at boot. --no-tui or no TTY→console.

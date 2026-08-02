@@ -113,6 +113,7 @@ GATE_NEVER = {
     "g.tests": "`tests/` w/o canary approval",
     "g.phase": "`src/` w/o `omt_phase`",
     "g.think": "TA:-carrying files w/o `omt_think_list` consult",
+    "g.kb": "`src/` w/o `omt_kb_nav` KB consult",
 }
 GATE_NEVER_EXCLUDE = {"g.protect", "g.nav"}
 
@@ -121,7 +122,7 @@ AGENTS_QUICK_FLOWS = ["start_bug", "start_major", "skip_src", "status", "lint"]
 
 MEASURABLE_BUDGETS = {"agents_md", "work_md", "work_scratchpad", "tool_schemas",
                         "tool_args", "nav_index", "ir_json",
-                        "meta_harness_md", "meta_md"}  # compiler-measurable
+                        "meta_harness_md", "meta_md", "kb_index"}  # compiler-measurable
 REPORT_ONLY_BUDGETS = {"nav_tip", "digest_cap"}  # TS-rendered; test-pinned (R7 T5)
 
 
