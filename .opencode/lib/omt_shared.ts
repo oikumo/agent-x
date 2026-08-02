@@ -64,6 +64,14 @@ export function designRoot(root?: string): string {
 // omt_think.ts (audit P1/F10); pinned by tests/scripts/omt/test_thought_pattern_pin.py.
 export const THOUGHT_PATTERN = "^\\s*(#|//|/\\*|<!--|--)\\s*TA:"
 
+// improvement007/OPT-E: .omt @var thought_pattern (compiled ir.vars) is the
+// FUNCTIONAL source; the const above stays the pinned IR-missing fallback
+// (never die open; value-pinned by tests/scripts/omt/test_thought_pattern_pin.py).
+export function thoughtPattern(): string {
+  const v = loadIr()?.vars?.thought_pattern
+  return typeof v === "string" && v ? v : THOUGHT_PATTERN
+}
+
 // 8-hour unlock window. Single source for all TS plugins (previously named in
 // omt_enforcer.ts, inline magic number ×2 in omt_status.ts — audit P1).
 // scripts/omt/tdd_check.py keeps its own copy (cross-language) — keep in sync;
@@ -195,6 +203,27 @@ export const OMT_HARNESS_E2E_COMMAND = "uv run pytest tests/scripts/omt/test_omt
 export const OMT_HARNESS_E2E_RECEIPT = join(".meta", ".omt", "omt_harness_e2e_last_run.json")
 export const OMT_HARNESS_E2E_TEST = "tests/scripts/omt/test_omt_harness_e2e.py"
 
+// improvement007/OPT-E: .omt @var e2e_cmd is the FUNCTIONAL source; the const
+// above stays the pinned IR-missing fallback.
+export function e2eCommand(): string {
+  const v = loadIr()?.vars?.e2e_cmd
+  return typeof v === "string" && v ? v : OMT_HARNESS_E2E_COMMAND
+}
+
+// improvement007/R6: .omt @var receipt_path / e2e_test are the FUNCTIONAL
+// source; the consts above stay the pinned IR-missing fallback. The @var
+// payload is forward-slash — identical to the join() literal on linux, so the
+// rel-equality exempt check below keeps holding.
+export function e2eReceiptPath(): string {
+  const v = loadIr()?.vars?.receipt_path
+  return typeof v === "string" && v ? v : OMT_HARNESS_E2E_RECEIPT
+}
+
+export function e2eTestPath(): string {
+  const v = loadIr()?.vars?.e2e_test
+  return typeof v === "string" && v ? v : OMT_HARNESS_E2E_TEST
+}
+
 // --- compiler projections (meta_harness_dsl R8 / OMT-HDL-1) -----------------
 // harnessc.py compiles .meta/META_HARNESS.omt into two runtime-consumed
 // projections: harness.ir.json (tool descriptions, vars) and nav.index.jsonl
@@ -232,6 +261,81 @@ export function loadNavIndex(root?: string): any[] | null {
   return recs.length ? recs : null
 }
 
+// --- OMT-HDL-1 IR accessors (improvement007/OPT-E) ---------------------------
+// The .omt records (compiled into the IR) are the FUNCTIONAL source for the
+// values below; each FALLBACK_* literal keeps its guard alive when the
+// projection is missing/corrupt (never die open) and is value-pinned against
+// the IR by tests/scripts/omt/test_omt_enforcer_guard_source_pins.py — edit
+// the .omt, run harnessc.py build, and update the fallback in the same commit.
+
+const FALLBACK_PHASE_TRANSITIONS = "Analysis>Design,Testing;Design>Programming,Analysis;Programming>Testing,Design,Analysis;Testing>Analysis,Design,Programming,Done"
+
+// Parse an @fsm transitions= spec ("A>B,C;D>E") into the Record shape.
+function parseTransitions(spec: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const edge of spec.split(";")) {
+    const [from, tos] = edge.split(">")
+    if (!from || !tos) continue
+    out[from.trim()] = tos.split(",").map((t) => t.trim()).filter(Boolean)
+  }
+  return out
+}
+
+// Valid phase transitions per guide §12 (.omt @fsm phase transitions=).
+export function phaseTransitions(): Record<string, string[]> {
+  const spec = loadIr()?.fsm?.phase?.transitions
+  return parseTransitions(typeof spec === "string" && spec ? spec : FALLBACK_PHASE_TRANSITIONS)
+}
+
+const FALLBACK_TDD_AUTO_ON = "major_feature@Programming,new_screen@Programming"
+
+// TDD auto-on per feature_016 (.omt @fsm tdd auto_on= — "tt@Phase,...").
+export function tddAutoOn(taskType: string, phase: string): boolean {
+  const spec = loadIr()?.fsm?.tdd?.auto_on
+  const src = typeof spec === "string" && spec ? spec : FALLBACK_TDD_AUTO_ON
+  return src.split(",").some((e) => {
+    const [t, p] = e.split("@")
+    return t?.trim() === taskType && p?.trim() === phase
+  })
+}
+
+const FALLBACK_PROTECT: { path: string; hard: boolean }[] = [
+  { path: ".env", hard: true },
+  { path: ".env.*", hard: true },
+  { path: "README.md", hard: false },
+  { path: "uv.lock", hard: false },
+  { path: "LICENSE", hard: false },
+]
+
+// Protected files per AGENTS.md NEVER (.omt @protect records → ir.protect).
+export function protectList(): { path: string; hard: boolean }[] {
+  const p = loadIr()?.protect
+  return Array.isArray(p) && p.length ? p : FALLBACK_PROTECT
+}
+
+// Trailing "*" = prefix match (the gate_driver pathIn "@protect.*" semantic).
+export function matchesProtect(rel: string, p: { path: string }): boolean {
+  return p.path.endsWith("*") ? rel.startsWith(p.path.slice(0, -1)) : rel === p.path
+}
+
+// improvement007 R8/OPT-G: gate block/warn text resolves from the compiled IR
+// (@msg records — the .omt is the single source; {@var.x} refs were baked at
+// build time). {rel}/{tt}/{feature} placeholders interpolate per call. There
+// is deliberately NO FALLBACK_* text mirror: a missing projection degrades the
+// text to the msg id — guard LOGIC never dies (FALLBACK_GATES & co. own that);
+// message text is teaching, not logic (genericImpl's established posture).
+export function gateMsg(
+  id: string,
+  ctx?: { rel?: string | null; tt?: string; feature?: string },
+): string {
+  const raw = loadIr()?.msgs?.[id]?.text
+  const text = typeof raw === "string" && raw ? raw : id
+  return text
+    .replaceAll("{rel}", ctx?.rel ?? "")
+    .replaceAll("{tt}", ctx?.tt ?? "")
+    .replaceAll("{feature}", ctx?.feature ?? "")
+}
+
 export function isOmtHarness(rel: string): boolean {
   // meta_harness_dsl R8 follow-up (F9 class killed): the compiled IR is the
   // FUNCTIONAL source (.omt @var harness_paths → harnessc exact/prefix
@@ -255,7 +359,7 @@ export function isOmtHarness(rel: string): boolean {
 }
 
 export function receiptTimestampMs(): number {
-  const receipt = join(REPO_ROOT, OMT_HARNESS_E2E_RECEIPT)
+  const receipt = join(REPO_ROOT, e2eReceiptPath())
   if (!existsSync(receipt)) return 0
   let parsed = 0
   try {
@@ -282,7 +386,7 @@ export function isGitDirty(rel: string): boolean {
 
 export function omtHarnessE2eStatus(rel: string, abs: string): { ok: boolean; message: string } {
   if (!isOmtHarness(rel)) return { ok: true, message: "" }
-  if (rel === OMT_HARNESS_E2E_TEST || rel === OMT_HARNESS_E2E_RECEIPT) {
+  if (rel === e2eTestPath() || rel === e2eReceiptPath()) {
     return { ok: true, message: "" }
   }
   if (!existsSync(abs)) return { ok: true, message: "" }
@@ -293,14 +397,9 @@ export function omtHarnessE2eStatus(rel: string, abs: string): { ok: boolean; me
   try { targetMtime = statSync(abs).mtimeMs } catch { return { ok: true, message: "" } }
   if (lastPassed >= targetMtime) return { ok: true, message: "" }
 
-  return {
-    ok: false,
-    message:
-      `⛔ OMT++ gate: '${rel}' is part of the META HARNESS / OMT enforcement surface ` +
-      `and already has unverified changes. Run the comprehensive harness e2e test before ` +
-      `editing it again:\n  ${OMT_HARNESS_E2E_COMMAND}\n` +
-      `This test refreshes ${OMT_HARNESS_E2E_RECEIPT}.`,
-  }
+  // improvement007 R8/OPT-G: block text from the IR @msg receipt_stale
+  // record ({@var.e2e_cmd}/{@var.receipt_path} baked at build; {rel} per call).
+  return { ok: false, message: `⛔ OMT++ gate: ${gateMsg("receipt_stale", { rel })}` }
 }
 
 // --- think-anywhere shared machinery (meta_harness_dsl R2 S6) ---------------
@@ -354,7 +453,7 @@ export function grepThoughts(pattern: string, target: string): { file: string; l
 // Returns null for non-thought lines (anchored-pattern test first), so prose
 // mentions never collide with real thoughts.
 export function parseThoughtLine(line: string): { cat: string; text: string } | null {
-  if (!new RegExp(THOUGHT_PATTERN).test(line)) return null
+  if (!new RegExp(thoughtPattern()).test(line)) return null
   let t = line.trim()
   t = t.replace(/^(#|\/\/|\/\*|<!--|--)\s*/, "") // comment opener
   t = t.replace(/^TA:\s*/, "") // marker
@@ -419,7 +518,7 @@ export function foldThoughtEvents(recs: any[]): {
 // tests/scripts/omt/test_omt_docs_drift_pins.py (token budget pins).
 export const DIGEST_CAP_BYTES = 1024
 export function thinkDigest(): string {
-  const hits = grepThoughts(THOUGHT_PATTERN, ".")
+  const hits = grepThoughts(thoughtPattern(), ".")
   if (hits.length === 0) {
     return "💡 TA: 0 thoughts indexed. Drop one with omt_think{path, thought} when you learn a gotcha."
   }

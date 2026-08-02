@@ -286,6 +286,71 @@ class TestGateRules:
         assert rules["tests"] is True
 
 
+class TestHatFallbackIrSyncPin:
+    """improvement007 R5/OPT-E: gates.py derives HAT_RULES/HAT_REVERT_ON from
+    ir.hats at module load (.omt @hat = single source); the _FALLBACK_*
+    literals keep the engine alive on a pre-build checkout and must equal the
+    IR-derived values — drift silently mis-hats edits (F9/BUG-B defect class;
+    mirror of the R4 TS FALLBACK_* pins in test_omt_enforcer_guard_source_pins)."""
+
+    @staticmethod
+    def _ir_hats() -> dict:
+        ir_path = SCRIPTS_DIR.parent.parent / ".meta" / ".omt" / "harness.ir.json"
+        return json.loads(ir_path.read_text(encoding="utf-8"))["hats"]
+
+    def test_fallback_hat_rules_match_ir(self):
+        from tdd import gates
+        expected = {
+            rid.split(".", 1)[-1]: {
+                "src": hat["allow"] == "src/",
+                "tests": hat["allow"] == "tests/",
+            }
+            for rid, hat in self._ir_hats().items()
+        }
+        expected["none"] = {"src": True, "tests": True}  # engine-local, not in IR
+        assert gates._FALLBACK_HAT_RULES == expected, (
+            "gates._FALLBACK_HAT_RULES drifted from ir.hats (source: .omt @hat "
+            "records) — edit the .omt, run harnessc.py build, and update the "
+            "fallback in the same commit")
+
+    def test_fallback_hat_revert_on_matches_ir(self):
+        from tdd import gates
+        expected = {rid.split(".", 1)[-1]: hat["revert_on"]
+                    for rid, hat in self._ir_hats().items()}
+        assert gates._FALLBACK_HAT_REVERT_ON == expected, (
+            "gates._FALLBACK_HAT_REVERT_ON drifted from ir.hats revert_on "
+            "(source: .omt @hat records) — edit the .omt, run harnessc.py "
+            "build, and update the fallback in the same commit")
+
+    def test_effective_hats_derived_from_ir(self):
+        """IR present in this repo ⇒ the module-level values ARE the IR-derived
+        ones (the derive path, not the fallback, is the live one)."""
+        from tdd import gates
+        assert gates._IR_HATS, "IR missing — derive path untested"
+        assert gates.HAT_RULES == gates._derive_hat_rules(gates._IR_HATS)
+        assert gates.HAT_REVERT_ON == {
+            rid.split(".", 1)[-1]: h.get("revert_on", "")
+            for rid, h in gates._IR_HATS.items()}
+
+    def test_after_edit_revert_branch_is_revert_on_driven(self, monkeypatch):
+        """The refactor auto-revert branch is selected via HAT_REVERT_ON
+        (ir.hats tdd.refactor revert_on="tests_break"), not a hardcoded state."""
+        from tdd import gates
+
+        class _Args:
+            session = "s"
+            path = "src/x.py"
+
+        monkeypatch.setattr(gates, "get_tdd_state", lambda _s: "refactor")
+        monkeypatch.setattr(gates, "HAT_REVERT_ON", {"refactor": ""})
+        assert gates.cmd_after_edit(_Args())["action"] == "ok"
+        monkeypatch.setattr(gates, "HAT_REVERT_ON", {"refactor": "tests_break"})
+        monkeypatch.setattr(gates, "get_current_test_node", lambda _s: "t.py::t")
+        monkeypatch.setattr(gates, "run_pytest",
+                            lambda _n, timeout=30: (1, "", "boom"))
+        assert gates.cmd_after_edit(_Args())["action"] == "revert_needed"
+
+
 # ---------------------------------------------------------------------------
 # Integration test: tdd_check.py as subprocess
 # ---------------------------------------------------------------------------

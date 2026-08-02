@@ -262,7 +262,9 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "export default async ({" in enforcer
     assert "\nexport function" not in enforcer
     assert "\nexport const" not in enforcer
-    for mod in ("session_state", "nav_gate", "receipt_guard", "phase_gate",
+    # improvement007 R7: receipt_guard left the root with the after-hook slim
+    # (its guards are consumed by the data-driven chain in gate_driver only).
+    for mod in ("session_state", "nav_gate", "phase_gate",
                 "tdd_hats", "think_gate", "mvc_after", "gate_driver"):
         assert f'from "../lib/enforcer/{mod}"' in enforcer, (
             f"composition root must import lib/enforcer/{mod} (R2 split)")

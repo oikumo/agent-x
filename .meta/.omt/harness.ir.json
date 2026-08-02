@@ -3,8 +3,11 @@
     "agents_md": 2560,
     "digest_cap": 1024,
     "ir_json": 20480,
+    "meta_harness_md": 2048,
+    "meta_md": 6144,
     "nav_index": 64000,
     "nav_tip": 512,
+    "tool_args": 1536,
     "tool_schemas": 1024,
     "work_md": 4096,
     "work_scratchpad": 3072
@@ -248,7 +251,7 @@
     "artifact": {
       "see": "@doc.rule.r2",
       "sev": "block",
-      "text": "task_type '{tt}' may not edit src/ until a design artifact exists (guide \u00a712); auto-detected under 4.design/features/ from the feature slug, or design_doc=; scaffold: uv run scripts/omt/new_feature.py \"<name>\" --type {tt}"
+      "text": "task_type '{tt}' may not edit src/ until a design artifact exists (guide \u00a712); auto-detected under 4.design/features/ from the feature slug ('{feature}'), or design_doc=; scaffold: uv run scripts/omt/new_feature.py \"<name>\" --type {tt}"
     },
     "deny_env": {
       "see": "",
@@ -298,7 +301,7 @@
     "nav_required": {
       "see": "@doc.nav.enforcement",
       "sev": "block",
-      "text": "before grep/glob on META HARNESS docs use omt_nav (op=nav|list_sections|cross_ref|quick_ref) first; read and src/non-doc searches exempt; override omt_skip{scope:\"nav\"}"
+      "text": "before grep/glob on META HARNESS docs use omt_nav (op=nav|list_sections|cross_ref|quick_ref) first; read and src/non-doc searches exempt; override omt_skip{scope:\"nav\"}; examples: omt_nav{op:\"nav\", query:\"SECTION:\"} \u00b7 omt_nav{op:\"list_sections\"} \u00b7 omt_nav{op:\"quick_ref\", workflow:\"...\"}"
     },
     "no_phase": {
       "see": "@doc.rule.r1",
@@ -318,7 +321,7 @@
     "receipt_stale": {
       "see": "",
       "sev": "block",
-      "text": "'{rel}' is part of the META HARNESS surface and already has unverified changes \u2014 run the harness e2e before editing again: uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q"
+      "text": "'{rel}' is part of the META HARNESS surface and already has unverified changes \u2014 run the harness e2e before editing again: uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q (refreshes .meta/.omt/omt_harness_e2e_last_run.json)"
     },
     "tdd_revert": {
       "see": "",
@@ -333,7 +336,7 @@
     "think_gate": {
       "see": "@doc.think.gate",
       "sev": "block",
-      "text": "'{rel}' carries TA: thoughts \u2014 review then clear with omt_think{op:\"list\", path:\"{rel}\"} (the block already shows the thoughts; the call records the consult)"
+      "text": "'{rel}' carries TA: thoughts \u2014 review the listed thoughts, then clear with omt_think{op:\"list\", path:\"{rel}\"} (the call records the consult)"
     },
     "wrn_ctl_ui": {
       "see": "",

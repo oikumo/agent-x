@@ -1,1 +1,0 @@
-Pause your current omt work development properly to be resumed later in a new opencode session. You must at lest update the WORK.md file task, and agent scratchpad if it is required 

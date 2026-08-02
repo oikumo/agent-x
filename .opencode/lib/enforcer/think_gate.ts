@@ -16,7 +16,7 @@ import { existsSync } from "node:fs"
 import { execFileSync } from "node:child_process"
 import {
   thoughtsIndexPath, readJsonl, readLedger, relOf,
-  UNLOCK_WINDOW_MS, THOUGHT_PATTERN,
+  UNLOCK_WINDOW_MS, thoughtPattern, gateMsg,
 } from "../omt_shared"
 import { OmtBlock, type EnforcerEnv } from "./session_state"
 
@@ -74,7 +74,7 @@ export function hasConsultedThoughts(
 export function fileThoughtsIn(absFile: string): { line: number; content: string }[] {
   if (!absFile || !existsSync(absFile)) return []
   try {
-    const out = execFileSync("grep", ["-nHE", "--", THOUGHT_PATTERN, absFile], {
+    const out = execFileSync("grep", ["-nHE", "--", thoughtPattern(), absFile], {
       encoding: "utf8", stdio: ["pipe", "pipe", "ignore"],
     })
     const res: { line: number; content: string }[] = []
@@ -124,10 +124,10 @@ function thinkGateMsg(
   const shown = weighted.slice(0, 10).map((t) =>
     `  ${rel}:${t.line}: ${t.content}${opts?.staleLines?.has(t.line) ? "  ⚠️ STALE" : ""}`,
   ).join("\n")
-  return `⛔ OMT++ think-gate (feature_021): '${rel}' carries TA: thoughts. Review them ` +
-    `before editing, then clear the gate with omt_think{op:"list", path:"${rel}"}:\n${shown}` +
-    (thoughts.length > 10 ? `\n  … (+${thoughts.length - 10} more)` : "") +
-    `\n(The block already shows these thoughts; call omt_think{op:"list"} to record the consult.)`
+  // improvement007 R8/OPT-G: the header is the IR @msg think_gate record
+  // ({rel} per call); the thought-list body stays dynamic (feature_022 C1).
+  return `⛔ OMT++ think-gate: ${gateMsg("think_gate", { rel })}:\n${shown}` +
+    (thoughts.length > 10 ? `\n  … (+${thoughts.length - 10} more)` : "")
 }
 
 // Before-hook think-gate (feature_021): block edits to thought-carrying files

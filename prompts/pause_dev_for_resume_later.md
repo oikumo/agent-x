@@ -1,0 +1,1 @@
+Pause your current work in progress development properly to be resumed later in a new opencode session. You must at lest update the WORK.md file task and other artifacts that can be resumed seamlessly  

@@ -18,6 +18,8 @@
 //   ../lib/enforcer/tdd_hats.ts       — feature_016 two-hats gate + TDD tools
 //   ../lib/enforcer/think_gate.ts     — feature_021 think-gate + feature_022 D1
 //                                       read-time thought injection
+//   ../lib/enforcer/gate_driver.ts    — HDL-2 data-driven before/after gate
+//                                       chains (IR @gate records)
 //   ../lib/enforcer/mvc_after.ts      — MVC++ lint delta gate + idle sweep
 //
 // Mechanics:
@@ -25,7 +27,7 @@
 //   • omt_skip   custom tool → logged escape hatch that unlocks edits for the session.
 //   • tool.execute.before → gate edits to src/ (needs a phase), tests/ (needs approval),
 //     and hard-deny README/.env/uv.lock/LICENSE.
-//   • tool.execute.after  → run the MVC++ linter on touched src/*.py, surface warnings.
+//   • tool.execute.after  → data-driven after-chain (IR after-gates in order=: MVC++ delta, TDD revert).
 //
 // Ledger: .meta/.omt/ledger.jsonl  (gitignored runtime state, one JSON record per line)
 //
@@ -33,19 +35,17 @@
 // on tool.execute.before and `context.sessionID` on custom-tool execute. If absent, the
 // gate falls back to an 8-hour time window so it still functions for a single user.
 
-import { initOmtShared, relOf } from "../lib/omt_shared"
+import { initOmtShared } from "../lib/omt_shared"
 import {
   OmtBlock, createSessionState, makeSafeLog, makeNotify, type EnforcerEnv,
 } from "../lib/enforcer/session_state"
 import { navTrack, sessionBootstrap } from "../lib/enforcer/nav_gate"
-import { runBeforeGates } from "../lib/enforcer/gate_driver"
-import { isSrc } from "../lib/enforcer/receipt_guard"
+import { runAfterGates, runBeforeGates } from "../lib/enforcer/gate_driver"
 import { createPhaseTools } from "../lib/enforcer/phase_gate"
-import { createTddTools, tddAfterEdit } from "../lib/enforcer/tdd_hats"
+import { createTddTools } from "../lib/enforcer/tdd_hats"
 import { injectThoughtsOnRead } from "../lib/enforcer/think_gate"
-import { mvcAfterEdit, sessionIdleSweep } from "../lib/enforcer/mvc_after"
+import { sessionIdleSweep } from "../lib/enforcer/mvc_after"
 
-const EDIT_TOOLS = new Set(["edit", "write", "patch", "multiedit"])
 
 // omt_status is registered by .opencode/plugins/omt_status.ts as its own
 // standalone plugin. Keeping it out of this enforcer avoids dynamic-import
@@ -104,19 +104,14 @@ export default async ({ client, $, directory: cwd, worktree }) => {
       // session). Fail-open.
       await injectThoughtsOnRead(env, input, output)
 
-      if (!EDIT_TOOLS.has(input?.tool)) return
+      // HDL-2 (improvement007 R7/OPT-F): the after-chain is data-driven too —
+      // the driver iterates IR after-gates in order=; the edit-tools filter
+      // and the src/**.py scope are exactly the gates' tools=/when= attrs.
       // SDK contract: in tool.execute.after args live on INPUT — the genuine
       // F14 fix (output.args never existed in any SDK version).
       const raw = input?.args?.filePath ?? input?.args?.path ?? input?.args?.file
-      if (!raw) return
-      const { abs, rel } = relOf(raw)
-      if (!isSrc(rel) || !rel.endsWith(".py")) return
-
-      // MVC++ delta gate (throws on NEW hard violations; false ⇒ lint failed,
-      // skip the TDD after-edit exactly like the monolith's early return).
-      if (await mvcAfterEdit(env, abs, rel) === false) return
-      // TDD after-edit: advisory + REFACTOR revert check.
-      await tddAfterEdit(env, input, abs, rel)
+      if (typeof raw !== "string" || !raw) return
+      await runAfterGates(env, input?.sessionID || undefined, input, output, raw)
     },
 
     event: async ({ event }) => {

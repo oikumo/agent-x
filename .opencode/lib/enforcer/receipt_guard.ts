@@ -7,25 +7,23 @@
 //   • the tests/ canary (AGENTS.md Stop Point #4; TDD two-hats delegates to
 //     tdd_hats when tdd_mode is active)
 
-import { omtHarnessE2eStatus } from "../omt_shared"
+import { omtHarnessE2eStatus, protectList, matchesProtect, gateMsg } from "../omt_shared"
 import { OmtBlock, getActiveUnlock, type EnforcerEnv } from "./session_state"
 import { tddGateCheck } from "./tdd_hats"
 
 // --- path classification -------------------------------------------------
+// improvement007/OPT-E: .omt @protect records (via the shared lib's
+// protectList) are the FUNCTIONAL source; the pinned IR-missing fallback
+// lives in the shared lib (never die open on the AGENTS.md NEVER paths).
 export const isProtected = (rel: string): boolean =>
-  rel === "README.md" || rel === "uv.lock" || rel === "LICENSE" ||
-  rel === ".env" || rel.startsWith(".env.")
+  protectList().some((p) => matchesProtect(rel, p))
 export const isTests = (rel: string): boolean => rel === "tests" || rel.startsWith("tests/")
 export const isSrc = (rel: string): boolean => rel.startsWith("src/")
 
 // --- teaching messages ---------------------------------------------------
-const denyMsg = (rel: string) =>
-  `⛔ OMT++ gate: '${rel}' is protected by AGENTS.md (Core Directives — NEVER modify ` +
-  `README.md / .env / uv.lock / LICENSE). Edit refused. If this is truly intended, ask the user.`
-
-const testsMsg = (rel: string) =>
-  `⛔ OMT++ gate: editing '${rel}' requires explicit canary-test approval (AGENTS.md ` +
-  `Stop Point #4). Get approval, then unlock with: omt_skip{reason:"approved canary test", scope:"tests"}.`
+// improvement007 R8/OPT-G: block texts resolve from the IR @msg records via
+// gateMsg ({rel} interpolated per call) — .omt-only edits. hard=true @protect
+// records map to protect_env (no override), the rest to protect_file.
 
 // Protected-file guard. Returns true when the edit was explicitly permitted
 // (caller stops processing — no further guards run), throws OmtBlock on
@@ -37,15 +35,15 @@ export async function guardProtectedPath(
 ): Promise<boolean> {
   if (!isProtected(rel)) return false
   // .env / secrets are never editable (AGENTS.md #2 — no override).
-  const isEnv = rel === ".env" || rel.startsWith(".env.")
-  if (isEnv) throw new OmtBlock(denyMsg(rel))
+  const isEnv = protectList().some((p) => p.hard && matchesProtect(rel, p)) // hard=true ≡ no-override (the .env class)
+  if (isEnv) throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("protect_env", { rel })}`)
   // README.md / uv.lock / LICENSE: AGENTS.md #5 allows edits "unless
   // explicitly asked". Honour an explicit omt_skip{scope:"all"} as that
   // explicit, ledger-audited unlock (aligns the gate with AGENTS.md so
   // a direct user request isn't mechanically blocked).
   const unlock = getActiveUnlock(session)
   const approved = unlock && unlock.type === "skip" && unlock.record.scope === "all"
-  if (!approved) throw new OmtBlock(denyMsg(rel))
+  if (!approved) throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("protect_file", { rel })}`)
   env.safeLog("warn", `protected '${rel}' edit permitted under omt_skip(scope=all): ${unlock.record.reason || "(no reason)"}`)
   return true
 }
@@ -73,5 +71,5 @@ export async function guardTestsPath(
   const approved = unlock && (unlock.type === "skip"
     ? unlock.record.tests_approved
     : unlock.record.tests_approved === true)
-  if (!approved) throw new OmtBlock(testsMsg(rel))
+  if (!approved) throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("tests_canary", { rel })}`)
 }

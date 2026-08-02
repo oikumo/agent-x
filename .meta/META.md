@@ -1,50 +1,19 @@
 # .meta — Central Metadata Repository (grep-friendly)
 
 > **Purpose**: Central repository for all development metadata, documentation, and process artifacts following OMT++ methodology.
-> **⚠️ START HERE**: `.meta/META_HARNESS.md` — Token-optimized quick reference for META HARNESS process enforcement (170 lines, ~2,000 tokens). **Read before any coding task.**
+> **Process enforcement**: `AGENTS.md` (root, generated from `.meta/META_HARNESS.omt`) — query rules on demand via `omt_nav`.
 
 ---
 
 # SECTION:STRUCTURE — Directory Tree (grep:STRUCTURE_)
 ```
 .meta/
-├── META.md                              # This file - overview
-├── META_HARNESS.md                      # ⚠️ Quick reference — READ FIRST
-├── doc/                                 # Technical documentation (current-state)
-│   ├── README.md                        #   Index + maintenance guide
-│   ├── architecture.md                  #   MVC++, layers, provider pattern, tech stack
-│   ├── features.md                      #   Feature catalog (all features + status)
-│   ├── subsystems.md                    #   Deep dives: Agent, RAG, Session, AI, UI
-│   ├── data_flow.md                     #   Boot, navigation, agent cycle, RAG flow
-│   ├── persistence.md                   #   DBs, schemas, no-ORM/DP convention
-│   └── extending.md                     #   How-to: add command/screen/tool/feature
-├── software_development_process/        # OMT++ SDLC artifacts by phase
-│   ├── META.md                          # Process overview
-│   ├── omt_agent_guide.md               # Complete OMT++ methodology for agents
-│   ├── 1.project/                       # Project scoping & feasibility
-│   │   ├── META.md
-│   │   └── PROJECT_SUMMARY.md
-│   ├── 2.requirements/                  # Use cases, operations, analysis
-│   │   ├── META.md
-│   │   ├── documentation/
-│   │   └── features/
-│   ├── 3.analysis/                      # Domain concepts, UI specs
-│   │   └── META.md
-│   ├── 4.design/                        # Architecture, components, interfaces
-│   │   ├── META.md
-│   │   ├── behavior/BEHAVIOR.md
-│   │   ├── structure/STRUCTURE.md
-│   │   └── features/
-│   ├── 5.implementation/                # Source code, MVC++ patterns
-│   │   └── META.md
-│   ├── 6.testing/                       # Unit/integration/system testing
-│   │   └── META.md
-│   └── 7.integration/                   # End-to-end validation
-│       └── META.md
-├── proof_of_concepts/                   # Technical feasibility validation
-│   └── META.md
-└── prototypes/                          # UI mockups & interaction flows
-    └── META.md
+├── META.md                        # This file — overview
+├── META_HARNESS.omt               # OMT-HDL corpus (single source; .md = generated stub)
+├── doc/                           # Technical documentation, current-state (index: doc/README.md)
+├── software_development_process/  # OMT++ SDLC: phase dirs 1.project…7.integration (META.md each) + omt_agent_guide.md
+├── proof_of_concepts/             # Technical feasibility validation
+└── prototypes/                    # UI mockups & interaction flows
 ```
 
 ---
@@ -72,7 +41,7 @@
 # SECTION:KEY_DOCS — Key Entry Points (grep:KEY_)
 | File | Role |
 |------|------|
-| `.meta/META_HARNESS.md` | ⚠️ Process enforcement quick reference — **READ FIRST** |
+| `.meta/META_HARNESS.omt` | OMT-HDL process corpus (single source) — query via `omt_nav`; `.md` is a generated stub |
 | `.meta/software_development_process/omt_agent_guide.md` | Complete OMT++ methodology (source of truth) |
 | `.meta/doc/README.md` | Technical documentation index + maintenance guide |
 | `.meta/software_development_process/1.project/PROJECT_SUMMARY.md` | High-level project overview |
@@ -92,7 +61,7 @@
 3. Follow OMT++: Analysis (root cause) → Design (fix approach) → Implementation → Testing
 
 **WORKFLOW_LEARN_CODEBASE**:
-1. Read `.meta/META_HARNESS.md` — process enforcement quick reference
+1. Read `AGENTS.md` (root) — process enforcement quick reference (details: `omt_nav` on `.meta/META_HARNESS.omt`)
 2. Read `.meta/doc/README.md` — current-state technical docs (arch, features, subsystems)
 4. Read `software_development_process/omt_agent_guide.md` — methodology
 5. Review `1.project/PROJECT_SUMMARY.md` — high-level overview
@@ -117,7 +86,7 @@
 ---
 
 # SECTION:XREF — Cross-References (grep:XREF_)
-XREF_HARNESS: `.meta/META_HARNESS.md` — SECTION:RULES, SECTION:TDD, SECTION:ERRORS, SECTION:CMDS, SECTION:QUICK
+XREF_HARNESS: `.meta/META_HARNESS.omt` — query via `omt_nav` (tag types: SECTION/RULE/ERR/WRN/CMD/QUICK/XREF/TT/PHASE/FEAT)
 XREF_GUIDE: `omt_agent_guide.md` — §2(Phase), §11.4(TDD), §12(Artifacts), §13(Checklist), §14(Do/Don't), §16(Mistakes)
 XREF_DOC: `.meta/doc/` — architecture.md, features.md, subsystems.md, data_flow.md, persistence.md, extending.md
 XREF_SDP: `software_development_process/` — phase dirs 1-7 + META.md each

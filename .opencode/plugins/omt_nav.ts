@@ -396,13 +396,13 @@ function createNavTools() {
   const omt_nav = tool({
     description: irToolDescription("omt_nav", "Harness doc nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?)."),
     args: {
-      op: tool.schema.string().describe("nav | list_sections | cross_ref | quick_ref"),
-      query: tool.schema.string().optional().describe("op=nav: tag prefix (e.g. 'SECTION:', 'CMD_', 'ERR_') or keyword"),
-      file: tool.schema.string().optional().describe("op=nav/list_sections: specific file"),
-      tag_type: tool.schema.string().optional().describe("op=nav: SECTION, RULE, ERR, WRN, CMD, QUICK, XREF, TT, PHASE, FEAT, all"),
-      include_context: tool.schema.boolean().optional().describe("op=nav: surrounding context (default false)"),
-      xref: tool.schema.string().optional().describe("op=cross_ref: e.g. 'XREF_GUIDE'"),
-      workflow: tool.schema.string().optional().describe("op=quick_ref: e.g. 'START_MAJOR', 'TDD'"),
+      op: tool.schema.string().describe("nav|list_sections|cross_ref|quick_ref"),
+      query: tool.schema.string().optional().describe("nav: tag prefix (e.g. 'SECTION:', 'CMD_') or keyword"),
+      file: tool.schema.string().optional().describe("nav/list_sections: specific file"),
+      tag_type: tool.schema.string().optional().describe("nav: SECTION|RULE|ERR|WRN|CMD|QUICK|XREF|TT|PHASE|FEAT|all"),
+      include_context: tool.schema.boolean().optional().describe("nav: surrounding context"),
+      xref: tool.schema.string().optional().describe("cross_ref: e.g. 'XREF_GUIDE'"),
+      workflow: tool.schema.string().optional().describe("quick_ref: e.g. 'START_MAJOR', 'TDD'"),
     },
     async execute(args, context) {
       switch (args?.op ?? "nav") {

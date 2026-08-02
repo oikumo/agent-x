@@ -37,3 +37,5 @@
 - [x] **think_anywhere_v2 Tier remainder: B2 suggest + E1 index strategy + E2 theory-doc fixes** <!-- id:T-022E prio:low agent:true -->
 - [x] **feature_023.meta_harness_improvement** <!-- id:T-023 prio:high agent:true -->
 - [x] **feature_023.test_refactor_live_only** — consolidated suite: Node-runner fixtures removed; source-pins + live-opencode-binary tests kept (13 verification points); 68 static + e2e ✓.
+- [x] **Evaluate META HARNESS DSL + verify implementation (fix if needed)** <!-- id:T-024 prio:high agent:true --> — DONE (2026-07-26): VERIFIED GREEN (harnessc 0 errors, live bun probe, jsonc splice); 4 fixes implemented (gate-order pin, IR-driven doc_paths, .omt-sourced numeric constants, harnessc @version robustness). Details: git log.
+- [x] **feature_023.deep_harness_tests** <!-- id:T-023d prio:high agent:true --> — BUG-B live test redesigned (git-dirty-first); suite 105/105 ✓; dist/ deleted (proven unused); TA index reconciled.

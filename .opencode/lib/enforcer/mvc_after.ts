@@ -9,6 +9,7 @@
 //   • sessionIdleSweep     — event hook: repo-wide MVC++ sweep on session.idle.
 
 import { existsSync, readFileSync } from "node:fs"
+import { gateMsg } from "../omt_shared"
 import { OmtBlock, type EnforcerEnv } from "./session_state"
 
 // --- MVC++ lint delta (block only NEWLY introduced hard errors) ----------
@@ -73,16 +74,16 @@ export async function mvcAfterEdit(env: EnforcerEnv, abs: string, rel: string): 
     const lines = introduced.map((f) => `  ${f.rule} (${f.file}:${f.line}) ${f.message}`).join("\n")
     // Block (decision: hard-errors block, soft warns). The file was written;
     // the agent must correct it forward before continuing.
-    throw new OmtBlock(
-      `⛔ OMT++ gate: your edit introduced a hard MVC++ violation in ${rel} (guide §16). ` +
-      `Fix it now (correct the file forward):\n${lines}`)
+    // improvement007 R8/OPT-G: header text from the IR @msg mvc_new_hard.
+    throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("mvc_new_hard", { rel })}:\n${lines}`)
   }
 
   const warns = findings.filter((f) => f.severity === "warning")
   if (warns.length) {
     const top = warns.slice(0, 3).map((f) => `  ${f.rule} (${f.file}:${f.line})`).join("\n")
-    await env.notify(`MVC++ on ${rel}: ${warns.length} warning(s) (advisory).\n${top}\n` +
-      `Run: uv run scripts/omt/mvc_check.py ${rel}`)
+    // improvement007 R8/OPT-G: advisory text from the IR @msg mvc_warn
+    // ({@var.mvc_check} baked at build) — the orphan record is now wired.
+    await env.notify(`⚠️ ${gateMsg("mvc_warn", { rel })}:\n${top}`)
   }
   return true
 }

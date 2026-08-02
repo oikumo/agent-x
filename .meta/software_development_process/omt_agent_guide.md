@@ -49,12 +49,9 @@ TESTING:  Does it work? → Test reports, defect logs, verified system
 4. **Phase products freeze at project end** (historical record). Only architecture doc + code maintained long-term.
 
 ### Valid Transitions
-| Current | Valid Next | Invalid |
-|---------|------------|---------|
-| Analysis | Design (normal), Testing (prototyping only) | Programming (skip design = chaos) |
-| Design | Programming, Analysis (gaps found) | Testing (no code yet) |
-| Programming | Testing, Design (design fails), Analysis (reqs shift) | Done (must test first) |
-| Testing | Analysis (reqs wrong), Design (design wrong), Programming (bug found) | Done (only when all tests pass) |
+Mechanically enforced from the harness FSM (@fsm phase) — `omt_status` lists the valid
+next phases; invalid jumps are blocked with the reason. Rationale: skipping Design =
+chaos; skipping Testing = unverified; Done only when all tests pass.
 
 ---
 
@@ -480,64 +477,19 @@ Component Test Plan for "SendMessage":
 
 ## 11.4 TDD Workflow (feature_016)
 
-**Auto-activates for `major_feature` / `new_screen` in Programming phase.**
+**Auto-activates for `major_feature` / `new_screen` in Programming** (harness FSM, not convention).
 
-### Five-Tool Cycle (Mandatory Order)
-```
-omt_tdd{op: testlist → red → green → refactor → done}
-  (plan)         (write        (write code   (improve code    (verify
-                  failing       to pass        keeping tests     full suite)
-                  test)         the test)      green)
-```
+Cycle: `omt_tdd{op: testlist → red → green → refactor → done}` — plan behaviors (JSON array),
+write ONE failing test, minimum `src/` to pass, improve keeping tests green, validate exit.
 
-| Tool | State | Hat | Action |
-|------|-------|-----|--------|
-| `omt_tdd{op:testlist}` | TESTLIST | — | List behaviors (test names) to implement |
-| `omt_tdd{op:red}` | RED | test | Write ONE failing test in `tests/`. Gate verifies true RED (AST + pytest). |
-| `omt_tdd{op:green}` | GREEN | code | Minimum `src/` code to pass test. |
-| `omt_tdd{op:refactor}` | REFACTOR | code | Improve code. Tests must stay green. **Auto-revert if tests break.** |
-| `omt_tdd{op:done}` | DONE | — | Full suite + checklist pass. Phase exit validated. |
+Two-hats gate (mechanical, per state): TESTLIST/DONE no edits · RED `tests/` only ·
+GREEN/REFACTOR `src/` only (REFACTOR auto-reverts if tests break). True-RED is AST+pytest
+verified; `op:done` runs the full suite + coverage-gap + dangling-red checks; phase exit
+blocked until clean or `omt_skip`.
 
-### Two-Hats Gate (Mechanical Enforcement)
-| State | `tests/` edits | `src/` edits |
-|-------|----------------|--------------|
-| RED | ✅ Allowed | ❌ Blocked |
-| GREEN | ❌ Blocked | ✅ Allowed |
-| REFACTOR | ❌ Blocked | ✅ Allowed (reverted if tests break) |
-
-Wrong layer edit → gate tells you which hat to switch to.
-
-### True-RED Verification
-`omt_tdd{op:red}` runs pytest + AST analysis. Test must:
-1. Import/reference target source module (inferred from test path)
-2. Fail because behavior missing (not import error/typo)
-
-### REFACTOR Auto-Revert
-Gate snapshots file pre-edit. Post-edit runs tests. If any fail:
-1. File **auto-reverted** to pre-edit state
-2. Edit blocked: "REFACTOR broke tests — edit reverted"
-3. Try different refactor approach
-
-### Coverage Gap Analysis (on `omt_tdd{op:done}` / `omt_complete`)
-`tdd_check.py validate-exit`:
-- Finds all public methods in your `src/` modules
-- Checks test coverage (AST-extracted test calls)
-- Reports **coverage gaps** — public methods with no test calling them
-- Reports **dangling reds** — tests declared RED but never GREEN
-- Phase exit blocked until gaps filled or `omt_skip` override
-
-### TDD CLI (`scripts/omt/tdd_check.py`)
-```
-uv run scripts/omt/tdd_check.py testlist --behaviors "..." --feature feature_NNN
-uv run scripts/omt/tdd_check.py start --test-node tests/... --target-src src/... --feature feature_NNN
-uv run scripts/omt/tdd_check.py green --test-node tests/... --feature feature_NNN
-uv run scripts/omt/tdd_check.py refactor --test-node tests/... --feature feature_NNN
-uv run scripts/omt/tdd_check.py done --feature feature_NNN
-uv run scripts/omt/tdd_check.py gate --path <rel> --session <id>
-uv run scripts/omt/tdd_check.py after-edit --path <rel> --session <id>
-uv run scripts/omt/tdd_check.py status --session <id>
-uv run scripts/omt/tdd_check.py validate-exit --feature feature_NNN
-```
+Authority: the harness corpus owns this workflow (@fsm tdd + @hat records + @doc tdd.*) —
+`omt_nav{op:"nav", query:"TDD_"}` for states/hats/gotchas, `omt_nav{op:"nav", query:"CMD_OMT_TDD"}`
+for the tool. Edit those records, never a prose copy here.
 
 ---
 
@@ -644,60 +596,36 @@ uv run scripts/omt/tdd_check.py validate-exit --feature feature_NNN
 
 ## 15. File Tree Template
 
+Layout convention (the tree evolves per feature — verify with `ls`; the CONVENTION is the rule):
+
 ```
 src/agentx/
-├── main.py                          # Entry: MainController → run()
-├── model/                           # MODEL — NO ui imports
-│   ├── ai/                          #   LLM providers + facade
-│   │   ├── service.py               #   AIService (facade/factory)
-│   │   └── providers.py             #   LLMProvider ABC + impls
-│   ├── rag/                         #   RAG domain logic
-│   │   ├── rag.py                   #   Rag orchestrator
-│   │   ├── rag_db.py                #   DP_Rag — all RAG SQL
-│   │   ├── rag_provider.py          #   Repository listing
-│   │   ├── rag_repository.py        #   RagRepository dataclass
-│   │   └── query/                   #   Query engine
-│   └── session/
-│       ├── session.py               #   Session entity (CRUD)
-│       ├── session_manager.py       #   Session manager (NOT "Controller")
-│       └── session_db.py            #   DP_Session — all session SQL
-├── ui/                              # VIEW + CONTROLLER
-│   ├── common/
-│   │   ├── ui_console.py            #   Terminal renderer
-│   │   └── input/                   #   Mini MVC triads (reusable)
-│   │       ├── text_list/           #     InputTextListController + View
-│   │       ├── url_entry/           #     InputUrlController + View
-│   │       ├── options/             #     InputOptionsController + View
-│   │       └── create_folder/       #     InputCreateFolderController + View
-│   └── screens/                     #   Screen MVC triads
-│       ├── main/                    #   ── MAIN SCREEN ──
-│       │   ├── main_controller.py   #     Implements IMainViewPartner
-│       │   ├── main_view.py         #     IMainViewPartner(ABC) here
-│       │   └── commands/            #     Command pattern
-│       │       ├── commands_base.py #       Command ABC
-│       │       ├── commands.py      #       Concrete commands
-│       │       └── commands_parser.py
-│       ├── chat/                    #   ── CHAT SCREEN ──
-│       │   ├── chat_controller.py   #     Implements IChatViewPartner
-│       │   └── chat_view.py         #     IChatViewPartner(ABC) here
-│       └── rag/                     #   ── RAG SCREEN ──
-│           ├── rag_controller.py
-│           ├── rag_view.py
-│           ├── rag_chat_controller.py
-│           ├── rag_chat_view.py
-│           ├── rag_web_ingestion_controller.py
-│           ├── rag_web_ingestion_view.py
-│           ├── rag_repository_selection_controller.py
-│           └── rag_repostitory_selection_view.py
-└── utils/                           # Cross-cutting
-    ├── constants.py
-    ├── utils.py
-    └── utils_directories.py
+├── main.py                 # Entry: MainController → run()
+├── model/                  # MODEL — NO ui imports
+│   ├── ai/                 #   LLM providers + facade (AIService)
+│   ├── rag/                #   RAG domain (rag_db.py = DP_Rag — all RAG SQL)
+│   └── session/            #   session.py (CRUD entity) + session_db.py (DP_Session)
+├── agent/                  # Agent orchestration (react / coding / fast_agent)
+├── ui/                     # VIEW + CONTROLLER
+│   ├── common/             #   ui_console + input/ mini MVC triads (reusable)
+│   ├── tui/                #   Textual TUI (feature_012)
+│   └── screens/            #   Screen MVC triads
+│       ├── main/           #     + commands/ (Command pattern, main screen only)
+│       └── <screen>/       #     chat, rag, agent, coding, fast_agent, models, react, …
+└── utils/                  # Cross-cutting
 ```
+
+Naming: `<screen>_controller.py` / `<screen>_view.py` + `__init__.py` per triad (ABC partner
+defined in the view file); model files omit the suffix; ALL SQL in `DP_*` classes inside
+`*_db.py`; `*Controller` never lives under model/ (use `*Manager` / `*Service`).
 
 ---
 
-## 16. Common Mistakes to Catch (grep Patterns)
+## 16. Common Mistakes to Catch
+
+Mechanically enforced: `uv run scripts/omt/mvc_check.py` implements rows 1-5, 7, 9, 10
+(ERROR severities exit 1); the g.mvc after-gate auto-runs it on `src/**/*.py` edits and
+BLOCKS newly introduced hard violations. The Detect column remains as manual fallback probes.
 
 | # | Mistake | Detect | Fix |
 |---|---------|--------|-----|
@@ -716,4 +644,4 @@ src/agentx/
 
 ---
 
-*End of OMT++ Agent Guide v2.0 — all rules here. No other reference needed.*
+*End of OMT++ Agent Guide v2.0 — methodology authority. Harness mechanics (gates, tools, TDD workflow state): `omt_nav` against the .omt corpus.*

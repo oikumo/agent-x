@@ -11,7 +11,7 @@
 import { tool } from "@opencode-ai/plugin"
 import { writeFileSync } from "node:fs"
 import { OmtBlock, getActiveUnlock, type EnforcerEnv } from "./session_state"
-import { irToolDescription } from "../omt_shared"
+import { irToolDescription, gateMsg } from "../omt_shared"
 
 // --- TDD tools (thin wrappers delegating to tdd_check.py) -------------------
 // improvement006/OPT-H: one registered tool; op dispatches to the subcommands
@@ -24,11 +24,11 @@ export function createTddTools(env: EnforcerEnv) {
   const omt_tdd = tool({
     description: irToolDescription("omt_tdd", "TDD cycle driver. op=testlist(behaviors,feature) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature)."),
     args: {
-      op: tool.schema.string().describe("testlist | red | green | refactor | done"),
-      behaviors: tool.schema.string().optional().describe("op=testlist: JSON array of behaviors"),
+      op: tool.schema.string().describe("testlist|red|green|refactor|done"),
+      behaviors: tool.schema.string().optional().describe("testlist: JSON array of behaviors"),
       feature: tool.schema.string().optional().describe("feature slug"),
-      test_node: tool.schema.string().optional().describe("op=red/green/refactor: pytest node id"),
-      target_src: tool.schema.string().optional().describe("op=red: src file under test"),
+      test_node: tool.schema.string().optional().describe("red/green/refactor: pytest node id"),
+      target_src: tool.schema.string().optional().describe("red: src file under test"),
     },
     async execute(args, context) {
       const subcmd = TDD_SUBCMD[args?.op ?? ""]
@@ -98,7 +98,7 @@ export async function tddAfterEdit(
         const content = env.state.refactorSnapshots.get(abs)
         if (content !== undefined) {
           writeFileSync(abs, content, "utf8")
-          throw new OmtBlock(tddData.reason || "REFACTOR broke tests — edit reverted.")
+          throw new OmtBlock(tddData.reason || gateMsg("tdd_revert"))
         }
       }
       if (tddData.advisories?.length) {

@@ -10,7 +10,8 @@ Single source: .meta/META_HARNESS.omt → projections:
 
 Subcommands:
   check                       kind schema · id uniq · ref closure · pred vocab
-                              · comp paths · hat/fsm agreement · budgets
+                              · comp paths · hat/fsm agreement · grammar vocab
+                              · budgets
   check --verify-projections  + committed projections == recompiled (drift test)
   build                       check, then write all projections + report
 
@@ -35,6 +36,8 @@ AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 CONFIG_PATH = REPO_ROOT / "opencode.jsonc"
 REPORT_PATH = REPO_ROOT / ".meta" / ".omt" / "harness.report"
 WORK_PATH = REPO_ROOT / "WORK.md"
+META_HARNESS_MD_PATH = REPO_ROOT / ".meta" / "META_HARNESS.md"
+META_MD_PATH = REPO_ROOT / ".meta" / "META.md"
 
 KINDS = ("version", "var", "deny", "protect", "always", "phase", "fsm", "hat",
          "pred", "gate", "msg", "state", "inject", "doc", "budget", "tool",
@@ -70,6 +73,13 @@ TT_SET = {"bug_fix", "minor_feature", "major_feature", "new_screen",
 RID_RE = re.compile(r"[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$")
 REF_RE = re.compile(r"@([a-z][a-z0-9_]*)(\.[a-z0-9_]+(\.[a-z0-9_]+)*|\.\*)?")
 PRED_CALL_RE = re.compile(r"!?\b([a-z_][a-z0-9_]*)\s*\(")
+
+# improvement007/OPT-C: {@var.x} interpolation — payloads and attr values may
+# embed braced var refs (braces distinguish them from TS-side {rel}/{tt}
+# runtime slots and from full-string @var.x attr refs resolved in build_ir).
+# Unknown names are check errors; runs right after parse so every downstream
+# check and projection sees final text.
+INTERP_RE = re.compile(r"\{@var\.([a-z0-9_]+)\}")
 
 # App docs still carrying legacy markdown nav tags (SECTION:/XREF_/…). The
 # harness corpus itself is .omt-sourced — META_HARNESS.md (stub) and the
@@ -110,7 +120,8 @@ GATE_NEVER_EXCLUDE = {"g.protect", "g.nav"}
 AGENTS_QUICK_FLOWS = ["start_bug", "start_major", "skip_src", "status", "lint"]
 
 MEASURABLE_BUDGETS = {"agents_md", "work_md", "work_scratchpad", "tool_schemas",
-                        "nav_index", "ir_json"}  # OPT-D: the two largest projections
+                        "tool_args", "nav_index", "ir_json",
+                        "meta_harness_md", "meta_md"}  # compiler-measurable
 REPORT_ONLY_BUDGETS = {"nav_tip", "digest_cap"}  # TS-rendered; test-pinned (R7 T5)
 
 
@@ -187,20 +198,72 @@ def parse(text: str, errors: list[str]) -> list[Record]:
     return records
 
 
+def interpolate(c: Corpus) -> None:
+    """improvement007/OPT-C: substitute {@var.x} in payloads and attr values.
+    Skips @var records themselves (vars are leaves; no transitive refs)."""
+    vars_ = {r.rid: r.payload for r in c.of("var")}
+
+    def sub(text: str, r: Record) -> str:
+        def repl(m: re.Match) -> str:
+            name = m.group(1)
+            if name not in vars_:
+                c.errors.append(f"{OMT_REL}:{r.line}: {r.full_id}: unknown "
+                                f"interpolation '{{@var.{name}}}'")
+                return m.group(0)
+            return vars_[name]
+        return INTERP_RE.sub(repl, text)
+
+    for r in c.records:
+        if r.kind == "var":
+            continue
+        if r.payload and "{@var." in r.payload:
+            r.payload = sub(r.payload, r)
+        for k, v in r.attrs.items():
+            if "{@var." in v:
+                r.attrs[k] = sub(v, r)
+
+
 # --- check -------------------------------------------------------------------
 
 
-# --- derive (improvement006/OPT-D) ---------------------------------------------
+# --- derive (improvement006/OPT-D · improvement007 R9/OPT-I) -------------------
 # Projection-time expansion of mechanically-derivable nav records so the .omt
 # carries each fact ONCE: PHASE_* from @fsm phase states, TT_* from the closed
 # task-type set, SECTION from framed banner comments ("# ====" / "# TITLE — text").
+# R9/OPT-I derive round 2: flow.start_{major,minor,bug} ← @phase applies/
+# requires + @fsm phase initial + @fsm tdd auto_on + @var scaffold ·
+# flow.tdd_<state> ← @fsm tdd states × @hat tdd.* · doc.tree.{src,tst,doc} ←
+# @gate when= path_in chains (+ @phase requires="none" for the docs branch) ·
+# doc.prot.files ← @protect hard/soft split + g.tests · doc.esc ← @tool
+# omt_skip scope list + skip_ok gates + hard @protect paths. Hand-written
+# copies were deleted from the .omt; a hand record re-added under a derived id
+# is a duplicate-id build error via check_ids (OPT-D posture).
 BANNER_RE = re.compile(r"^# ([A-Z][A-Z0-9_ +]+) — (.+)$")
 BANNER_FRAME_RE = re.compile(r"^# ={10,}$")
 
+# R9 convention tables — the ONLY derived-payload facts the corpus does not
+# carry (§12 start-phase practice / presentational glosses; mirrors the
+# GATE_NEVER precedent: compiler-held phrases pinned to record ids). All other
+# payload content is composed from records, and a missing derive source is a
+# build error (deliberate, like the irToolDescription seed pins).
+START_FLOW_TT = {"start_major": "major_feature", "start_minor": "minor_feature",
+                 "start_bug": "bug_fix"}
+START_PHASE = {"minor_feature": "Design", "bug_fix": "Programming"}  # else fsm initial
+START_GLOSS = {"minor_feature": "code", "bug_fix": "fix → test"}
+TDD_FLOW_GLOSS = {"testlist": "behavior list (JSON array)",
+                  "red": "failing test (true-RED verified)",
+                  "green": "minimal pass code",
+                  "refactor": "improve",
+                  "done": "validate (suite + coverage + dangling reds)"}
+ESC_SCOPE_GATE = {"src": "g.phase", "tests": "g.tests", "nav": "g.nav"}
+ESC_GLOSS = {"g.phase": "src/ edits w/o phase", "g.tests": "canary approval",
+             "g.nav": "nav gate"}
+
 
 def derive_records(c: Corpus, omt_text: str) -> None:
-    """Append derived @doc records (ph.*/tt.*/sec.*) to the corpus. Hand-written
-    copies were deleted (OPT-D); a hand record re-added under a derived id is a
+    """Append derived @doc/@flow records to the corpus. Hand-written copies
+    were deleted (OPT-D ph.*/tt.*/sec.* · OPT-I flow.start_*/flow.tdd_*/
+    tree.*/prot.files/esc); a hand record re-added under a derived id is a
     duplicate-id build error via check_ids."""
     fsm = c.get("fsm", "phase")
     decl = next((r for r in c.of("phase") if r.attrs.get("requires") == "decl"), None)
@@ -219,6 +282,144 @@ def derive_records(c: Corpus, omt_text: str) -> None:
             rid = "sec." + title.lower().replace(" ", "_").replace("+", "")
             c.records.append(Record("doc", rid, {"tags": "SECTION"},
                                     f"{title} — {text}", i + 1))
+    _derive_start_flows(c)
+    _derive_tdd_flows(c)
+    _derive_trees(c)
+    _derive_prot_esc(c)
+
+
+def _derive_start_flows(c: Corpus) -> None:
+    """flow.start_* ← @phase applies/requires (design step) + @fsm phase
+    initial (default start) + @fsm tdd auto_on (TDD leg) + @var scaffold."""
+    fsm = c.get("fsm", "phase")
+    scaffold = c.get("var", "scaffold")
+    auto: dict[str, str] = {}
+    tdd = c.get("fsm", "tdd")
+    if tdd:
+        for e in (tdd.attrs.get("auto_on") or "").split(","):
+            if "@" in e:
+                tt, ph = e.split("@", 1)
+                auto[tt.strip()] = ph.strip()
+    for fid, tt in START_FLOW_TT.items():
+        prec = next((p for p in c.of("phase")
+                     if tt in (x.strip() for x in
+                               p.attrs.get("applies", "").split(","))), None)
+        if prec is None or fsm is None or scaffold is None:
+            c.errors.append(f"{OMT_REL}: flow.{fid} derive needs a @phase "
+                            f"applies={tt} record + @fsm phase + @var scaffold")
+            continue
+        start = START_PHASE.get(tt) or fsm.attrs.get("initial", "Analysis")
+        steps = [f'omt_phase{{tt:{tt},ph:{start},sc:"..."}}']
+        if "design" in (x.strip() for x in
+                        prec.attrs.get("requires", "").split(",")):
+            steps.append(f"design doc ({scaffold.payload})")
+        if tt in auto:
+            steps.append(f"omt_phase{{ph:{auto[tt]}}} → TDD auto-on")
+        else:
+            steps.append(f"{START_GLOSS.get(tt, 'code')} → "
+                         "omt_complete{advance_to:Testing}")
+        c.records.append(Record("flow", fid, {"tags": f"QUICK_{fid.upper()}"},
+                                " → ".join(steps), prec.line))
+
+
+def _derive_tdd_flows(c: Corpus) -> None:
+    """flow.tdd_<state> skeletons ← @fsm tdd states × @hat tdd.* (op name from
+    the state, allow/revert_on from the hat; prose gloss = TDD_FLOW_GLOSS)."""
+    fsm = c.get("fsm", "tdd")
+    if fsm is None:
+        c.errors.append(f"{OMT_REL}: @fsm tdd missing (flow.tdd_* derive source)")
+        return
+    hats = {h.rid.split(".", 1)[1]: h for h in c.of("hat")
+            if h.rid.startswith("tdd.")}
+    for s in (x.strip().lower() for x in fsm.attrs.get("states", "").split(",")
+              if x.strip()):
+        hat = hats.get(s)
+        if hat is None:
+            c.errors.append(f"{OMT_REL}:{fsm.line}: @fsm tdd state '{s}' has "
+                            f"no @hat tdd.{s} (flow.tdd_{s} derive source)")
+            continue
+        gloss = TDD_FLOW_GLOSS.get(s)
+        if gloss is None:
+            c.errors.append(f"{OMT_REL}:{hat.line}: @hat tdd.{s}: no "
+                            "TDD_FLOW_GLOSS entry (extend the table deliberately)")
+            continue
+        payload = (f"omt_tdd{{op:{s}}} → {gloss} · allow: "
+                   f"{hat.attrs.get('allow', '') or '—'}")
+        if hat.attrs.get("revert_on") == "tests_break":
+            payload += " · auto-revert on tests_break"
+        c.records.append(Record("flow", f"tdd_{s}",
+                                {"tags": f"QUICK_TDD_{s.upper()}"},
+                                payload, hat.line))
+
+
+def _derive_trees(c: Corpus) -> None:
+    """doc.tree.{src,tst,doc} ← @gate before/after chains by when= path_in
+    prefix (order= asc; before-gates inline their payload, after-gates are
+    id-listed) + @hat allows for the tests/ branch + the @phase
+    requires=\"none\" record for the docs branch."""
+    def chain(prefix: str, on: str) -> list[Record]:
+        return sorted((g for g in c.of("gate")
+                       if g.attrs.get("on") == on
+                       and f"path_in({prefix}" in g.attrs.get("when", "")),
+                      key=lambda g: int(g.attrs.get("order", "0")))
+
+    before, after = chain("src/", "before"), chain("src/", "after")
+    txt = ("src/ edit? → before: " + " · ".join(
+        f"{g.rid} ({g.payload})" for g in before) or "—")
+    if after:
+        txt += " · after: " + ", ".join(g.rid for g in after)
+    c.records.append(Record("doc", "tree.src", {"tags": "TREE_SRC"}, txt,
+                            before[0].line if before else 0))
+    before = chain("tests/", "before")
+    hats = [h.rid for h in c.of("hat") if "tests/" in h.attrs.get("allow", "")]
+    txt = ("tests/ edit? → before: " + " · ".join(
+        f"{g.rid} ({g.payload})" for g in before) or "—")
+    if hats:
+        txt += " · hat allows: " + ", ".join(hats)
+    c.records.append(Record("doc", "tree.tst", {"tags": "TREE_TST"}, txt,
+                            before[0].line if before else 0))
+    none_rec = next((p for p in c.of("phase")
+                     if p.attrs.get("requires") == "none"), None)
+    txt = "docs edit? → no edit gates"
+    if none_rec:
+        txt += f" · task_type docs: {none_rec.payload}"
+    c.records.append(Record("doc", "tree.doc", {"tags": "TREE_DOC"}, txt,
+                            none_rec.line if none_rec else 0))
+
+
+def _derive_prot_esc(c: Corpus) -> None:
+    """doc.prot.files ← @protect hard/soft split + g.tests presence · doc.esc ←
+    @tool omt_skip 'Scopes: a|b' payload + skip_ok gate map + hard protects."""
+    prots = c.of("protect")
+    hard = [p.attrs["path"] for p in prots if p.attrs.get("hard") == "true"]
+    soft = [p.attrs["path"] for p in prots if p.attrs.get("hard") == "false"]
+    txt = (f"protected — hard (no override): {', '.join(hard)} · soft "
+           '(omt_skip{scope:"all"}): ' + ", ".join(soft))
+    if c.get("gate", "g.tests") is not None:
+        txt += ' · tests/ (canary: omt_skip{scope:"tests"})'
+    c.records.append(Record("doc", "prot.files", {"tags": "PROT_FILES"}, txt,
+                            prots[0].line if prots else 0))
+    skip = c.get("tool", "omt_skip")
+    m = re.search(r"[Ss]copes?: ([a-z|]+)", skip.payload if skip else "")
+    if skip is None or not m:
+        c.errors.append(f"{OMT_REL}: doc.esc derive needs @tool omt_skip with "
+                        "a 'Scopes: a|b|c' payload")
+        return
+    segs: list[str] = []
+    for scope in m.group(1).split("|"):
+        if scope == "all":
+            segs.append("all=everything except " + ", ".join(hard))
+            continue
+        gid = ESC_SCOPE_GATE.get(scope)
+        g = c.get("gate", gid) if gid is not None else None
+        if g is None or g.attrs.get("skip_ok") != "true":
+            c.errors.append(f"{OMT_REL}: doc.esc scope '{scope}' → gate "
+                            f"{gid}: missing or skip_ok!=true")
+            continue
+        segs.append(f"{scope}={ESC_GLOSS.get(gid, gid)}")
+    c.records.append(Record("doc", "esc", {"tags": "ESC_SKIP"},
+                            f"omt_skip{{reason,scope:{m.group(1)}}} → logged "
+                            "to ledger · " + " · ".join(segs), skip.line))
 
 def check_schema(c: Corpus) -> None:
     for r in c.records:
@@ -282,6 +483,35 @@ def check_refs(c: Corpus) -> None:
                     c.errors.append(f"{OMT_REL}:{r.line}: {r.full_id}: unresolved ref '@{kind}{sub}'")
 
 
+def check_msg_orphans(c: Corpus) -> None:
+    """improvement007 R8/OPT-G: every @msg must be WIRED — referenced by a
+    @gate/@deny/@protect msg= attr or another record's @msg.<id> mention
+    (see=/payload; the MVC rule catalog is enumerated by @xref mvc), or
+    consumed by the TS runtime via gateMsg("<id>") (the OPT-G renderer in
+    .opencode/lib/omt_shared.ts). An orphan @msg is dead weight + drift bait:
+    wire it or delete it."""
+    ts = ""
+    for d in (*TOOL_SEED_DIRS, ".opencode/lib"):
+        for p in sorted((REPO_ROOT / d).glob("*.ts")):
+            ts += p.read_text(encoding="utf-8")
+    referenced = {
+        m.group(1) for m in re.finditer(r'gateMsg\("([a-z0-9_]+)"', ts)
+    }
+    for r in c.records:
+        for hay in list(r.attrs.values()) + ([r.payload] if r.payload else []):
+            for m in REF_RE.finditer(hay):
+                if m.group(1) == "msg" and m.group(2) and m.group(2) != ".*":
+                    rid = m.group(2).lstrip(".")
+                    if f"msg.{rid}" != r.full_id:  # self-refs don't count
+                        referenced.add(rid)
+    for r in c.of("msg"):
+        if r.rid not in referenced:
+            c.errors.append(
+                f"{OMT_REL}:{r.line}: @msg {r.rid}: orphan — no msg= attr, no "
+                f"@msg.{r.rid} mention, no TS gateMsg(\"{r.rid}\") consumer "
+                "(wire it or delete it)")
+
+
 def check_preds(c: Corpus) -> None:
     for r in c.of("pred"):
         m = PRED_CALL_RE.match(r.payload)
@@ -312,6 +542,116 @@ def check_fsm_hats(c: Corpus) -> None:
     tt_docs = {r.rid.split(".", 1)[1] for r in c.of("doc") if r.rid.startswith("tt.")}
     if tt_docs and tt_docs != TT_SET:
         c.errors.append(f"{OMT_REL}: @doc tt.* records {sorted(tt_docs)} != task-type set {sorted(TT_SET)} (tt.* is derived — do not hand-write a subset)")
+
+
+# improvement007/OPT-D: grammar vocabulary hardening — value sets and shapes
+# that drift silently: fsm state closure (initial + transition endpoints),
+# hat allow/revert_on vocab, inject on= vocab, @gate when= pred-call arity
+# (+ no '|' alternation inside args), @gate order uniqueness per on= group.
+# requires= is deliberately UNCHECKED here: impl-gates ignore it and g.phase's
+# ledger_has(phase|skip) is a known-broken dead expr (R2 scope decision — a
+# future loop owns requires=). Orphan-@msg check landed in R8 (check_msg_orphans).
+PRED_ARITY: dict[str, tuple[int, int]] = {
+    "path_in": (1, 1), "cmd_match": (1, 1), "ledger_has": (1, 3),
+    "session_flag": (1, 1), "file_has": (1, 1), "receipt_fresh": (0, 0),
+    "fsm_allows": (2, 2), "risk_high": (0, 0),
+}
+HAT_REVERT_ON = {"", "tests_break"}
+INJECT_ON = {"first_tool_result", "file_read"}
+
+
+def _split_pred_args(args: str) -> list[str]:
+    """Comma-split pred args, ignoring commas inside double quotes."""
+    if not args.strip():
+        return []
+    out, cur, in_q = [], [], False
+    for ch in args:
+        if ch == '"':
+            in_q = not in_q
+        if ch == "," and not in_q:
+            out.append("".join(cur).strip())
+            cur = []
+        else:
+            cur.append(ch)
+    out.append("".join(cur).strip())
+    return out
+
+
+def _when_calls(expr: str) -> list[tuple[str, str]]:
+    """(pred, raw-args) for each call in a when= expr (balanced-paren scan)."""
+    out: list[tuple[str, str]] = []
+    for m in PRED_CALL_RE.finditer(expr):
+        depth, j = 1, m.end()
+        while j < len(expr) and depth:
+            if expr[j] == "(":
+                depth += 1
+            elif expr[j] == ")":
+                depth -= 1
+            j += 1
+        if depth:
+            break  # unbalanced — parse-level noise; leave to other checks
+        out.append((m.group(1), expr[m.end():j - 1]))
+    return out
+
+
+def check_grammar_vocab(c: Corpus) -> None:
+    """improvement007/OPT-D — see the PRED_ARITY comment block above."""
+    for r in c.of("fsm"):
+        states = {s.strip() for s in r.attrs.get("states", "").split(",")
+                  if s.strip()}
+        if r.attrs.get("initial", "") not in states:
+            c.errors.append(f"{OMT_REL}:{r.line}: @fsm {r.rid}: initial "
+                            f"'{r.attrs.get('initial', '')}' not in states "
+                            f"{sorted(states)}")
+        for group in r.attrs.get("transitions", "").split(";"):
+            group = group.strip()
+            if not group:
+                continue
+            if ">" not in group:
+                c.errors.append(f"{OMT_REL}:{r.line}: @fsm {r.rid}: malformed "
+                                f"transition group '{group}' (want SRC>DST,...)")
+                continue
+            src, dsts = group.split(">", 1)
+            for st in [src.strip()] + [d.strip() for d in dsts.split(",")]:
+                if st and st not in states:
+                    c.errors.append(f"{OMT_REL}:{r.line}: @fsm {r.rid}: "
+                                    f"transition endpoint '{st}' not in states")
+    for r in c.of("hat"):
+        if r.attrs.get("revert_on", "") not in HAT_REVERT_ON:
+            c.errors.append(f"{OMT_REL}:{r.line}: @hat {r.rid}: revert_on must "
+                            f"be ''|tests_break")
+        for e in r.attrs.get("allow", "").split(","):
+            e = e.strip()
+            if e and not e.endswith("/"):
+                c.errors.append(f"{OMT_REL}:{r.line}: @hat {r.rid}: allow entry "
+                                f"'{e}' must be empty or a dir prefix ending '/'")
+    for r in c.of("inject"):
+        if r.attrs.get("on", "") not in INJECT_ON:
+            c.errors.append(f"{OMT_REL}:{r.line}: @inject {r.rid}: on must be "
+                            f"{'|'.join(sorted(INJECT_ON))} "
+                            "(closed — extend deliberately)")
+    for r in c.of("gate"):
+        for name, raw in _when_calls(r.attrs.get("when", "")):
+            if name not in PRED_ARITY:
+                continue  # unknown pred: check_preds owns that error
+            if "|" in raw:
+                c.errors.append(f"{OMT_REL}:{r.line}: @gate {r.rid}: when= "
+                                f"{name}(...) args reject '|' alternation")
+            lo, hi = PRED_ARITY[name]
+            n = len(_split_pred_args(raw))
+            if not lo <= n <= hi:
+                want = str(lo) if lo == hi else f"{lo}..{hi}"
+                c.errors.append(f"{OMT_REL}:{r.line}: @gate {r.rid}: when= "
+                                f"{name}() takes {want} arg(s), got {n}")
+    seen: dict[str, dict[str, int]] = {}
+    for r in c.of("gate"):
+        on, order = r.attrs.get("on", ""), r.attrs.get("order", "")
+        group = seen.setdefault(on, {})
+        if order in group:
+            c.errors.append(f"{OMT_REL}:{r.line}: @gate {r.rid}: order={order} "
+                            f"duplicates line {group[order]} within on={on}")
+        else:
+            group[order] = r.line
 
 
 def check_comp_paths(c: Corpus) -> None:
@@ -407,6 +747,21 @@ def _ts_seed(src: str, name: str) -> str | None:
     return "".join(lits).replace('\\"', '"').replace("\\n", "\n").replace("\\\\", "\\")
 
 
+def _ts_arg_describes(src: str, name: str) -> list[str]:
+    """improvement007/OPT-A: describe("...") literals of LIVE tool `name`'s args
+    — region irToolDescription(name,...) → async execute. Per-op helper tools
+    inside createXTools() are unregistered (only the dispatcher is returned),
+    so their describes never reach the model and stay uncounted."""
+    m = re.search(rf'irToolDescription\(\s*"{re.escape(name)}"', src)
+    if not m:
+        return []
+    end = src.find("async execute", m.end())
+    region = src[m.end():end if end > 0 else len(src)]
+    lits = re.findall(r'describe\(\s*"((?:[^"\\]|\\.)*)"', region, re.DOTALL)
+    return [s.replace('\\"', '"').replace("\\n", "\n").replace("\\\\", "\\")
+            for s in lits]
+
+
 def check_tool_seed_sync(c: Corpus) -> None:
     srcs = [p for d in TOOL_SEED_DIRS for p in sorted((REPO_ROOT / d).glob("*.ts"))]
     texts = [p.read_text(encoding="utf-8") for p in srcs]
@@ -467,6 +822,16 @@ def render_agents(c: Corpus) -> str:
     else:
         cycle = " → ".join(f"omt_{s}" for s in states)
 
+    # improvement007/OPT-E: the AGENTS.md TDD line derives its auto-on task
+    # list from @fsm tdd auto_on= ("tt@Phase,...") — no hand-mirrored literal.
+    auto_groups: dict[str, list[str]] = {}
+    for e in (fsm.attrs.get("auto_on") or "").split(","):
+        if "@" in e:
+            tt, ph = e.split("@", 1)
+            auto_groups.setdefault(ph.strip(), []).append(tt.strip())
+    auto_txt = " ".join("/".join(f"`{t}`" for t in tts) + f" @{ph}"
+                        for ph, tts in auto_groups.items())
+
     # improvement004/OPT-A: §12 table / TDD / Tools / NAV / THINK / QuickRef sections
     # collapsed to nav-pointer one-liners (~1100 B/turn saved); full rules stay
     # nav-indexed in the .omt corpus (RULE_/NAV_/THINK_/QUICK_ records).
@@ -491,7 +856,7 @@ def render_agents(c: Corpus) -> str:
 
 ## Process (full rules on demand via nav)
 - **§12 artifacts:** {decl_tts} → declaration only · {design_tts} → + design doc on disk (`new_feature.py`) · `docs` → none
-- **TDD (feature_016):** `major_feature`/`new_screen` @Programming auto-activates `{cycle}` — two-hats: RED tests/ only · GREEN/REFACTOR src/ only (auto-revert on break)
+- **TDD (feature_016):** {auto_txt} auto-activates `{cycle}` — two-hats: RED tests/ only · GREEN/REFACTOR src/ only (auto-revert on break)
 - **Tools:** {n_tools} `omt_*` — catalog `omt_nav{{query:"CMD_", tag_type:"CMD"}}` · workflows `omt_quick_ref`
 - **Nav gate (feature_020):** nav tools before grep/glob on docs (read + src/non-doc exempt) · **Think gate (feature_021):** TA: files need `omt_think{{op:list}}` consult (NOT skip-bypassable)
 """
@@ -557,8 +922,8 @@ def build_ir(c: Corpus) -> dict:
         "msgs": {r.rid: {"sev": r.attrs["sev"], "see": r.attrs.get("see", ""), "text": r.payload}
                  for r in c.of("msg")},
         "state": {r.rid: {"path": resolve(r.attrs["path"]), "mode": r.attrs["mode"],
-                          **({"cap": int(r.attrs["cap"])} if "cap" in r.attrs else {}),
-                          **({"window": int(r.attrs["window"])} if "window" in r.attrs else {}),
+                          **({"cap": int(str(resolve(r.attrs["cap"])))} if "cap" in r.attrs else {}),
+                          **({"window": int(str(resolve(r.attrs["window"])))} if "window" in r.attrs else {}),
                           "truth": r.attrs.get("truth", "")} for r in c.of("state")},
         "injects": [{"id": r.rid, "on": r.attrs["on"], "budget": int(r.attrs["budget"]),
                      "text": r.payload} for r in c.of("inject")],
@@ -652,6 +1017,16 @@ def measure_budgets(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str 
     sizes["agents_md"] = (len(agents_md.encode("utf-8")), budgets.get("agents_md"))
     sizes["tool_schemas"] = (sum(len(r.payload.encode("utf-8")) for r in c.of("tool")),
                              budgets.get("tool_schemas"))
+    ts_srcs = [p.read_text(encoding="utf-8")
+               for d in TOOL_SEED_DIRS for p in sorted((REPO_ROOT / d).glob("*.ts"))]
+    arg_bytes = 0
+    for r in c.of("tool"):
+        for text in ts_srcs:
+            ds = _ts_arg_describes(text, r.rid)
+            if ds:
+                arg_bytes += sum(len(x.encode("utf-8")) for x in ds)
+                break
+    sizes["tool_args"] = (arg_bytes, budgets.get("tool_args"))
     work_size = WORK_PATH.stat().st_size if WORK_PATH.exists() else 0
     sizes["work_md"] = (work_size, budgets.get("work_md"))
     scratch = 0
@@ -662,6 +1037,13 @@ def measure_budgets(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str 
     sizes["work_scratchpad"] = (scratch, budgets.get("work_scratchpad"))
     sizes["nav_index"] = (len(nav_text.encode("utf-8")), budgets.get("nav_index"))
     sizes["ir_json"] = (len(ir_text.encode("utf-8")), budgets.get("ir_json"))
+    sizes["meta_harness_md"] = (
+        META_HARNESS_MD_PATH.stat().st_size
+        if META_HARNESS_MD_PATH.exists() else 0,
+        budgets.get("meta_harness_md"))
+    sizes["meta_md"] = (
+        META_MD_PATH.stat().st_size if META_MD_PATH.exists() else 0,
+        budgets.get("meta_md"))
     for rid in REPORT_ONLY_BUDGETS:
         if rid in budgets:
             sizes[rid] = (-1, budgets[rid])  # TS-rendered; pinned by tests (R7 T5)
@@ -688,8 +1070,10 @@ def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str =
     check_schema(c)
     check_ids(c)
     check_refs(c)
+    check_msg_orphans(c)
     check_preds(c)
     check_fsm_hats(c)
+    check_grammar_vocab(c)
     check_comp_paths(c)
     check_gate_never_coverage(c)
     check_harness_paths(c)
@@ -717,6 +1101,7 @@ def main(argv: list[str]) -> int:
 
     omt_text = OMT_PATH.read_text(encoding="utf-8")
     c = Corpus(parse(omt_text, []))
+    interpolate(c)  # OPT-C: {@var.x} before any check/projection
     derive_records(c, omt_text)
     agents_md = render_agents(c)
     ir_text = json.dumps(build_ir(c), indent=2, sort_keys=True) + "\n"

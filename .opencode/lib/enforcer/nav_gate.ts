@@ -14,7 +14,14 @@ import { loadIr, relOf, thinkDigest } from "../omt_shared"
 import { type EnforcerEnv } from "./session_state"
 
 const NAV_TOOLS = new Set(["omt_nav"])  // improvement006/OPT-H: consolidated
-const SEARCH_TOOLS = new Set(["grep", "glob", "read", "rg", "find"])
+// improvement007/OPT-E: .omt @var search_tools is the FUNCTIONAL source; the
+// literal is the pinned IR-missing fallback. "read" was dropped from the old
+// hand set — it is gate-exempt (navGateDecision) and not a conceptual search.
+const FALLBACK_SEARCH_TOOLS = "grep|glob|rg|find"
+function searchTools(): Set<string> {
+  const v = loadIr()?.vars?.search_tools
+  return new Set(String(typeof v === "string" && v ? v : FALLBACK_SEARCH_TOOLS).split("|").filter(Boolean))
+}
 
 // Whether a repo-relative path is a META HARNESS *documentation* path. The nav
 // tools index docs only, so the "try nav first" expectation applies solely to
@@ -81,13 +88,8 @@ export function getSearchPath(output: any): string | null {
   return relOf(rawStr).rel
 }
 
-export const navRequiredMsg = () =>
-  `⛔ OMT++ gate (feature_020): before grep/glob on META HARNESS docs, use ` +
-  `omt_nav (op=nav|list_sections|cross_ref|quick_ref) first (AGENTS.md MANDATORY). ` +
-  `Only fall back to grep/glob if navigation returns nothing. ` +
-  `\`read\` and src/non-doc searches are exempt. To override: omt_skip{reason:"...", scope:"nav"}.\n` +
-  `Examples: omt_nav{op:"nav", query:"SECTION:"}, omt_nav{op:"list_sections"}, omt_nav{op:"cross_ref", xref:"..."}, omt_nav{op:"quick_ref", workflow:"..."}`
-
+// improvement007 R8/OPT-G: the block text moved to the IR (@msg nav_required)
+// — gate_driver's g.nav impl renders it via gateMsg.
 const navReminderMsg = () =>
   `💡 NAVIGATION TIP: docs search → omt_nav (op=nav|list_sections|cross_ref|quick_ref) BEFORE grep/glob (read+src exempt; skip: omt_skip{scope:"nav"}).`
 
@@ -102,17 +104,15 @@ export async function navTrack(
   if (!session) return
   const toolName = input?.tool
   if (!env.state.nav.has(session)) {
-    env.state.nav.set(session, { usedNav: false, usedSearch: false, searchCount: 0 })
+    env.state.nav.set(session, { usedNav: false })
   }
   const state = env.state.nav.get(session)!
   if (NAV_TOOLS.has(toolName)) {
     state.usedNav = true
     env.safeLog("info", `Session ${session}: navigation tool ${toolName} used`)
   }
-  if (SEARCH_TOOLS.has(toolName)) {
-    state.usedSearch = true
-    state.searchCount++
-  }
+  // improvement007 R6: usedSearch/searchCount write-only counters deleted
+  // (zero readers); searchTools() above stays — IR-accessor pin target.
 }
 
 // After-hook branch (R6 S6): the session bootstrap — compact TA digest

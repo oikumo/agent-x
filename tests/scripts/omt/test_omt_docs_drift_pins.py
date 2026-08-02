@@ -218,6 +218,67 @@ def test_digest_byte_cap_pinned() -> None:
         "thinkDigest must actually apply DIGEST_CAP_BYTES to its return value")
 
 
+# --- R11 (improvement007/OPT-H): guide dedup drift pins -----------------------
+# The guide stays the METHODOLOGY authority (§12/§16 single-sourced there); the
+# .omt corpus owns harness mechanics. These pins keep the R11 cut from drifting
+# back: live §-refs resolve, @xref guide routes every section, mvc_check's
+# §16.N row citations keep their rows, §11.4 stays a summary (no restatement
+# regrowth).
+GUIDE = REPO_ROOT / ".meta" / "software_development_process" / "omt_agent_guide.md"
+TEMPLATES_DIR = REPO_ROOT / ".meta" / "templates"
+OMT_SRC = REPO_ROOT / ".meta" / "META_HARNESS.omt"
+
+
+def _guide_section_numbers() -> set[str]:
+    text = GUIDE.read_text(encoding="utf-8")
+    return set(re.findall(r"^## (\d+(?:\.\d+)?)\.", text, flags=re.M))
+
+
+def test_live_guide_section_refs_resolve() -> None:
+    """Every omt_agent_guide §-ref in live templates/scripts resolves to a section."""
+    sections = _guide_section_numbers()
+    anchors = {s.split(".")[0] for s in sections}
+    refs: set[str] = set()
+    live = sorted(TEMPLATES_DIR.glob("*.md")) + sorted(
+        (REPO_ROOT / "scripts" / "omt").glob("*.py"))
+    for path in live:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if "omt_agent_guide" in line:
+                refs.update(re.findall(r"§(\d+(?:\.\d+)?)", line))
+    missing = {r for r in refs if r not in sections and r.split(".")[0] not in anchors}
+    assert refs, "no live guide §-refs found — pin lost its target"
+    assert not missing, f"guide §-refs without a matching section: {sorted(missing)}"
+
+
+def test_xref_guide_covers_all_guide_sections() -> None:
+    """@xref guide routes every methodology section (nav answers 'where is X')."""
+    omt = OMT_SRC.read_text(encoding="utf-8")
+    xref_line = next(l for l in omt.splitlines() if l.startswith("@xref guide "))
+    covered = set(re.findall(r"§(\d+(?:\.\d+)?)", xref_line))
+    missing = _guide_section_numbers() - covered
+    assert not missing, f"guide sections not routed by @xref guide: {sorted(missing)}"
+
+
+def test_mvc_check_cited_mistake_rows_exist() -> None:
+    """mvc_check.py message citations (guide §16.N) must keep their §16 table rows."""
+    mvc_src = (REPO_ROOT / "scripts" / "omt" / "mvc_check.py").read_text(encoding="utf-8")
+    cited = set(re.findall(r"guide §16\.(\d+)", mvc_src))
+    sec16 = GUIDE.read_text(encoding="utf-8").split("## 16.", 1)[1]
+    rows = set(re.findall(r"^\| (\d+) \|", sec16, flags=re.M))
+    assert cited, "mvc_check no longer cites guide §16 rows — pin lost its target"
+    assert cited <= rows, f"mvc_check cites §16 rows missing from the guide: {cited - rows}"
+
+
+def test_guide_tdd_section_defers_to_corpus() -> None:
+    """§11.4 stays a summary + nav pointer — the corpus owns TDD mechanics (R11)."""
+    sec = GUIDE.read_text(encoding="utf-8").split("## 11.4", 1)[1].split("\n## ", 1)[0]
+    assert "omt_nav" in sec and "@fsm tdd" in sec, (
+        "§11.4 lost its corpus pointer — restatement crept back?")
+    assert len(sec.splitlines()) <= 25, (
+        f"§11.4 regrew to {len(sec.splitlines())} lines — TDD mechanics belong "
+        "in the .omt corpus (@fsm tdd / @hat / @doc tdd.*), not in guide prose")
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-v"]))

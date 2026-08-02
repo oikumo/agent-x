@@ -11,10 +11,10 @@
 //
 // .omt-only operations (no TS edit, no receipt round-robin ×7):
 //   • reorder gates (order=)      • retarget a gate's tool set (tools=)
-//   • retarget when= path sets    • change a generic gate's block text (msg=)
+//   • retarget when= path sets    • change ANY gate's block/warn text (@msg payload — R8/OPT-G)
 //   • ADD a pred-composed before-gate (unregistered id → genericImpl)
-// TS-required: new @pred builtins, new specialized impls, after-gates (g.mvc,
-// g.tdd_after stay hardcoded in the composition root — HDL-2 scope boundary).
+// TS-required: new @pred builtins, new specialized impls (before IMPLS /
+// after AFTER_IMPLS — improvement007 R7: after-gates are data-driven too).
 //
 // Fallback philosophy (isDocPath heritage): if the IR is missing/corrupt the
 // chain must never die open — FALLBACK_GATES mirrors the .omt order/tools.
@@ -22,17 +22,19 @@
 import { existsSync, readFileSync } from "node:fs"
 import {
   loadIr, relOf, globToRegex, readLedger, readThoughtsIndex,
-  omtHarnessE2eStatus, UNLOCK_WINDOW_MS,
+  omtHarnessE2eStatus, UNLOCK_WINDOW_MS, protectList, matchesProtect, gateMsg,
 } from "../omt_shared"
 import {
   OmtBlock, getActiveUnlock, hasNavUnlock, type EnforcerEnv,
 } from "./session_state"
-import { getSearchPath, navGateDecision, navRequiredMsg } from "./nav_gate"
+import { getSearchPath, navGateDecision } from "./nav_gate"
 import {
   guardProtectedPath, guardHarnessReceipt, guardTestsPath,
 } from "./receipt_guard"
 import { guardSrcPath } from "./phase_gate"
 import { guardThoughts, fileThoughtsIn } from "./think_gate"
+import { mvcAfterEdit } from "./mvc_after"
+import { tddAfterEdit } from "./tdd_hats"
 
 export interface GateCtx {
   env: EnforcerEnv
@@ -55,8 +57,13 @@ function pathEntries(spec: string, ir: any): string[] {
 
 function pathIn(rel: string, spec: string, ir: any): boolean {
   if (spec === "@protect.*") {
-    return (ir?.protect ?? []).some((p: any) =>
-      p.path.endsWith("*") ? rel.startsWith(p.path.slice(0, -1)) : rel === p.path)
+    // improvement007 R6 (HDL-2 die-open fix): with the IR missing, ir?.protect
+    // evaluates to [] and the when= pre-filter skipped g.protect entirely —
+    // protected files were UNGUARDED on the fallback chain. Fall back to the
+    // shared-lib accessor (FALLBACK_PROTECT literal) — never die open.
+    const list = Array.isArray(ir?.protect) && ir.protect.length
+      ? ir.protect : protectList()
+    return list.some((p: any) => matchesProtect(rel, p))
   }
   return pathEntries(spec, ir).some((e) => {
     if (e.includes("*")) return globToRegex(e).test(rel)
@@ -172,7 +179,7 @@ const IMPLS: Record<string, GateImpl> = {
     })
     if (decision === "block") {
       ctx.env.safeLog("warn", `Session ${ctx.session}: blocked ${ctx.tool} (doc search '${ctx.rel || "repo"}') without prior navigation`)
-      throw new OmtBlock(navRequiredMsg())
+      throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("nav_required")}`)
     }
   },
   // AGENTS.md NEVER paths; .env* hard, README/uv.lock/LICENSE via scope=all.
@@ -198,8 +205,7 @@ async function genericImpl(gate: any, ctx: GateCtx): Promise<void> {
   const ir = loadIr()
   if (gate.requires && evalPredExpr(gate.requires, ctx, ir)) return
   if (gate.skip_ok && getActiveUnlock(ctx.session)?.type === "skip") return
-  const text = String(ir?.msgs?.[gate.msg]?.text ?? gate.msg ?? gate.id)
-    .replaceAll("{rel}", ctx.rel ?? "")
+  const text = gateMsg(String(gate.msg ?? gate.id), { rel: ctx.rel })
   if (!gate.hard) {
     await ctx.env.notify(`⚠️ OMT++ gate (${gate.id}): ${text}`)
     return
@@ -250,6 +256,71 @@ export async function runBeforeGates(
     // repo target stays with the impl, matching the pre-HDL-2 semantics).
     if (rel !== null && gate.when && !evalPredExpr(gate.when, ctx, ir)) continue
     const impl = IMPLS[gate.id] ?? genericImpl
+    if ((await impl(gate, ctx)) === "stop") return
+  }
+}
+
+// --- after-gates (improvement007 R7 / OPT-F): data-driven like the before-chain
+//
+// The root's after-hook keeps composition-only concerns (session bootstrap,
+// read-time thought injection, the raw/null path guard); the edit-tools and
+// src/**.py filters that used to live there are exactly the gates' tools=/
+// when= attrs. g.mvc's "lint failed ⇒ skip the TDD after-edit" sequencing
+// falls out of order= 60<70 plus the before-chain's "stop" adapter contract.
+// OmtBlock (mvc hard violation, tdd revert) propagates to the root un-caught
+// — the pre-R7 root's posture.
+
+type AfterImpl = (gate: any, ctx: GateCtx) => Promise<void | "stop">
+
+const AFTER_IMPLS: Record<string, AfterImpl> = {
+  // MVC++ delta gate: throws on NEW hard violations; false ⇒ the lint itself
+  // failed → stop the chain (skip g.tdd_after), the monolith's early return.
+  "g.mvc": async (_gate, ctx) =>
+    (await mvcAfterEdit(ctx.env, ctx.abs!, ctx.rel!)) === false ? "stop" : undefined,
+  // TDD after-edit: advisory + REFACTOR revert check (ir.hats via R5).
+  "g.tdd_after": async (_gate, ctx) => {
+    await tddAfterEdit(ctx.env, ctx.input, ctx.abs!, ctx.rel!)
+  },
+}
+
+// IR-missing fallback (never die open): mirrors the .omt after-gates on the
+// FIELDS the driver consumes; requires=/run= stay impl-owned (excluded).
+const FALLBACK_AFTER_GATES = [
+  { id: "g.mvc", on: "after", tools: "edit|write|patch|multiedit", when: "path_in(src/**/*.py)", msg: "mvc_new_hard", hard: true, skip_ok: false, order: 60 },
+  { id: "g.tdd_after", on: "after", tools: "edit|write|patch|multiedit", when: "path_in(src/)", msg: "tdd_revert", hard: false, skip_ok: false, order: 70 },
+]
+
+// Composition-root entry point: run every IR after-gate in order=. Every
+// after-gate is edit-targeted — a null rawEditPath means nothing to do (the
+// root keeps the raw/null guard; this is belt-and-braces for direct calls).
+export async function runAfterGates(
+  env: EnforcerEnv,
+  session: string | undefined,
+  input: any,
+  output: any,
+  rawEditPath: string | null,
+): Promise<void> {
+  if (!rawEditPath) return
+  const ir = loadIr()
+  const gates = (Array.isArray(ir?.gates) && ir.gates.length ? ir.gates : FALLBACK_AFTER_GATES)
+    .filter((g: any) => g.on === "after")
+    .sort((a: any, b: any) => a.order - b.order)
+  const tool = input?.tool ?? ""
+  const { abs, rel } = relOf(rawEditPath)
+  const ctx: GateCtx = { env, session, tool, input, output, rel, abs, memo: new Map() }
+  for (const gate of gates) {
+    const tools = String(gate.tools ?? "").split("|").filter(Boolean)
+    if (tools.length && !tools.includes(tool)) continue
+    // when= pre-filter: same semantics as the before-chain (always decisive
+    // here — rel is non-null past the rawEditPath guard above).
+    if (gate.when && !evalPredExpr(gate.when, ctx, ir)) continue
+    const impl = AFTER_IMPLS[gate.id]
+    if (!impl) {
+      // No generic after-impl: after semantics (run= deltas, fsm reverts) are
+      // impl-owned by definition — fail open, never brick the after-hook.
+      env.safeLog("warn", `after-gate ${gate.id} has no registered impl — skipped (fail open)`)
+      continue
+    }
     if ((await impl(gate, ctx)) === "stop") return
   }
 }

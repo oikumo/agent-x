@@ -26,8 +26,9 @@ export class OmtBlock extends Error {}
 
 export function createSessionState() {
   return {
-    // feature_020: sessionID -> nav/search usage
-    nav: new Map<string, { usedNav: boolean; usedSearch: boolean; searchCount: number }>(),
+    // feature_020: sessionID -> nav usage (improvement007 R6: the write-only
+    // usedSearch/searchCount instrumentation counters deleted — zero readers)
+    nav: new Map<string, { usedNav: boolean }>(),
     // feature_022 D1: sessionID -> absPaths already thought-injected (sessionless → "" bucket)
     injected: new Map<string, Set<string>>(),
     // R6 S6: sessions that already received the bootstrap injection (nav tip + TA digest)

@@ -44,7 +44,7 @@ import { execFileSync } from "node:child_process"
 // the compiled IR (irToolDescription).
 import {
   initOmtShared, thoughtsIndexPath,
-  relOf as sharedRelOf, toAbs, appendJsonl, appendLedger, THOUGHT_PATTERN,
+  relOf as sharedRelOf, toAbs, appendJsonl, appendLedger, thoughtPattern,
   grepThoughts, parseThoughtLine, foldThoughtEvents, readThoughtsIndex,
   irToolDescription,
 } from "../lib/omt_shared"
@@ -334,7 +334,7 @@ function createThinkTools() {
       const query = args?.query
       // A1: anchored base pattern (F3 prose false-positives). A4: category
       // lowercased; both filters regex-escaped before interpolation (F7).
-      let pattern = THOUGHT_PATTERN
+      let pattern = thoughtPattern()
       const cat = category ? category.trim().toLowerCase() : ""
       if (cat) pattern += "\\s*" + escapeRegex(cat) + ":"
       if (query) pattern += ".*" + escapeRegex(query)
@@ -387,7 +387,7 @@ function createThinkTools() {
         return `⛔ TA: refused — line ${lineArg} out of range (file has ${lines.length} lines).`
       }
       // A1: only real anchored thought lines are removable (prose mentions refused).
-      if (!new RegExp(THOUGHT_PATTERN).test(lines[idx])) {
+      if (!new RegExp(thoughtPattern()).test(lines[idx])) {
         return `⛔ TA: refused — line ${lineArg} is not a TA: comment:\n  ${lines[idx]}`
       }
       lines.splice(idx, 1)
@@ -433,7 +433,7 @@ function createThinkTools() {
       if (idx < 0 || idx >= lines.length) {
         return `⛔ TA: refused — line ${lineArg} out of range (file has ${lines.length} lines).`
       }
-      if (!new RegExp(THOUGHT_PATTERN).test(lines[idx])) {
+      if (!new RegExp(thoughtPattern()).test(lines[idx])) {
         return `⛔ TA: refused — line ${lineArg} is not a TA: comment:\n  ${lines[idx]}`
       }
       const parsed = parseThoughtLine(lines[idx])
@@ -536,7 +536,7 @@ function createThinkTools() {
       sites.sort((a, b) => rankOf(a.kind) - rankOf(b.kind) || a.line - b.line)
       // Coverage exclusion: a real thought line at site.line ± 1 covers the site.
       const thoughtAt = new Set<number>()
-      const rx = new RegExp(THOUGHT_PATTERN)
+      const rx = new RegExp(thoughtPattern())
       for (let i = 0; i < lines.length; i++) if (rx.test(lines[i])) thoughtAt.add(i + 1)
       const covered = sites.filter(s => thoughtAt.has(s.line - 1) || thoughtAt.has(s.line) || thoughtAt.has(s.line + 1))
       const open = sites.filter(s => !(thoughtAt.has(s.line - 1) || thoughtAt.has(s.line) || thoughtAt.has(s.line + 1)))
@@ -561,15 +561,15 @@ function createThinkTools() {
   const omt_think = tool({
     description: irToolDescription("omt_think", "TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?)."),
     args: {
-      op: tool.schema.string().describe("add | list | remove | verify | suggest"),
-      path: tool.schema.string().optional().describe("repo-relative file (add: must exist; list: restrict scope; suggest: .py)"),
-      thought: tool.schema.string().optional().describe("op=add: thought text (single line; newlines stripped)"),
-      line: tool.schema.number().optional().describe("add: insert AFTER line (default EOF) · remove/verify: TA: line"),
-      after: tool.schema.string().optional().describe("op=add: literal substring anchor (unique match)"),
-      symbol: tool.schema.string().optional().describe("op=add: definition-name anchor (.py def/class; .ts/.js function/class/const)"),
+      op: tool.schema.string().describe("add|list|remove|verify|suggest"),
+      path: tool.schema.string().optional().describe("repo-relative file (add: must exist; suggest: .py)"),
+      thought: tool.schema.string().optional().describe("add: thought text (single line; newlines stripped)"),
+      line: tool.schema.number().optional().describe("add: insert AFTER (default EOF) · remove/verify: TA: line"),
+      after: tool.schema.string().optional().describe("add: unique literal substring anchor"),
+      symbol: tool.schema.string().optional().describe("add: def-name anchor (.py def/class; .ts/.js function/class/const)"),
       category: tool.schema.string().optional().describe("add: gotcha|why|risk|xref|todo|... · list: filter"),
-      query: tool.schema.string().optional().describe("op=list: substring filter"),
-      top: tool.schema.number().optional().describe("op=suggest: max sites (default 5, clamped 1..20)"),
+      query: tool.schema.string().optional().describe("list: substring filter"),
+      top: tool.schema.number().optional().describe("suggest: max sites (default 5, max 20)"),
     },
     async execute(args, context) {
       switch (args?.op ?? "add") {

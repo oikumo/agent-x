@@ -10,7 +10,7 @@
 import { tool } from "@opencode-ai/plugin"
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { resolveFeatureDir, globToRegex, irToolDescription } from "../omt_shared"
+import { resolveFeatureDir, globToRegex, irToolDescription, phaseTransitions, tddAutoOn, gateMsg } from "../omt_shared"
 import {
   OmtBlock, writeLedger, readLedger, getActiveUnlock, getActiveFeaturePhase, type EnforcerEnv,
 } from "./session_state"
@@ -23,13 +23,9 @@ const VALID_TASK_TYPES = new Set([
 // Task types that may not touch src/ until a design artifact exists on disk (guide §12).
 const ARTIFACT_REQUIRED = new Set(["major_feature", "new_screen"])
 
-// Valid phase transitions per guide §12
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  Analysis: ["Design", "Testing"],
-  Design: ["Programming", "Analysis"],
-  Programming: ["Testing", "Design", "Analysis"],
-  Testing: ["Analysis", "Design", "Programming", "Done"],
-}
+// Valid phase transitions per guide §12: .omt @fsm phase transitions= is the
+// FUNCTIONAL source (improvement007/OPT-E), resolved per call through the
+// shared lib's phaseTransitions() (the pinned IR-missing fallback lives there).
 
 // Phase exit requirements per guide §12 — only enforced for ARTIFACT_REQUIRED task types
 const PHASE_EXIT_REQUIREMENTS: Record<string, { phase: string; patterns: string[]; description: string }[]> = {
@@ -136,17 +132,8 @@ function resolveArtifact(env: EnforcerEnv, record: any): string | null {
 const artifactPresent = (env: EnforcerEnv, record: any): boolean => !!resolveArtifact(env, record)
 
 // --- teaching messages ---------------------------------------------------
-const noPhaseMsg = (rel: string) =>
-  `⛔ OMT++ gate: declare your OMT++ phase before editing src/ ('${rel}'). ` +
-  `Run omt_phase{ task_type, scope } first (guide §2, §13). ` +
-  `Trivial fix? omt_phase{task_type:"bug_fix", scope:"..."} is enough. To override: omt_skip{reason:"..."}.`
-
-const artifactMsg = (tt: string, record: any) =>
-  `⛔ OMT++ gate: task_type '${tt}' may not edit src/ until a design artifact exists ` +
-  `(guide §12). The gate auto-detects one under 4.design/features/feature_<n>/ from your ` +
-  `feature slug ('${record.feature || "<none declared>"}'), or you can pass ` +
-  `omt_phase{..., design_doc:"<path>"}. Scaffold one with: ` +
-  `uv run scripts/omt/new_feature.py "<name>" --type ${tt}.`
+// improvement007 R8/OPT-G: block texts resolve from the IR @msg records via
+// gateMsg ({rel}/{tt}/{feature} interpolated per call) — .omt-only edits.
 
 // --- before-hook src/ gate -------------------------------------------------
 // Phase declaration required; ARTIFACT_REQUIRED task types additionally need a
@@ -159,11 +146,11 @@ export async function guardSrcPath(
   abs: string,
 ): Promise<void> {
   const unlock = getActiveUnlock(session)
-  if (!unlock) throw new OmtBlock(noPhaseMsg(rel))
+  if (!unlock) throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("no_phase", { rel })}`)
   if (unlock.type === "phase") {
     const tt = unlock.record.task_type
     if (ARTIFACT_REQUIRED.has(tt) && !artifactPresent(env, unlock.record)) {
-      throw new OmtBlock(artifactMsg(tt, unlock.record))
+      throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("artifact", { tt, feature: unlock.record.feature || "<none declared>" })}`)
     }
   }
   // TDD gate: if TDD mode active, check two-hats state
@@ -180,15 +167,12 @@ export function createPhaseTools(env: EnforcerEnv) {
   const omt_phase = tool({
     description: irToolDescription("omt_phase", "Declare phase before src/ edits (task_type/scope → ledger; §12 unlock matrix)."),
     args: {
-      task_type: tool.schema.string().describe(
-        "one of: bug_fix, minor_feature, major_feature, new_screen, refactor, test, docs"),
+      task_type: tool.schema.string().describe("bug_fix|minor_feature|major_feature|new_screen|refactor|test|docs"),
       scope: tool.schema.string().describe("one sentence describing what 'done' looks like"),
-      phase: tool.schema.string().optional().describe("Analysis | Design | Programming | Testing"),
+      phase: tool.schema.string().optional().describe("Analysis|Design|Programming|Testing"),
       feature: tool.schema.string().optional().describe("feature slug, e.g. feature_006.x"),
-      design_doc: tool.schema.string().optional().describe(
-        "repo-relative path to the design/analysis artifact (required for major_feature/new_screen)"),
-      tdd: tool.schema.boolean().optional().describe(
-        "activate TDD enforcement for Programming phase (auto-on for major_feature/new_screen)"),
+      design_doc: tool.schema.string().optional().describe("design artifact path (required for major_feature/new_screen)"),
+      tdd: tool.schema.boolean().optional().describe("TDD for Programming (auto-on major_feature/new_screen)"),
     },
     async execute(args, context) {
       const tt = String(args.task_type || "").trim()
@@ -216,7 +200,7 @@ export function createPhaseTools(env: EnforcerEnv) {
         }
       }
 
-      const tddMode = args.tdd === true || (ARTIFACT_REQUIRED.has(tt) && args.phase === "Programming")
+      const tddMode = args.tdd === true || tddAutoOn(tt, args.phase || "")
       writeLedger({
         kind: "phase", session, task_type: tt, phase: args.phase || "",
         scope: args.scope || "", feature: args.feature || "", design_doc: args.design_doc || "",
@@ -246,7 +230,7 @@ export function createPhaseTools(env: EnforcerEnv) {
     description: irToolDescription("omt_skip", "Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all (default all)."),
     args: {
       reason: tool.schema.string().describe("why the process is being skipped"),
-      scope: tool.schema.string().optional().describe("src | tests | nav | all (default: all)"),
+      scope: tool.schema.string().optional().describe("src|tests|nav|all (default all)"),
     },
     async execute(args, context) {
       const session = context?.sessionID || undefined
@@ -270,7 +254,7 @@ export function createPhaseTools(env: EnforcerEnv) {
     description: irToolDescription("omt_complete", "Verify phase artifacts; optionally advance (Design|Programming|Testing|Done)."),
     args: {
       feature: tool.schema.string().describe("feature slug, e.g. feature_006.x"),
-      advance_to: tool.schema.string().optional().describe("optional: phase to advance to after verification (Design | Programming | Testing | Done)"),
+      advance_to: tool.schema.string().optional().describe("phase after verification (Design|Programming|Testing|Done)"),
     },
     async execute(args, context) {
       const session = context?.sessionID || undefined
@@ -339,7 +323,7 @@ export function createPhaseTools(env: EnforcerEnv) {
 
       // Advance to next phase if requested
       if (advanceTo) {
-        const validNext = VALID_TRANSITIONS[currentPhase] || []
+        const validNext = phaseTransitions()[currentPhase] || []
         if (!validNext.includes(advanceTo)) {
           return result + `\n⚠️ Invalid transition: ${currentPhase} → ${advanceTo}. Valid: ${validNext.join(", ")}`
         }

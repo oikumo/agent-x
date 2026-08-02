@@ -8,6 +8,7 @@ Extracted from the former monolithic scripts/omt/tdd_check.py:
 """
 from __future__ import annotations
 
+import json
 import time
 
 from .ast_checks import (
@@ -32,7 +33,13 @@ from .state import (
 )
 
 # Two-hats gate rules: {state: {src: bool, tests: bool}}
-HAT_RULES: dict[str, dict[str, bool]] = {
+# improvement007 R5/OPT-E: the .omt @hat records are the single source — when
+# the compiled IR is present, HAT_RULES/HAT_REVERT_ON are DERIVED from ir.hats
+# at module load (allow "tests/"→tests-only, "src/"→src-only, ""→no edits; the
+# engine-local "none" state is appended). The literals stay as the no-IR
+# fallback (pre-build checkout); pinned ≡ ir.hats-derived in test_tdd_check.py
+# (mirror of the R4 TS FALLBACK_* pins; pattern precedent: state._ir_var_int).
+_FALLBACK_HAT_RULES: dict[str, dict[str, bool]] = {
     "testlist": {"src": False, "tests": False},
     "red": {"src": False, "tests": True},      # test hat
     "green": {"src": True, "tests": False},     # code hat
@@ -40,6 +47,47 @@ HAT_RULES: dict[str, dict[str, bool]] = {
     "done": {"src": False, "tests": False},
     "none": {"src": True, "tests": True},       # TDD not active
 }
+
+_FALLBACK_HAT_REVERT_ON: dict[str, str] = {
+    "testlist": "",
+    "red": "",
+    "green": "",
+    "refactor": "tests_break",
+    "done": "",
+}
+
+
+def _ir_hats() -> dict[str, dict[str, str]] | None:
+    """Best-effort read of ir.hats; None (missing/corrupt IR) → literals win."""
+    try:
+        ir = json.loads(
+            (REPO_ROOT / ".meta" / ".omt" / "harness.ir.json").read_text(encoding="utf-8")
+        )
+        return ir.get("hats") or None
+    except (OSError, ValueError):
+        return None
+
+
+def _derive_hat_rules(hats: dict[str, dict[str, str]]) -> dict[str, dict[str, bool]]:
+    rules = {
+        rid.split(".", 1)[-1]: {
+            "src": hat.get("allow", "") == "src/",
+            "tests": hat.get("allow", "") == "tests/",
+        }
+        for rid, hat in hats.items()
+    }
+    rules["none"] = {"src": True, "tests": True}  # engine-local, not in IR
+    return rules
+
+
+_IR_HATS = _ir_hats()
+HAT_RULES: dict[str, dict[str, bool]] = (
+    _derive_hat_rules(_IR_HATS) if _IR_HATS else _FALLBACK_HAT_RULES
+)
+HAT_REVERT_ON: dict[str, str] = (
+    {rid.split(".", 1)[-1]: hat.get("revert_on", "") for rid, hat in _IR_HATS.items()}
+    if _IR_HATS else _FALLBACK_HAT_REVERT_ON
+)
 
 
 def cmd_gate(args) -> dict:
@@ -63,7 +111,7 @@ def cmd_gate(args) -> dict:
 def cmd_after_edit(args) -> dict:
     state = get_tdd_state(args.session)
 
-    if state == "refactor":
+    if HAT_REVERT_ON.get(state) == "tests_break":
         test_node = get_current_test_node(args.session)
         if test_node:
             exit_code, _stdout, stderr = run_pytest(test_node, timeout=30)

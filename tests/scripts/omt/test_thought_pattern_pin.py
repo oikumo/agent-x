@@ -61,9 +61,9 @@ def test_thought_pattern_single_source_in_shared_lib() -> None:
         # R2: plugins import as "../lib/omt_shared"; lib/enforcer/* modules
         # (one dir deeper, inside lib/) import as "../omt_shared".
         assert re.search(
-            r'import\s*\{[^}]*\bTHOUGHT_PATTERN\b[^}]*\}\s*from\s*"(?:\.\./lib/|\.\./)omt_shared"',
+            r'import\s*\{[^}]*\b(?:THOUGHT_PATTERN|thoughtPattern)\b[^}]*\}\s*from\s*"(?:\.\./lib/|\.\./)omt_shared"',
             src, re.DOTALL,
-        ), f"{plugin} must import THOUGHT_PATTERN from {LIB}"
+        ), f"{plugin} must import THOUGHT_PATTERN/thoughtPattern from {LIB}"
 
 
 def _eval_int_expr(expr: str) -> int:
@@ -176,3 +176,21 @@ def test_ledger_access_goes_through_rotation_aware_helpers() -> None:
                 offenders.append(str(path.relative_to(REPO_ROOT)))
     assert not offenders, (
         f"raw ledger access bypassing the R4 rotation helpers: {offenders}")
+
+
+def test_thought_pattern_fallback_matches_omt_var() -> None:
+    """improvement007/OPT-E: the lib's THOUGHT_PATTERN fallback literal must
+    equal .omt @var thought_pattern — the FUNCTIONAL single source the TS
+    runtime resolves per call via thoughtPattern() (never-die-open heritage,
+    mirrors the UNLOCK_WINDOW_MS/LEDGER_CAP_BYTES pins above)."""
+    lib_src = (REPO_ROOT / LIB).read_text(encoding="utf-8")
+    m = re.search(r'THOUGHT_PATTERN = "((?:[^"\\]|\\.)*)"', lib_src)
+    assert m, f"THOUGHT_PATTERN definition not found in {LIB}"
+    ts_val = m.group(1).replace("\\\\", "\\")
+    omt_src = (REPO_ROOT / OMT).read_text(encoding="utf-8")
+    m2 = re.search(r"^@var thought_pattern : (.+)$", omt_src, re.MULTILINE)
+    assert m2, f"@var thought_pattern not found in {OMT}"
+    assert ts_val == m2.group(1).strip(), (
+        f"THOUGHT_PATTERN drift: {LIB}={ts_val!r} {OMT}={m2.group(1).strip()!r} "
+        "— edit the .omt, run harnessc.py build, and update the fallback "
+        "in the same commit")

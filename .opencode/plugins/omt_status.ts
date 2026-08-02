@@ -15,19 +15,16 @@ import { execSync } from "node:child_process"
 import {
   initOmtShared, repoRoot, workMdPath, designRoot,
   readLedger as sharedReadLedger, resolveFeatureDir, globToRegex, UNLOCK_WINDOW_MS,
-  irToolDescription,
+  irToolDescription, phaseTransitions,
 } from "../lib/omt_shared"
 
 const VALID_PHASES = ["Analysis", "Design", "Programming", "Testing"]
 const VALID_TASK_TYPES = ["bug_fix", "minor_feature", "major_feature", "new_screen", "refactor", "test", "docs"]
 const ARTIFACT_REQUIRED = new Set(["major_feature", "new_screen"])
 
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  Analysis: ["Design", "Testing"],
-  Design: ["Programming", "Analysis"],
-  Programming: ["Testing", "Design", "Analysis"],
-  Testing: ["Analysis", "Design", "Programming", "Done"],
-}
+// Valid phase transitions per guide §12: resolved through the shared lib's
+// phaseTransitions() — .omt @fsm phase transitions= is the FUNCTIONAL source
+// (improvement007/OPT-E; the hand mirror here is deleted).
 
 interface LedgerRecord {
   ts: string
@@ -208,8 +205,7 @@ function createStatusTool() {
   return tool({
     description: irToolDescription("omt_status", "Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task."),
     args: {
-      include_ledger: tool.schema.boolean().optional().describe(
-        "Include the last five phase/skip ledger entries in the visible output and metadata. Default: false."),
+      include_ledger: tool.schema.boolean().optional().describe("include last 5 phase/skip ledger entries"),
     },
     async execute(args, context) {
       const sessionId = context?.sessionID
@@ -251,7 +247,7 @@ function createStatusTool() {
       // improvement006/OPT-E bug 2: Done has no outgoing transitions — a
       // completed cycle restarts at Analysis, so offer the full phase set.
       const nextPhases = currentPhase !== "None" && currentPhase !== "Unknown"
-        ? VALID_TRANSITIONS[currentPhase] ?? ["Analysis", "Design", "Programming", "Testing"]
+        ? phaseTransitions()[currentPhase] ?? ["Analysis", "Design", "Programming", "Testing"]
         : ["Analysis", "Design", "Programming", "Testing"]
 
       const featureHealth: Record<string, any> = {}
