@@ -15,6 +15,7 @@ from agentx.ui.interfaces import IReactView
 
 
 class ConsoleReactView(IReactView):
+# TA: gotcha: BUG (feature_024): ConsoleReactView missing 6 streaming callbacks (show_thinking, show_tool_call, show_tool_result, show_answer_chunk, show_answer_final, show_error) — ReactController streaming silently no-ops. Added in bug_fix phase.
     """Console-based ReAct view (REPL loop + token streaming)."""
 
     def __init__(self, controller: Any) -> None:
@@ -40,3 +41,29 @@ class ConsoleReactView(IReactView):
 
     def print_error(self, message: str) -> None:
         self.console.error(message)
+
+    # --- Streaming callbacks (feature_024 bug fix) ---
+
+    def show_thinking(self, text: str) -> None:
+        """Display reasoning/thinking from the agent."""
+        self.console.info(f"💭 {text}")
+
+    def show_tool_call(self, name: str, args: str) -> None:
+        """Display a tool call."""
+        self.console.info(f"🔧 {name}({args})")
+
+    def show_tool_result(self, name: str, result: str) -> None:
+        """Display a tool result."""
+        self.console.info(f"📊 {result}")
+
+    def show_answer_chunk(self, text: str) -> None:
+        """Display a streaming answer chunk."""
+        self.console.stream_write(text)
+
+    def show_answer_final(self) -> None:
+        """Finalize the streaming answer."""
+        pass  # No state to reset in console mode
+
+    def show_error(self, text: str) -> None:
+        """Display an error message."""
+        self.console.error(f"⚠️ {text}")

@@ -15,6 +15,7 @@ from agentx.ui.interfaces import IFastAgentView
 
 
 class ConsoleFastAgentView(IFastAgentView):
+# TA: gotcha: BUG (feature_024): ConsoleFastAgentView missing show_memory_view required by IAgentViewPartner — m9 isinstance check fails. Added in bug_fix phase.
     """Console-based Fast Agent view (single-turn loop + cycle summary)."""
 
     def __init__(self, controller: Any) -> None:
@@ -36,3 +37,54 @@ class ConsoleFastAgentView(IFastAgentView):
 
     def print_error(self, message: str) -> None:
         self.console.error(message)
+
+    # --- Additional methods for AgentController compatibility ---
+
+    def show_status(self, status: Any) -> None:
+        """Display agent status."""
+        if isinstance(status, dict):
+            self.console.info(
+                f"Agent: {status.get('name', '?')} | "
+                f"state: {status.get('state', '?')} | "
+                f"goals: {status.get('goals', 0)} | "
+                f"rules: {status.get('rules', 0)} | "
+                f"tools: {status.get('tools', 0)}"
+            )
+        else:
+            self.console.info(str(status))
+
+    def refresh_goal_tree(self) -> None:
+        """Refresh the goal tree display (no-op for console)."""
+        pass
+
+    def show_reflection_log(self, entries: list) -> None:
+        """Display reflection log entries."""
+        for entry in entries:
+            critique = getattr(entry, 'critique', None)
+            if critique:
+                summary = getattr(critique, 'summary', 'N/A')
+                self.console.info(f"Reflection: {summary}")
+            else:
+                self.console.info("Reflection: (no critique)")
+
+    def show_policy_editor(self, rules: list) -> None:
+        """Display policy editor (no-op for console)."""
+        pass
+
+    def show_message(self, message: str, role: str = "assistant") -> None:
+        """Show a complete message."""
+        self.console.info(f"[{role}] {message}")
+
+    def show_partial_message(self, message: str) -> None:
+        """Show partial (streaming) message."""
+        self.console.stream_write(message)
+
+    def show_stream_message(self, message: str) -> None:
+        """Stream message with typing effect."""
+        self.console.info(message)
+
+    # --- IAgentViewPartner contract (feature_024 bug fix) ---
+
+    def show_memory_view(self, query: Any) -> None:
+        """Search/show memory entries (no-op for console)."""
+        pass

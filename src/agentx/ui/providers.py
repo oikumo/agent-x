@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from agentx.ui.interfaces import IMainView, IChatView, IRagView, IUIProvider, IModelsView, IReactView, ICodingView, IAgentView, IFastAgentView
 
 if TYPE_CHECKING:
-    from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner, IModelsViewPartner, IConsoleReactViewPartner, IConsoleCodingViewPartner, IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
+    from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner, IModelsViewPartner, IReactViewPartner, ICodingViewPartner, IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
 
 
 class ProviderRegistry:
@@ -126,7 +126,7 @@ class ConsoleProvider(IUIProvider):
 
     # --- Console parity methods (feature_024) ---
 
-    def create_react_view(self, controller: "IConsoleReactViewPartner") -> IReactView:
+    def create_react_view(self, controller: "IReactViewPartner") -> IReactView:
         """Create console-based ReAct view.
         
         Args:
@@ -138,7 +138,7 @@ class ConsoleProvider(IUIProvider):
         from agentx.ui.screens.react.react_view import ConsoleReactView
         return ConsoleReactView(controller)  # type: ignore
 
-    def create_coding_view(self, controller: "IConsoleCodingViewPartner") -> ICodingView:
+    def create_coding_view(self, controller: "ICodingViewPartner") -> ICodingView:
         """Create console-based Coding view.
         
         Args:

@@ -24,13 +24,12 @@ from agentx.ui.interfaces import (
     IAgentView,
     ICodingView,
     IConsoleAgentViewPartner,
-    IConsoleCodingViewPartner,
     IConsoleFastAgentViewPartner,
-    IConsoleReactViewPartner,
     IFastAgentView,
     IModelsView,
     IModelsViewPartner,
     IReactView,
+    IReactViewPartner,
     IUIProvider,
 )
 from agentx.ui.providers import ConsoleProvider
@@ -71,6 +70,22 @@ class TestConsoleProviderFactories(TestCase):
         view = self.provider.create_fast_agent_view(MagicMock())
         assert isinstance(view, ConsoleFastAgentView)
         assert isinstance(view, IFastAgentView)
+
+    def test_create_react_view_accepts_ireactviewpartner(self) -> None:
+        """ConsoleProvider.create_react_view accepts IReactViewPartner (not IConsoleReactViewPartner)."""
+        from agentx.ui.interfaces import IReactViewPartner
+        mock_controller = MagicMock(spec=IReactViewPartner)
+        view = self.provider.create_react_view(mock_controller)
+        assert isinstance(view, ConsoleReactView)
+        assert isinstance(view, IReactView)
+
+    def test_create_coding_view_accepts_icodingviewpartner(self) -> None:
+        """ConsoleProvider.create_coding_view accepts ICodingViewPartner (not IConsoleCodingViewPartner)."""
+        from agentx.ui.interfaces import ICodingViewPartner
+        mock_controller = MagicMock(spec=ICodingViewPartner)
+        view = self.provider.create_coding_view(mock_controller)
+        assert isinstance(view, ConsoleCodingView)
+        assert isinstance(view, ICodingView)
 
 
 class TestConsoleCodingView(TestCase):
@@ -178,20 +193,116 @@ class TestConsoleParityInterfaces(TestCase):
             "IModelsViewPartner",
             "IAgentView",
             "IFastAgentView",
-            "IConsoleReactViewPartner",
-            "IConsoleCodingViewPartner",
             "IConsoleAgentViewPartner",
             "IConsoleFastAgentViewPartner",
         ):
             assert hasattr(interfaces, name), f"interfaces missing {name}"
 
+    def test_console_react_coding_partners_deleted(self) -> None:
+        """IConsoleReactViewPartner and IConsoleCodingViewPartner are deleted (Alt A)."""
+        import agentx.ui.interfaces as interfaces
+        assert not hasattr(interfaces, "IConsoleReactViewPartner"), (
+            "IConsoleReactViewPartner should be deleted per Alt A"
+        )
+        assert not hasattr(interfaces, "IConsoleCodingViewPartner"), (
+            "IConsoleCodingViewPartner should be deleted per Alt A"
+        )
+
     def test_partner_interfaces_are_referenced_by_views(self) -> None:
         """Sanity: partner ABCs import cleanly alongside the views."""
+        from agentx.ui.interfaces import (
+            IConsoleAgentViewPartner,
+            IConsoleFastAgentViewPartner,
+            IModelsViewPartner,
+        )
+
         for partner in (
-            IConsoleReactViewPartner,
-            IConsoleCodingViewPartner,
             IConsoleAgentViewPartner,
             IConsoleFastAgentViewPartner,
             IModelsViewPartner,
         ):
             assert hasattr(partner, "__abstractmethods__")
+
+
+class TestConsoleReactViewStreaming(TestCase):
+    """ConsoleReactView implements all 6 streaming callbacks."""
+
+    def setUp(self) -> None:
+        self.controller = MagicMock()
+        self.view = ConsoleReactView(self.controller)
+        self.view.console = MagicMock()
+
+    def test_show_thinking_exists_and_calls_console_info(self) -> None:
+        self.view.show_thinking("reasoning text")
+        self.view.console.info.assert_called_once()
+        args = self.view.console.info.call_args[0][0]
+        assert "reasoning text" in args
+
+    def test_show_tool_call_exists_and_calls_console_info(self) -> None:
+        self.view.show_tool_call("tool_name", '{"arg": "value"}')
+        self.view.console.info.assert_called_once()
+        args = self.view.console.info.call_args[0][0]
+        assert "tool_name" in args
+
+    def test_show_tool_result_exists_and_calls_console_info(self) -> None:
+        self.view.show_tool_result("tool_name", "result output")
+        self.view.console.info.assert_called_once()
+        args = self.view.console.info.call_args[0][0]
+        assert "result output" in args
+
+    def test_show_answer_chunk_exists_and_calls_stream_write(self) -> None:
+        self.view.show_answer_chunk("token")
+        self.view.console.stream_write.assert_called_once_with("token")
+
+    def test_show_answer_final_exists_and_resets_state(self) -> None:
+        self.view.show_answer_final()
+        # Just verify it's callable without error
+        pass
+
+    def test_show_error_exists_and_calls_console_error(self) -> None:
+        self.view.show_error("error message")
+        self.view.console.error.assert_called_once()
+        args = self.view.console.error.call_args[0][0]
+        assert "error message" in args
+
+
+class TestConsoleCodingViewStreaming(TestCase):
+    """ConsoleCodingView implements all 6 streaming callbacks."""
+
+    def setUp(self) -> None:
+        self.controller = MagicMock()
+        self.view = ConsoleCodingView(self.controller)
+        self.view.console = MagicMock()
+
+    def test_show_thinking_exists_and_calls_console_info(self) -> None:
+        self.view.show_thinking("reasoning text")
+        self.view.console.info.assert_called_once()
+        args = self.view.console.info.call_args[0][0]
+        assert "reasoning text" in args
+
+    def test_show_tool_call_exists_and_calls_console_info(self) -> None:
+        self.view.show_tool_call("tool_name", '{"arg": "value"}')
+        self.view.console.info.assert_called_once()
+        args = self.view.console.info.call_args[0][0]
+        assert "tool_name" in args
+
+    def test_show_tool_result_exists_and_calls_console_info(self) -> None:
+        self.view.show_tool_result("tool_name", "result output")
+        self.view.console.info.assert_called_once()
+        args = self.view.console.info.call_args[0][0]
+        assert "result output" in args
+
+    def test_show_answer_chunk_exists_and_calls_stream_write(self) -> None:
+        self.view.show_answer_chunk("token")
+        self.view.console.stream_write.assert_called_once_with("token")
+
+    def test_show_answer_final_exists_and_resets_state(self) -> None:
+        self.view.show_answer_final()
+        # Just verify it's callable without error
+        pass
+
+    def test_show_error_exists_and_calls_console_error(self) -> None:
+        self.view.show_error("error message")
+        self.view.console.error.assert_called_once()
+        args = self.view.console.error.call_args[0][0]
+        assert "error message" in args

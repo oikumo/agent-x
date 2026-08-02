@@ -86,7 +86,7 @@
 - **Effort**: S. **Type**: bug-ward refactor.
 
 ## OPT-I — Fix the evolution-loop prompt itself (meta-meta repair) ⚠️ re-verified TODAY
-- **What**: update `prompts/loops/meta_harness_evolution.md`: path `./sandbox/` → `.sandbox/`;
+- **What**: update `../../../workflows/meta_harness/loops/meta_harness_evolution.md`: path `./sandbox/` → `.sandbox/`;
   step 7 → "regenerate projections from `.meta/META_HARNESS.omt` (harnessc build) and append a
   dated note to the retired `.meta/META_HARNESS.md` stub". Optionally add a `@flow meta.evolution`
   record so future runs are discoverable via omt_quick_ref (absorbs finding F4).

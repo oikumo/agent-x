@@ -164,7 +164,7 @@ class IUIProvider(ABC):
     # --- New methods for console parity (feature_024) ---
 
     @abstractmethod
-    def create_react_view(self, controller: "IConsoleReactViewPartner") -> "IReactView":
+    def create_react_view(self, controller: "IReactViewPartner") -> "IReactView":
         """Create ReAct view implementation.
         
         Args:
@@ -176,7 +176,7 @@ class IUIProvider(ABC):
         pass
 
     @abstractmethod
-    def create_coding_view(self, controller: "IConsoleCodingViewPartner") -> "ICodingView":
+    def create_coding_view(self, controller: "ICodingViewPartner") -> "ICodingView":
         """Create Coding view implementation.
         
         Args:
@@ -490,36 +490,6 @@ class IReactView(ABC):
         pass
 
 
-class IConsoleReactViewPartner(ABC):
-    """Abstract partner for ReAct View (implemented by ReactController) — console mode."""
-
-    @abstractmethod
-    def process_user_message(self, user_message: str) -> bool:
-        """Process a user message in ReAct mode."""
-        pass
-
-    @abstractmethod
-    def close(self) -> None:
-        """Close the view."""
-        pass
-
-    @property
-    @abstractmethod
-    def is_running(self) -> bool:
-        """Whether the agent is currently running."""
-        pass
-
-    @abstractmethod
-    def get_history(self) -> list:
-        """Get the conversation message history."""
-        pass
-
-    @abstractmethod
-    def start_new_conversation(self) -> None:
-        """Start a new conversation (reset thread)."""
-        pass
-
-
 class ICodingView(ABC):
     """Abstract interface for Coding View (console parity)."""
 
@@ -546,36 +516,6 @@ class ICodingView(ABC):
     @abstractmethod
     def print_error(self, message: str) -> None:
         """Show error message."""
-        pass
-
-
-class IConsoleCodingViewPartner(ABC):
-    """Abstract partner for Coding View (implemented by CodingController) — console mode."""
-
-    @abstractmethod
-    def process_user_message(self, user_message: str) -> bool:
-        """Process a user message in Coding mode."""
-        pass
-
-    @abstractmethod
-    def close(self) -> None:
-        """Close the view."""
-        pass
-
-    @property
-    @abstractmethod
-    def is_running(self) -> bool:
-        """Whether the agent is currently running."""
-        pass
-
-    @abstractmethod
-    def get_history(self) -> list:
-        """Get the conversation message history."""
-        pass
-
-    @abstractmethod
-    def start_new_conversation(self) -> None:
-        """Start a new conversation (reset thread)."""
         pass
 
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from agentx.agent.interfaces import IAgentViewPartner
+from agentx.ui.interfaces import IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
 from agentx.agent.model.agent import Agent
 from agentx.agent.types import (
     ActionType,
@@ -28,6 +29,7 @@ from agentx.agent.types import (
 
 
 class AgentController:
+# TA: gotcha: BUG (feature_024): AgentController has all IConsoleAgentViewPartner/IConsoleFastAgentViewPartner methods but doesn't inherit/register as virtual subclass — isinstance(controller, IConsoleAgentViewPartner) == False. Fix in bug_fix (Alt A: register virtual subclass or delete ABCs).
     """Mediates View ↔ Agent interactions."""
 
     def __init__(self, agent: Agent) -> None:
@@ -177,6 +179,52 @@ class AgentController:
             "pending_proposals": len(pending),
         }
 
+    # ----------------------------------------------------------- console parity (feature_024)
+    # Implements IConsoleAgentViewPartner / IConsoleFastAgentViewPartner
+
+    def send_message(self, user_message: str) -> bool:
+        """Send a user message to the Agent (console parity).
+
+        Submits the message as a USER_OBJECTIVE goal and runs one cycle.
+        Returns False if the agent is currently busy (not in PERCEIVING state).
+        """
+        if self._agent.state != AgentState.PERCEIVING:
+            return False
+
+        # Submit user message as a goal
+        self.submit_goal(user_message, goal_type=GoalType.USER_OBJECTIVE)
+
+        # Run one cycle to process the goal
+        self.run_cycle()
+        return True
+
+    def cancel(self) -> None:
+        """Cancel an in-progress agent run (no-op for AgentController).
+
+        The Agent runs synchronously in the caller's thread; nothing to cancel.
+        """
+        pass
+
+    @property
+    def is_running(self) -> bool:
+        """Whether the agent is currently running a cycle."""
+        return self._agent.state != AgentState.PERCEIVING
+
+    def get_history(self) -> list:
+        """Get the conversation message history (from reflection log)."""
+        return self._agent.reflection_engine.get_log()
+
+    def close(self) -> None:
+        """Close the controller (no-op for AgentController)."""
+        pass
+
+    def start_new_conversation(self) -> None:
+        """Start a new conversation (reset thread/state)."""
+        self._agent.clear_state()
+        if self._view:
+            getattr(self._view, "show_status", lambda _: None)(self._agent.get_status())
+            getattr(self._view, "refresh_goal_tree", lambda: None)()
+
     # ----------------------------------------------------------- query ops (N6)
     #  The view calls these instead of reaching into the Agent's model
     #  internals (goal_manager, policy_engine, memory) directly.
@@ -294,3 +342,9 @@ class AgentController:
             "description": scenario.description,
             "files": list(scenario.files),
         }
+
+
+# Virtual subclass registration for console parity interfaces (feature_024)
+# These ABCs declare the console partner contract; AgentController implements all methods.
+IConsoleAgentViewPartner.register(AgentController)
+IConsoleFastAgentViewPartner.register(AgentController)
