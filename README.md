@@ -37,7 +37,7 @@
 - 🤖 **Intelligent Agent** - Autonomous perceive→decide→act→reflect cycle with tool registry, policy DSL engine, and self-improvement loop
 - 🧠 **Petri Net Sessions** - Graph-based session/user objective management
 - 🔌 **LangChain/LangGraph** - Full integration for agentic workflows
-- 🧪 **1080+ Tests** - Comprehensive unit + integration + automated TUI tests
+- 🧪 **1100+ Tests** - Comprehensive unit + integration + automated TUI tests
 
 Developed with **opencode** using the **META HARNESS** (OMT++ methodology: Analysis → Design → Programming → Testing with visible artifacts).
 
@@ -66,21 +66,21 @@ agentx is developed with **opencode** using a mechanically enforced **META HARNE
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | **Documentation Structure** | `.meta/` | All development artifacts organized by OMT++ phases |
-| **Enforcement Plugin** | `.opencode/plugin/omt_enforcer.ts` | Gates `src/` edits; requires phase declarations, design artifacts, nav-gate + think-gate enforcement |
-| **Status Tool** | `.opencode/plugin/omt_status.ts` | Returns current phase, unlock state, artifact status, TDD state |
-| **Navigation Plugin** | `.opencode/plugin/omt_nav.ts` | feature_020: structured doc navigation (`omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`) |
-| **Think Anywhere Plugin** | `.opencode/plugin/omt_think.ts` | feature_021: persistent inline `TA:` thought-tags (`omt_think`, `omt_think_list`, `omt_think_remove`) + session digest |
+| **Enforcement Plugin** | `.opencode/plugins/omt_enforcer.ts` + `.opencode/lib/enforcer/` | Composition root + 7 gate modules driven by `gate_driver.ts` (HDL-2): an IR-ordered chain of 8 gates whose order, triggers, predicates, and messages are pure `.omt` declarations |
+| **Status Tool** | `.opencode/plugins/omt_status.ts` | Returns current phase, unlock state, artifact status, TDD state (compact ~350 B/call) |
+| **Navigation Plugin** | `.opencode/plugins/omt_nav.ts` | feature_020: structured doc navigation via ONE consolidated tool — `omt_nav{op:nav\|list_sections\|cross_ref\|quick_ref}` |
+| **Think Anywhere Plugin** | `.opencode/plugins/omt_think.ts` | feature_021/022: persistent inline `TA:` thought-tags via ONE consolidated tool — `omt_think{op:add\|list\|remove\|verify\|suggest}` — + session digest |
 | **MVC++ Linter** | `scripts/omt/mvc_check.py` | Architecture checker for layer violations (View↔Model leaks, SQL outside DP, etc.) |
-| **TDD Engine** | `scripts/omt/tdd_check.py` + `omt_*` tools | Mechanically enforces Red→Green→Refactor cycles (two-hats gate) |
+| **TDD Engine** | `scripts/omt/tdd_check.py` + `omt_tdd` tool | Mechanically enforces Red→Green→Refactor cycles (two-hats gate) |
 | **Feature Scaffold** | `scripts/omt/new_feature.py` | Creates consistently-named feature directories from templates |
 | **Harness DSL (source of truth)** | `.meta/META_HARNESS.omt` | OMT-HDL v1: every rule, gate, tool, constant, and budget declared as records in ONE file |
-| **Harness Compiler** | `scripts/omt/harnessc.py` | Projects the DSL → `AGENTS.md`, `opencode.jsonc` blocks, plugin IR, nav index; drift-tested |
+| **Harness Compiler** | `scripts/omt/harnessc.py` | Projects the DSL → `AGENTS.md`, `opencode.jsonc` blocks, plugin IR, nav index; derives records at projection time; drift-tested; lints grammar vocab, tool-seed drift, message orphans, root hygiene |
 | **Ledger** | `.meta/.omt/ledger.jsonl` | Audit trail of all phase declarations and completions (rotated at 64 KB) |
 | **Configuration** | `opencode.jsonc`, `AGENTS.md` | Protected files, denied commands, process rules — **generated projections of the DSL, never hand-edited** |
 
 ### Single Source of Truth: the META HARNESS DSL (OMT-HDL)
 
-Every rule above — deny lists, protected paths, gates and their execution order, tool schemas, TDD state machines, doc structure, size budgets — is declared in **one file**: [`.meta/META_HARNESS.omt`](.meta/META_HARNESS.omt) (OMT-HDL v1: 226 records across 18 record kinds such as `@var`, `@deny`, `@protect`, `@gate`, `@tool`, `@fsm`, `@budget`, `@doc`).
+Every rule above — deny lists, protected paths, gates and their execution order, tool schemas, TDD state machines, doc structure, size budgets — is declared in **one file**: [`.meta/META_HARNESS.omt`](.meta/META_HARNESS.omt) (OMT-HDL v1: 234 records across 18 record kinds such as `@var`, `@deny`, `@protect`, `@gate`, `@tool`, `@fsm`, `@hat`, `@pred`, `@budget`, `@doc` — including records the compiler *derives* at projection time instead of hand-maintaining).
 
 A compiler projects that single source into everything the runtime and the agent consume:
 
@@ -90,7 +90,7 @@ A compiler projects that single source into everything the runtime and the agent
            ▼  uv run scripts/omt/harnessc.py build
  ┌──────────────────────────────────────────────────────────────┐
  │ GENERATED PROJECTIONS (never hand-edit — drift-tested)       │
- │  • AGENTS.md ................ agent rules (budget ≤ 5 KiB)   │
+ │  • AGENTS.md ................ agent rules (budget ≤ 2.5 KiB) │
  │  • opencode.jsonc blocks .... deny/permission rules          │
  │  • .meta/.omt/harness.ir.json  IR consumed by the TS plugins │
  │  • .meta/.omt/nav.index.jsonl  omt_nav search index          │
@@ -103,14 +103,33 @@ A compiler projects that single source into everything the runtime and the agent
 | `uv run scripts/omt/harnessc.py check --verify-projections` | **Drift test** — fails if any projection is stale or hand-edited |
 | `uv run scripts/omt/harnessc.py build` | Regenerate all projections from the `.omt` |
 
-**Why a DSL?** Constants such as the ledger rotation cap used to live in three places (TS plugin, Python engine, docs). Now `@var` records single-source them, and pin-tests assert TS == PY == `.omt`. Gate execution order, nav-gate doc paths, and size budgets (AGENTS.md ≤ 5 KiB · WORK.md ≤ 14 KiB · scratchpad ≤ 6 KiB · tool schemas ≤ 2.5 KiB) are likewise declared once and mechanically verified on every build.
+**Why a DSL?** Constants such as the ledger rotation cap used to live in three places (TS plugin, Python engine, docs). Now `@var` records single-source them — with `{@var.x}` interpolation across records (unknown names are check errors) — and both the TypeScript plugins and the Python engine consume the compiled IR at runtime (7 hand-mirrored constant blocks deleted; pin-tests assert TS == PY == `.omt`). Gate execution order, nav-gate doc paths, and size budgets (AGENTS.md ≤ 2.5 KiB · WORK.md ≤ 4 KiB · scratchpad ≤ 3 KiB · tool schemas ≤ 1 KiB · tool arg describes ≤ 1.5 KiB) are likewise declared once and mechanically verified on every build.
+
+### Token Discipline: every byte that costs tokens is budgeted
+
+A process harness that eats the context window would defeat its own purpose. Every surface that rides the system prompt or session startup carries a `@budget` enforced by `harnessc check` (improvement006 A–H + improvement007 A–I):
+
+| Surface | Before | Now | Paid |
+|---------|--------|-----|------|
+| Tool schemas | 1484 B across **18 tools** | **775 B across 7 tools** (budget 1024) | every turn |
+| Live arg `describe()`s | 1609 B | **1287 B** (budget 1536) | every turn |
+| `AGENTS.md` | 5120 B cap | **≤ 2560 B** | every turn |
+| `WORK.md` | 14 KiB cap, unbounded DONE log | **≤ 4 KiB** — pending + last-5 DONE inline, older rotate to `WORK_ARCHIVE.md` | every session |
+| `omt_status` output | ~1.5 KB/call | **~350 B/call** | on demand |
+
+**Recent hardening highlights:**
+
+- **HDL-2 gate driver** — the before-gate chain iterates IR-declared gates in `order=`, matching `tools=` and evaluating `when=` via a `@pred` registry; after-gates (MVC++ lint, TDD auto-revert) run in the same driver. A new *simple* gate is now a pure `.omt` declaration — no TypeScript to write.
+- **Derive at projection time** — `PHASE_*` / `TT_*` / `SECTION` nav records (and 13 more) are emitted by the compiler; hand-maintained duplicates pruned, killing a whole drift class.
+- **New compile-time lints** — grammar-vocab check (fsm/hat/gate arity), tool seed-drift check (TS seed strings ≡ `.omt` payloads), gate-message orphan check, repo-root hygiene check (allowlisted top level).
+- **On-demand doc diet** — `META_HARNESS.md` 5.5→1.4 KB (stub rotation), `META.md` 6.8→5.0 KB, methodology guide 27.5→23.9 KB with nav cross-ref routes widened 6→16.
 
 ### How Enforcement Works
 
 | Layer | File | Purpose |
 |-------|------|---------|
 | **Coarse permissions** | `opencode.jsonc` | Declarative deny/allow rules (git commit, bare python, .env edits, etc.) |
-| **Fine process gate** | `.opencode/plugin/omt_enforcer.ts` | Programmatic phase checking, MVC++ linting, artifact scaffolding |
+| **Fine process gate** | `.opencode/plugins/omt_enforcer.ts` + `.opencode/lib/enforcer/gate_driver.ts` | IR-ordered gate chain — before edits: nav → protect → receipt → tests-canary → phase → think; after edits: MVC++ lint → TDD revert |
 
 **The META HARNESS Gate:** Before editing any file under `src/`, you **must** declare your OMT++ phase:
 
@@ -129,11 +148,11 @@ This creates a ledger entry in `.meta/.omt/ledger.jsonl` and unlocks `src/` edit
 | `bug_fix` / `minor_feature` / `refactor` | Phase declaration only |
 | `major_feature` / `new_screen` | Phase declaration **+** design doc on disk |
 
-**Automatic Architecture Checks:** After every `src/` edit, the gate runs the MVC++ linter (`uv run scripts/omt/mvc_check.py`) which checks for View↔Model layer leaks, non-ABC Abstract Partners, SQL outside Data Provider classes, and God controllers (>300 lines). Violations surface as non-blocking toasts (guiding, not punishing).
+**Automatic Architecture Checks:** After every `src/` edit, an after-gate runs the MVC++ linter (`uv run scripts/omt/mvc_check.py`) which checks for View↔Model layer leaks, non-ABC Abstract Partners, SQL outside Data Provider classes, and God controllers (>300 lines). **Newly introduced** hard violations are **blocked** fix-forward (delta vs a pre-edit snapshot — legacy code is never punished); pre-existing issues surface as non-blocking advisories.
 
 ### TDD Enforcement (feature_016)
 
-For `major_feature` and `new_screen` tasks, the gate automatically activates **TDD mode** — a Kent Beck-style Red → Green → Refactor cycle enforced mechanically:
+For `major_feature` and `new_screen` tasks, the gate automatically activates **TDD mode** — a Kent Beck-style Red → Green → Refactor cycle enforced mechanically via `omt_tdd{op:testlist→red→green→refactor→done}`:
 
 ```text
   ┌──────────────┐     ┌──────────────┐     ┌─────────────────┐
@@ -163,32 +182,40 @@ For `major_feature` and `new_screen` tasks, the gate automatically activates **T
 
 ### Navigation Enforcement (feature_020)
 
-Before answering ANY question about the project (classes, components, features, architecture), agents MUST use the navigation tools (`omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`) to search META HARNESS documentation first — only falling back to `grep`/`glob` if navigation returns no results. A mechanical gate blocks `grep`/`glob` on doc paths (`.meta/`, `AGENTS.md`, `WORK.md`) until a nav tool is used.
+Before answering ANY question about the project (classes, components, features, architecture), agents MUST use the navigation tool (`omt_nav{op:nav|list_sections|cross_ref|quick_ref}`) to search META HARNESS documentation first — only falling back to `grep`/`glob` if navigation returns no results. A mechanical gate (first in the IR-ordered chain) blocks `grep`/`glob` on doc paths (`.meta/`, `AGENTS.md`, `WORK.md`) until a nav op is used.
 
-### Think Anywhere (feature_021)
+### Think Anywhere (feature_021/022)
 
-Persistent, grep-friendly `TA:` thought-tags dropped **inline in any non-protected file** so hard-won context (gotchas, "why this is here", risks, cross-refs) survives across sessions. Token-minimal: retrieval is O(hits) via `grep`/`omt_think_list`.
+Persistent, grep-friendly `TA:` thought-tags dropped **inline in any non-protected file** so hard-won context (gotchas, "why this is here", risks, cross-refs) survives across sessions. Token-minimal: retrieval is O(hits) via `grep`/`omt_think{op:list}`.
 
-- **`omt_think`** — insert a language-aware `TA:` comment (bypasses phase/canary gates; annotation, not code)
-- **`omt_think_list`** — grep-backed retrieval; marks the session consulted (clears the think-gate)
-- **`omt_think_remove`** — remove a `TA:` line + reconcile the JSONL index
-- **Think-gate (blocking):** editing a file that carries `TA:` thoughts is blocked until the agent consults via `omt_think_list` — NOT bypassable by `omt_skip`
-- **Session digest:** every session.start greps `TA:` across the repo and surfaces a capped digest
+- **`omt_think{op:add}`** — insert a language-aware `TA:` comment (bypasses phase/canary gates; annotation, not code)
+- **`omt_think{op:list}`** — grep-backed retrieval; marks the session consulted (clears the think-gate)
+- **`omt_think{op:remove}`** — remove a `TA:` line + reconcile the JSONL index (`verify`/`suggest` ops also available)
+- **Think-gate (blocking):** editing a file that carries `TA:` thoughts is blocked until the agent consults via `omt_think{op:list}` — NOT bypassable by `omt_skip`
+- **Session digest:** the first tool result of each session carries a compact, capped digest (counts + per-file counts + stale ⚠️ + pointer)
 
 ### Tooling
+
+Seven consolidated opencode tools (down from 18 — schema cost 1484→775 B per turn):
 
 | Tool | Purpose |
 |------|---------|
 | `omt_phase` | Declare OMT++ phase; unlocks `src/` edits |
-| `omt_skip` | Logged process-override escape hatch |
+| `omt_skip` | Logged process-override escape hatch (scopes: src/tests/nav/all) |
 | `omt_complete` | Verify phase artifacts + advance to next phase |
-| `omt_testlist` / `omt_red` / `omt_green` / `omt_refactor` / `omt_done` | TDD cycle (plan → failing test → code → refactor → verify) |
-| `omt_nav` / `omt_list_sections` / `omt_cross_ref` / `omt_quick_ref` | Navigate META HARNESS docs (feature_020) |
-| `omt_think` / `omt_think_list` / `omt_think_remove` / `omt_think_suggest` / `omt_think_verify` | Persistent inline `TA:` thought-tags (feature_021/022) |
+| `omt_status` | Process context: phase, TDD state, lint, valid next phases (compact) |
+| `omt_tdd` | TDD cycle driver — `op:testlist` → `red` → `green` → `refactor` → `done` |
+| `omt_nav` | Navigate META HARNESS docs — `op:nav` · `list_sections` · `cross_ref` · `quick_ref` (feature_020) |
+| `omt_think` | Persistent inline `TA:` thought-tags — `op:add` · `list` · `remove` · `verify` · `suggest` (feature_021/022) |
+
+Command-line engines:
+
+| Command | Purpose |
+|---------|---------|
 | `uv run scripts/omt/mvc_check.py` | MVC++ architecture linter |
 | `uv run scripts/omt/tdd_check.py` | TDD enforcement engine (9 subcommands) |
 | `uv run scripts/omt/new_feature.py "<name>"` | Scaffold a feature's artifacts from `.meta/templates/` |
-| `uv run scripts/omt/harnessc.py check / build` | Harness DSL compiler: validate `.omt`, drift-test projections, regenerate |
+| `uv run scripts/omt/harnessc.py check / build` | Harness DSL compiler: validate `.omt` (schema, grammar vocab, budgets, seed/msg/hygiene lints), drift-test projections, regenerate |
 
 ### References
 
@@ -920,7 +947,7 @@ agentx follows a strict **MVC++** (Model-View-Controller) architecture with depe
 
 ## 🧪 Testing
 
-agentx includes **1080+ comprehensive tests** covering all core modules:
+agentx includes **1100+ comprehensive tests** covering all core modules:
 
 ```bash
 # Run all tests
@@ -960,6 +987,7 @@ uv run pytest tests/ --cov=agentx --cov-report=html
 - ✅ TDD enforcement engine (AST analysis, two-hats gate, coverage gap detection)
 - ✅ Meta Harness navigation tools (feature_020: grep-based doc nav, plugin load safety)
 - ✅ Think Anywhere thought-tags (feature_021: inline `TA:` tags, think-gate decider, session digest)
+- ✅ Harness DSL & compiler (163 omt tests: `{@var.x}` interpolation, grammar vocab, budgets, TS/PY↔IR parity pins, gate driver, drift-tested projections)
 
 **Characteristics:**
 - **Isolation**: All tests are isolated with mocking (no external dependencies)
@@ -1010,9 +1038,14 @@ Set `OPENROUTER_API_KEY` in your `.env` file to avoid the interactive prompt.
 - ✅ **feature_016**: TDD enforcement (Kent Beck Red→Green→Refactor cycle, two-hats gate, AST analysis)
 - ✅ **feature_018**: ReAct chat screen (Reasoning + Acting with visible thinking, tool calls, streaming)
 - ✅ **feature_019**: Coding Agent screen (File system tools: search, read, edit, list, create with diff highlighting)
-- ✅ **feature_020**: Meta Harness Navigation (grep-optimized docs, opencode plugin tools: `omt_nav`, `omt_list_sections`, `omt_cross_ref`, `omt_quick_ref`)
-- ✅ **feature_021**: Meta Harness Think Anywhere (persistent inline `TA:` thought-tags, `omt_think`/`omt_think_list`/`omt_think_remove`, think-gate enforcement, session digest)
-- ✅ **meta_harness_dsl (R0–R8)**: Harness as code — OMT-HDL single source (`.meta/META_HARNESS.omt`, 226 records) compiled to AGENTS.md / opencode.jsonc / plugin-IR / nav-index projections with drift tests + size budgets; 64 KB ledger rotation; enforcer split (`lib/enforcer/` ×7)
+- ✅ **feature_020**: Meta Harness Navigation (grep-optimized docs, consolidated `omt_nav{op:…}` plugin tool)
+- ✅ **feature_021/022**: Meta Harness Think Anywhere v1+v2 (persistent inline `TA:` thought-tags, consolidated `omt_think{op:…}`, per-file think-gate, compact session digest)
+- ✅ **feature_023**: Meta Harness improvement F14–F17 (production hook effects root-caused + tested)
+- ✅ **feature_024**: Console parity — all TUI features (react/coding/models/agent/fast-agent) available in `--no-tui` REPL via `IUIProvider` + streaming
+- ✅ **feature_tui_dark_mode**: Default dark theme, `k` toggles, `Ctrl+Shift+T` cycles 21 themes
+- ✅ **meta_harness_dsl (R0–R8)**: Harness as code — OMT-HDL single source (`.meta/META_HARNESS.omt`) compiled to AGENTS.md / opencode.jsonc / plugin-IR / nav-index projections with drift tests + size budgets; 64 KB ledger rotation; enforcer split (`lib/enforcer/` ×7)
+- ✅ **improvement006 (A–H)**: Token diet — 18→7 consolidated tools (`omt_tdd`/`omt_nav`/`omt_think` with `op=`), schemas 1484→775 B, WORK.md DONE-rotation (≤4 KiB), `@derive` + nav/IR budgets, HDL-2 `gate_driver` (IR-ordered gates), root-hygiene lint
+- ✅ **improvement007 (A–I)**: DSL hardening — `{@var.x}` interpolation, grammar-vocab check, arg-describe diet (1609→1287 B + `tool_args` budget), TS+PY consume the IR (7 hand-mirrors deleted), after-gates in the driver, IR gate messages + orphan check, derive round 2, on-demand doc diet, guide dedup; 163/163 omt tests
 
 ### In Progress
 - 🔄 **feature_001**: Petri-net-driven user objectives — session lifecycle (create → active → switch, SQLite-backed) is implemented; the Petri-net objective engine is stubbed (`GoalManager`) pending full integration
@@ -1052,7 +1085,7 @@ agentx is an educational project. Contributions are welcome!
 1. Read `AGENTS.md` for agent behavior rules
 2. Read `.meta/software_development_process/omt_agent_guide.md` for OMT++ methodology and the META HARNESS
 3. Declare your phase with `omt_phase` before editing `src/`
-4. For major features: follow TDD cycle (`omt_testlist` → `omt_red` → `omt_green` → `omt_refactor` → `omt_done`)
+4. For major features: follow the TDD cycle (`omt_tdd{op:testlist}` → `red` → `green` → `refactor` → `done`)
 5. Run tests: `uv run pytest tests/ -v`
 6. Run MVC++ check: `uv run scripts/omt/mvc_check.py`
 7. Changing harness rules? Edit `.meta/META_HARNESS.omt` (never the projections), then `uv run scripts/omt/harnessc.py check && uv run scripts/omt/harnessc.py build`
