@@ -253,7 +253,7 @@ agentx        # run from anywhere
 
 Uninstall with `uv tool uninstall agentx`.
 
-You'll see the TUI interface. Press `c` for chat, `r` for RAG, `m` for models, `q` to quit. Console fallback: `uv run agentx --no-tui`.
+You'll see the console interface (the default). Commands: `c` for chat, `r` for RAG, `m` for models, `q` to quit. To launch the TUI instead: `uv run agentx --tui`. `--no-tui` is still accepted (no-op) for backwards compatibility.
 
 ---
 
@@ -782,7 +782,7 @@ If `OPENROUTER_API_KEY` is not set, the application will prompt for it on startu
 
 ## 🎮 Usage
 
-Run `uv run agentx` (or `agentx` if globally installed) — see Quick Start above. The app starts in **TUI mode** by default; pass `--no-tui` for the console REPL.
+Run `uv run agentx` (or `agentx` if globally installed) — see Quick Start above. The app starts in **console mode** by default; pass `--tui` for the TUI. `--no-tui` is still accepted (no-op) for backwards compatibility.
 
 ### TUI Navigation
 
@@ -1008,7 +1008,7 @@ Set `OPENROUTER_API_KEY` in your `.env` file to avoid the interactive prompt.
 ### TUI not showing / keyboard input not working
 - Ensure you're running in a proper terminal (not piped input)
 - Check TTY capability: `sys.stdin.isatty() and sys.stdout.isatty()`
-- Use `--no-tui` flag to force console mode
+- You must opt in explicitly: `uv run agentx --tui` (console mode is now the default)
 
 ### LLM connection errors
 - Verify your API key is valid

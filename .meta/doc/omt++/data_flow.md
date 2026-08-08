@@ -14,8 +14,9 @@ Boot sequence, screen navigation, agent cycle, demo flow, chat streaming, RAG in
 load_dotenv() → prompt API key if missing
 main():
   show() → print version
-  use_tui = (no --no-tui) AND stdin.isatty() AND stdout.isatty()
+  use_tui = --tui AND stdin.isatty() AND stdout.isatty()
   provider = use_tui ? ProviderRegistry.get_default() : ProviderRegistry.get("console")
+  # note: --no-tui accepted as backwards-compat no-op (console is default)
   provider.initialize()
   main_controller = MainController(provider)   # loads 10 commands
   main_view = provider.create_main_view(main_controller)

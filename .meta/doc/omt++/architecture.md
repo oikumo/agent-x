@@ -67,11 +67,14 @@ Controller ──calls──▶ I*View(ABC) ◀──implements── View
 # SECTION:PROVIDER — Provider / Adapter Pattern (Console ⇄ TUI) (grep:PROVIDER_)
 
 ```
-main.py → ProviderRegistry.get_default()
+main.py:
+  default      → ProviderRegistry.get("console")        # console default
+  --tui (+TTY) → ProviderRegistry.get_default()         # = TUIProvider
   ├─ TUIProvider → TUIAdapter → MainTUIScreen (IMainView)
   └─ ConsoleProvider → MainView (IMainView)
 ```
-- `ProviderRegistry` (`ui/providers.py`) holds providers; `tui` auto-registers default
+- `ProviderRegistry` (`ui/providers.py`) holds providers; `tui` auto-registers as registry default (used by `get_default()` and TUI tests)
+- `main.py` selects console by default; `--tui` opts into TUI (registry default); `--no-tui` accepted as no-op
 - Adapters: thin delegates; `TUIChatAdapter`/`TUIRagAdapter` wired via `set_screen()`
 - Fallback: TUI exception → ConsoleProvider
 
@@ -116,7 +119,7 @@ All: stdlib `sqlite3`, idempotent `CREATE TABLE IF NOT EXISTS`, no ORM/Alembic.
 | Persistence | stdlib sqlite3 |
 | Enforcement | opencode + `.opencode/plugins/omt_enforcer.ts` |
 
-**Env:** `.env` (gitignored) — `OPENROUTER_API_KEY` prompted at boot | `--no-tui` or no TTY → console
+**Env:** `.env` (gitignored) — `OPENROUTER_API_KEY` prompted at boot | console by default; `--tui` (requires TTY) → TUI; `--no-tui` accepted as no-op
 
 ---
 

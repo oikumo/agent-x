@@ -32,8 +32,9 @@ def show():
 def main():
     show()
     
-    # Check if running in a proper terminal for TUI
-    use_tui = "--no-tui" not in sys.argv
+    # Default UI is the console. Opt into the TUI with --tui.
+    # --no-tui is kept as a recognized no-op for backwards compatibility.
+    use_tui = "--tui" in sys.argv
     has_tty = sys.stdin.isatty() and sys.stdout.isatty()
     
     if use_tui:
@@ -50,7 +51,7 @@ def main():
         print()
         ui_provider = ProviderRegistry.get_default()
     else:
-        print("💻 Using console mode...")
+        print("💻 Using console mode (default). Pass --tui for the TUI.")
         print()
         ui_provider = ProviderRegistry.get("console")
     
