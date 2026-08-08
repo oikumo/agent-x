@@ -173,6 +173,33 @@ class TestConsoleModelsView(TestCase):
         assert "openrouter" in printed
         assert "gpt-4o" in printed and "claude-3.5" in printed
 
+    def test_show_exits_on_quit_back_q_exit_tokens(self) -> None:
+        """ConsoleModelsView.show() exits on q/quit/back/exit (case-insensitive).
+
+        Feature_024 console parity: the models REPL is a picker, so each numeric
+        selection loops back. Without an exit token the user is trapped
+        ('Invalid selection: quit'). The exit convention matches the RAG views
+        (rag_chat_controller, rag_*_view) and TUI models_screen (q binding).
+        """
+        for token in ("q", "quit", "back", "exit", "QUIT", "Back"):
+            self.view.console.capture_input.side_effect = [token]
+            # Must NOT raise / loop forever / call select_provider.
+            self.view.show()
+            self.controller.select_provider.assert_not_called()
+
+    def test_show_banner_advertises_exit_hint(self) -> None:
+        """The providers listing banner tells the user how to exit."""
+        self.view.console.capture_input.side_effect = [None]  # exit immediately
+
+        self.view.show()
+
+        printed = " ".join(
+            str(call.args[0]) for call in self.view.console.info.call_args_list
+        )
+        assert "quit" in printed.lower() or "back" in printed.lower(), (
+            "models banner must advertise an exit hint (quit/back)"
+        )
+
 
 class TestConsoleFastAgentView(TestCase):
     """(f) ConsoleFastAgentView cycle summary rendering."""
