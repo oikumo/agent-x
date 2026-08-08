@@ -55,3 +55,8 @@ pythonpath = ["src"]
 markers = [
     "opencode_live: slow tests that drive the REAL opencode binary (skipped when binary absent)",
 ]
+filterwarnings = [
+    # Upstream: langchain_core imports pydantic.v1 on Python 3.14+.
+    # Outside our control — suppress the noise.
+    "ignore:Core Pydantic V1 functionality isn't compatible with Python 3.14:UserWarning",
+]

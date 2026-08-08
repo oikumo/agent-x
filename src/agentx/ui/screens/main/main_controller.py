@@ -241,13 +241,14 @@ class MainController(IMainViewPartner):
         react_controller = ReactController()
         if self._provider is not None:
             react_view = self._provider.create_react_view(react_controller)
-            react_controller.view = react_view
+            react_controller.set_view(react_view)
             self._react_view = react_view
         self._react_controller = react_controller
 
     def get_react_controller(self) -> "ReactController | None":
         """Get the ReAct controller for screen connection."""
         return self._react_controller
+# TA: gotcha: FIX (feature_024): use set_view(view) not .view = view inside show_react/show_coding — controllers store self._view (set only via set_view); the old .view= assignment left _view=None so _run_agent silent-no-oped all streaming callbacks (agent ran but nothing displayed).
 
     def show_coding(self) -> None:
         """Create and wire a CodingController for the Coding screen via provider.
@@ -262,13 +263,14 @@ class MainController(IMainViewPartner):
         coding_controller = CodingController()
         if self._provider is not None:
             coding_view = self._provider.create_coding_view(coding_controller)
-            coding_controller.view = coding_view
+            coding_controller.set_view(coding_view)
             self._coding_view = coding_view
         self._coding_controller = coding_controller
 
     def get_coding_controller(self) -> "CodingController | None":
         """Get the Coding controller for screen connection."""
         return self._coding_controller
+# TA: gotcha: FIX (feature_024): same set_view bug as show_react — _view was None, streaming callbacks silent-no-oped.
 
     def print_message(self, message: str):
         self.view.print_message(message)

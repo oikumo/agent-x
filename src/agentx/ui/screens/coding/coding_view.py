@@ -27,7 +27,22 @@ class ConsoleCodingView(ICodingView):
             user_input = self.console.capture_input()
             if not user_input:
                 return
-            self.controller.send_message(user_input)
+            if not self.controller.send_message(user_input):
+                self.console.error("Agent is busy; please wait.")
+            self._wait_for_agent()
+
+    def _wait_for_agent(self) -> None:
+        """Block the REPL until the agent worker thread finishes.
+
+        ``send_message`` returns immediately after spawning a daemon thread.
+        Without this sync point the REPL loop would re-prompt while the agent
+        is still running, interleaving user input with streaming output. In
+        console (no-TUI) mode there is no ``app.call_from_thread`` — the
+        worker calls view callbacks directly — so we simply join the thread.
+        """
+        worker = getattr(self.controller, "_worker_thread", None)
+        if worker is not None and worker.is_alive():
+            worker.join()
 
     def show_message(self, message: str, role: str = "assistant") -> None:
         self.console.info(f"[{role}] {message}")

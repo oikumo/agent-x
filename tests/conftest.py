@@ -1,6 +1,18 @@
 """
 Pytest configuration to skip tests with missing dependencies.
 """
+import warnings
+
+# Suppress upstream pydantic.v1 compatibility warning on Python 3.14+.
+# This warning originates from langchain_core importing pydantic.v1 for
+# backward compatibility — it is outside our control and adds noise to
+# every test run. The actual functionality is unaffected.
+warnings.filterwarnings(
+    "ignore",
+    message=r"Core Pydantic V1 functionality isn't compatible with Python 3\.14",
+    category=UserWarning,
+)
+
 import pytest
 
 

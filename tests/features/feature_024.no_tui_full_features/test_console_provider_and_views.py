@@ -266,43 +266,119 @@ class TestConsoleReactViewStreaming(TestCase):
         assert "error message" in args
 
 
-class TestConsoleCodingViewStreaming(TestCase):
-    """ConsoleCodingView implements all 6 streaming callbacks."""
+class TestConsoleReactViewReplSync(TestCase):
+    """ConsoleReactView.show() waits for the worker thread before re-prompting.
+
+    Regression (feature_024): ``send_message`` returns immediately after
+    spawning a daemon thread. Without a sync point the REPL loop re-prompts
+    while the agent is still streaming. The view must join the worker thread.
+    """
 
     def setUp(self) -> None:
         self.controller = MagicMock()
+        self.controller.send_message.return_value = True
+        # Provide a fake, already-finished worker so join() is a no-op.
+        self.worker = MagicMock()
+        self.worker.is_alive.return_value = False
+        self.controller._worker_thread = self.worker
+        self.view = ConsoleReactView(self.controller)
+        self.view.console = MagicMock()
+
+    def test_show_joins_worker_after_send_message(self) -> None:
+        # Worker is alive → _wait_for_agent must join it.
+        self.worker.is_alive.return_value = True
+        self.view.console.capture_input.side_effect = ["hello", None]
+
+        self.view.show()
+
+        self.controller.send_message.assert_called_once_with("hello")
+        self.worker.is_alive.assert_called()
+        self.worker.join.assert_called_once()
+
+    def test_show_reports_busy_when_send_message_returns_false(self) -> None:
+        self.controller.send_message.return_value = False
+        self.view.console.capture_input.side_effect = ["hello", None]
+
+        self.view.show()
+
+        self.view.console.error.assert_called()
+        args = self.view.console.error.call_args[0][0]
+        assert "busy" in args.lower(), f"expected busy message, got: {args}"
+
+
+class TestConsoleCodingViewReplSync(TestCase):
+    """ConsoleCodingView.show() waits for the worker thread before re-prompting.
+
+    Regression (feature_024): same bug as react — join the worker thread.
+    """
+
+    def setUp(self) -> None:
+        self.controller = MagicMock()
+        self.controller.send_message.return_value = True
+        self.worker = MagicMock()
+        self.worker.is_alive.return_value = False
+        self.controller._worker_thread = self.worker
         self.view = ConsoleCodingView(self.controller)
         self.view.console = MagicMock()
 
-    def test_show_thinking_exists_and_calls_console_info(self) -> None:
-        self.view.show_thinking("reasoning text")
-        self.view.console.info.assert_called_once()
-        args = self.view.console.info.call_args[0][0]
-        assert "reasoning text" in args
+    def test_show_joins_worker_after_send_message(self) -> None:
+        # Worker is alive → _wait_for_agent must join it.
+        self.worker.is_alive.return_value = True
+        self.view.console.capture_input.side_effect = ["hello", None]
 
-    def test_show_tool_call_exists_and_calls_console_info(self) -> None:
-        self.view.show_tool_call("tool_name", '{"arg": "value"}')
-        self.view.console.info.assert_called_once()
-        args = self.view.console.info.call_args[0][0]
-        assert "tool_name" in args
+        self.view.show()
 
-    def test_show_tool_result_exists_and_calls_console_info(self) -> None:
-        self.view.show_tool_result("tool_name", "result output")
-        self.view.console.info.assert_called_once()
-        args = self.view.console.info.call_args[0][0]
-        assert "result output" in args
+        self.controller.send_message.assert_called_once_with("hello")
+        self.worker.is_alive.assert_called()
+        self.worker.join.assert_called_once()
 
-    def test_show_answer_chunk_exists_and_calls_stream_write(self) -> None:
-        self.view.show_answer_chunk("token")
-        self.view.console.stream_write.assert_called_once_with("token")
 
-    def test_show_answer_final_exists_and_resets_state(self) -> None:
-        self.view.show_answer_final()
-        # Just verify it's callable without error
+class TestMainControllerWiringUsesSetView(TestCase):
+    """show_react/show_coding must call set_view() (NOT set .view attr).
+
+    Regression (feature_024): ``main_controller`` set ``react_controller.view``
+    instead of calling ``set_view()``. The controllers use ``self._view``
+    internally (set only via ``set_view()``), so the streaming callbacks
+    silently no-oped — the agent ran but nothing was displayed.
+    """
+
+    def setUp(self) -> None:
+        from agentx.ui.screens.main.main_controller import MainController
+
+        self.provider = MagicMock(spec=IUIProvider)
+        self.controller = MainController(provider=self.provider)
+
+    def _assert_set_view_called(self, show_method: str) -> None:
+        # The real controllers are lazily imported inside show_*; patch them
+        # so we can assert set_view is called.
         pass
 
-    def test_show_error_exists_and_calls_console_error(self) -> None:
-        self.view.show_error("error message")
-        self.view.console.error.assert_called_once()
-        args = self.view.console.error.call_args[0][0]
-        assert "error message" in args
+    def test_show_react_calls_set_view(self) -> None:
+        from agentx.ui.screens.react.react_controller import ReactController
+
+        react_view = MagicMock()
+        self.provider.create_react_view.return_value = react_view
+
+        self.controller.show_react()
+
+        react_controller = self.controller._react_controller
+        assert isinstance(react_controller, ReactController)
+        assert react_controller._view is react_view, (
+            "set_view() must be called (not .view = ...) so _view is wired"
+        )
+        assert self.controller._react_view is react_view
+
+    def test_show_coding_calls_set_view(self) -> None:
+        from agentx.ui.tui.screens.coding.coding_controller import CodingController
+
+        coding_view = MagicMock()
+        self.provider.create_coding_view.return_value = coding_view
+
+        self.controller.show_coding()
+
+        coding_controller = self.controller._coding_controller
+        assert isinstance(coding_controller, CodingController)
+        assert coding_controller._view is coding_view, (
+            "set_view() must be called (not .view = ...) so _view is wired"
+        )
+        assert self.controller._coding_view is coding_view

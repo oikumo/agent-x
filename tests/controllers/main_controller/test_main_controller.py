@@ -42,12 +42,18 @@ class TestMainControllerShowReact(TestCase):
         assert self.controller._react_view is self.mock_react_view
 
     def test_show_react_wires_controller_to_view(self) -> None:
-        """Created controller should have its view attribute set."""
+        """Created controller should have its _view wired via set_view().
+
+        Regression (feature_024): setting ``.view`` instead of calling
+        ``set_view()`` left ``self._view`` = None inside the controller,
+        so streaming callbacks silently no-oped — the agent ran but
+        nothing was displayed.
+        """
         self.controller.show_react()
 
         react_controller = self.controller._react_controller
         assert react_controller is not None
-        assert react_controller.view is self.mock_react_view
+        assert react_controller._view is self.mock_react_view
 
     def test_show_react_does_not_call_view_show(self) -> None:
         """show_react() should NOT call view.show() — that's for TUI screens."""

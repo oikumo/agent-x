@@ -2,6 +2,17 @@ from __future__ import annotations
 import getpass
 import os
 import sys
+import warnings
+
+# Suppress upstream pydantic.v1 compatibility warning on Python 3.14+.
+# This warning originates from langchain_core importing pydantic.v1 for
+# backward compatibility — it is outside our control and adds noise to
+# every agent invocation. The actual functionality is unaffected.
+warnings.filterwarnings(
+    "ignore",
+    message=r"Core Pydantic V1 functionality isn't compatible with Python 3\.14",
+    category=UserWarning,
+)
 
 from dotenv import load_dotenv
 
