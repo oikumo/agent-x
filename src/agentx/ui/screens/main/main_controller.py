@@ -45,7 +45,6 @@ class MainController(IMainViewPartner):
         self.session_controller = SessionManager()
         # Store sub-controllers and views for screen connection
         self._chat_controller: ChatController | None = None
-        self._chat_controller: ChatController | None = None
         self._chat_view: IChatView | None = None
         self._rag_controller: RagController | None = None
         self._rag_view: IRagView | None = None
@@ -84,34 +83,31 @@ class MainController(IMainViewPartner):
         return self.session_controller
 
     def show_chat(self):
-        # Use provider to create appropriate chat view if available
-        if self._provider:
-            chat_controller = ChatController()
+# TA: gotcha: BUG (feature_024 console parity): show_chat/show_rag must NOT call view.show() — the TUI path uses them as setup callbacks then pushes a screen; the console (no-TUI) path relies on AIChat/RagShowCommand calling view.show() afterwards to enter the REPL (feature_024 parity pattern). The OLD fallback `if self._provider: ... else: chat_controller.show()` violated parity (console never entered the REPL).
+        # C5: reuse an already-wired controller (no fresh chat on every open).
+        if self._chat_controller is not None:
+            return
+        chat_controller = ChatController()
+        if self._provider is not None:
             chat_view = self._provider.create_chat_view(chat_controller)
             chat_controller.view = chat_view
-            # Store for screen connection
-            self._chat_controller = chat_controller
+            # Store for screen connection (TUI pushes a screen; the console
+            # command enters the REPL via view.show() — feature_024 parity).
             self._chat_view = chat_view
-            # Don't call show() - screen will be pushed by MainTUIScreen
-        else:
-            # Fallback: create controller without view (will use console default)
-            chat_controller = ChatController()
-            chat_controller.show()
+        self._chat_controller = chat_controller
 
     def show_rag(self):
-        # Use provider to create appropriate RAG view if available
-        if self._provider:
-            rag_controller = RagController()
+        # C5: reuse an already-wired controller (no fresh rag on every open).
+        if self._rag_controller is not None:
+            return
+        rag_controller = RagController()
+        if self._provider is not None:
             rag_view = self._provider.create_rag_view(rag_controller)
             rag_controller.view = rag_view
-            # Store for screen connection
-            self._rag_controller = rag_controller
+            # Store for screen connection (TUI pushes a screen; the console
+            # command enters the REPL via view.show() — feature_024 parity).
             self._rag_view = rag_view
-            # Don't call show() - screen will be pushed by MainTUIScreen
-        else:
-            # Fallback: create controller without view (will use console default)
-            rag_controller = RagController()
-            rag_controller.show()
+        self._rag_controller = rag_controller
 
     def get_chat_controller(self) -> tuple[ChatController | None, IChatView | None]:
         """Get the chat controller and view for screen connection."""

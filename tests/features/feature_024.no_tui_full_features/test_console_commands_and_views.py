@@ -90,6 +90,12 @@ class TestConsoleParityCommands(TestCase):
             "FastAgentCommand", "fast-agent", "show_fast_agent", "_fast_agent_view"
         )
 
+    def test_chat_command_calls_show_chat_then_view_show(self) -> None:
+        self._assert_command_flow("AIChat", "chat", "show_chat", "_chat_view")
+
+    def test_rag_command_calls_show_rag_then_view_show(self) -> None:
+        self._assert_command_flow("RagShowCommand", "rag", "show_rag", "_rag_view")
+
 
 class TestLoadCommandsRegistration(TestCase):
     """(b) load_commands registers the 5 console-parity commands."""

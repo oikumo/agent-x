@@ -60,6 +60,8 @@ class RagShowCommand(Command):
             return
 
         self.controller.show_rag()
+        if self.controller._rag_view is not None:
+            self.controller._rag_view.show()
 
 class SumCommand(Command):
     def __init__(self, key: str, controller: MainController):
@@ -90,8 +92,12 @@ class AIChat(Command):
     def run(self, arguments: list[str]) -> None:
         if len(arguments) != 0:
             self.controller.print_warring_message("invalid command")
+            return
 
         self.controller.show_chat()
+        if self.controller._chat_view is not None:
+            self.controller._chat_view.show()
+
 
 class NewSessionCommand(Command):
     def __init__(self, key: str, controller: MainController):
