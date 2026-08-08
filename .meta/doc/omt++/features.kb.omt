@@ -24,6 +24,6 @@
 
 @feature f022 tags="FEAT_F022,TIER_CORE" tier=core : Think-v2: anchored THOUGHT_PATTERN, after:/symbol: insertion+comment_syntax map, string-context guard. Read-time inject once/session. Stale lifecycle+risk-first gate weight. Suggest AST ranker, reindex drift repair.
 
-@xref features_xref tags="FEATURES_XREF,TIER_REFERENCE" : →.meta/META_HARNESS.md SECTION:RULES,SECTION:TDD,SECTION:RIGOR. →omt_agent_guide.md §12Arrabits,§13Checklist. →subsystems.md Agent,RAG,Session,AI,UI,Demo,Utils. →architecture.md,data_flow.md,persistence.md,extending.md.
+@xref features_xref tags="FEATURES_XREF,TIER_REFERENCE" : →.meta/META_HARNESS.md SECTION:RULES,SECTION:TDD,SECTION:RIGOR. →omt_agent_guide.md §12 Artifacts,§13Checklist. →subsystems.md Agent,RAG,Session,AI,UI,Demo,Utils. →architecture.md,data_flow.md,persistence.md,extending.md.
 
 @doc crosscutting tags="FEAT_CROSSCUT,TIER_REFERENCE" tier=reference : Persistence: sqlite3 no ORM, 3DBS session+rag+agent. AI-optional: reflect skipped without AI. Two UIs: Console+TUI share controllers via provider pattern. ~1060 tests including Textual pilot e2e.

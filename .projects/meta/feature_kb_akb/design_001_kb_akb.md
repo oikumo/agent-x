@@ -1,5 +1,7 @@
 # AKB Design — Application Knowledge Base
 
+> ⚠️ **SUPERSEDED (2026-08-02, sess 7)** by `.projects/meta/feature_kb_akb/PROJECT.md` v2. Kept for history. Drift: id `<file>.<tag>` vs `kind.rid`; budget 32000 vs removed (index unbounded); `tag_type` filters kind vs TIER; pure-AST assumption vs hybrid AST+curated. Do NOT use as current spec — read PROJECT.md v2.
+
 > Single-source compile-time index for agentx concept docs. Mirrors meta-harness OMT-HDL pipeline. Mandatory agent consultation via enforced gate.
 
 ---

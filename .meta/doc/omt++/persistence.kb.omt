@@ -14,4 +14,4 @@
 
 @doc persist_dp_classes tags="PERSIST_DP,TIER_CORE" tier=core : SessionDatabase(session)→history. RagDatabase→ingestion. SessionRepository(agent)→snapshot+latest. GoalRepo→tree. MemoryRepo→recent. PolicyRepo→all. ReflectionRepo→recent. All parameterised sqlite3 queries.
 
-@xref persist_xref tags="PERSIST_XREF,TIER_REFERENCE" : →data_flow.md §9 Agent Persistence. →architecture.md §DP Pattern. →subsystems.md §agent.persist,subsys.RAG,subsys.session
+@xref persist_xref tags="PERSIST_XREF,TIER_REFERENCE" : →data_flow.md §9 Agent Persistence. →architecture.md §DP Pattern. →subsystems.md §agent.persist,subsys.RAG,subsys.session.

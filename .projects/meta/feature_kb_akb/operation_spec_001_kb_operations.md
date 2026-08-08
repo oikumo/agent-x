@@ -1,5 +1,7 @@
 # AKB Operations Specification
 
+> ⚠️ **SUPERSEDED (2026-08-02, sess 7)** by `.projects/meta/feature_kb_akb/PROJECT.md` v2. Kept for history. Drift: budget 32000 vs removed (index unbounded); `tag_type` filters kind vs TIER; record schema id `<file>.<tag>` vs `kind.rid`; pre-source-code-primary scope. Do NOT use as current spec — read PROJECT.md v2.
+
 > Machine-readable operation contracts for Application Knowledge Base.
 
 ---

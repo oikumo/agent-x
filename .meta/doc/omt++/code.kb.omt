@@ -1,0 +1,48 @@
+@version akb_hdl n=1
+
+# code.kb.omt — CURATED CONCEPT-TEXT OVERLAY for source-code skeleton records.
+# Keyed by extractor-stable record id (kind.rid, e.g. class.ToolRegistry).
+# Build merge: overlay text overrides AST auto-text; refs = union(AST, overlay).
+# Orphan key (no matching skeleton id) → compile warning (drift detector).
+# NOT a curated-record source — kb_compiler build handles this file as overlay
+# only (excluded from the curated *.kb.omt pass). Style: ≤300c, no stopwords.
+# Format: tier=code attr REQUIRED on every record (payload split needs an attr
+# before ' : ' — parser quirk). Seed: 11 sess-6 tools texts ported to
+# extractor-stable ids (dep.tools_hybrid split → dep.<Class>_<Target>).
+
+# --- contracts (tools subsystem) ---
+@contract ISensor tier=code : ISensor(ABC) — read-from-environment contract. abstractmethods: sense, get_sensor_schema. attr id. Perceiving side of tool. Realized by all concrete tools (filesystem/rag/session).
+
+@contract IActuator tier=code : IActuator(ABC) — act-on-environment contract. abstractmethods: get_actuator_schema, validate, act. validate-before-execute gate. Acting side of tool. Realized by all concrete tools.
+
+@contract IToolRegistryPartner tier=code : IToolRegistryPartner(ABC) — registry contract seen by controller/TUI. abstractmethods: list_sensors, list_actuators, get_spec, health_check. MVC++ dependency inversion: depend on ABC, not ToolRegistry.
+
+# --- classes (agent facade + tools subsystem) ---
+@class Agent tier=code refs="contract.IAgentModelPartner,class.ToolRegistry,class.MemoryManager,class.PolicyEngine,class.GoalManager,class.ReflectionEngine,class.EnvironmentModel" : Agent(IAgentModelPartner) — facade orchestrating all agent subsystems. Wires memory+policy+goals+reflection+tools+environment through one entry. Owns session lifecycle: persist/resume snapshots register built-in tools (filesystem/rag/session). Controllers reach model via ABC partner.
+
+@class ToolSpec tier=code : ToolSpec — unified serializable tool descriptor (single source of truth). kind: SENSOR|ACTUATOR|HYBRID. Stored by registry; lets controller/TUI reason about tools without concrete objects.
+
+@class ToolRegistry tier=code refs="contract.ISensor,contract.IActuator,class.ToolSpec" : ToolRegistry(IToolRegistryPartner) — Model-layer tool catalog. O(1) dict lookup. Owns registration, enablement, health, safe execution (validate+act). Upgrades same-id sensor+actuator to HYBRID. Agent+controllers reach tools through this ABC.
+
+@class FileSystemTool tier=code : FileSystemTool(ISensor,IActuator) — hybrid sandboxed file CRUD. id=filesystem. sense=sandbox listing, act=create/read/update/delete. Path-containment guarded; scan capped. Agent filesystem senses+acts.
+
+@class RagSensorTool tier=code : RagSensorTool(ISensor,IActuator) — hybrid, id=rag_query. sense=RAG availability, act=query knowledge base. Deferred RAG wiring. feature_002 integration: agent reaches Rag via EXECUTE_TOOL.
+
+@class SessionTool tier=code : SessionTool(ISensor,IActuator) — hybrid, id=session. sense=session meta, act=persist|restore snapshot. Delegates to Agent.persist/resume_session. Session lifecycle as tool.
+
+# --- dep edges (realization + composition) ---
+@dep ToolRegistry_IToolRegistryPartner tier=code : ToolRegistry --|> IToolRegistryPartner (realization). Controller+TUI depend on ABC, not concrete registry — MVC++ dependency inversion at tool-catalog boundary.
+
+@dep FileSystemTool_ISensor tier=code : FileSystemTool --|> ISensor (realization). Also IActuator ⇒ kind=HYBRID: one tool perceives+acts.
+
+@dep FileSystemTool_IActuator tier=code : FileSystemTool --|> IActuator (realization). Also ISensor ⇒ kind=HYBRID: one tool perceives+acts.
+
+@dep RagSensorTool_ISensor tier=code : RagSensorTool --|> ISensor (realization). Also IActuator ⇒ kind=HYBRID: one tool perceives+acts.
+
+@dep RagSensorTool_IActuator tier=code : RagSensorTool --|> IActuator (realization). Also ISensor ⇒ kind=HYBRID: one tool perceives+acts.
+
+@dep SessionTool_ISensor tier=code : SessionTool --|> ISensor (realization). Also IActuator ⇒ kind=HYBRID: one tool perceives+acts.
+
+@dep SessionTool_IActuator tier=code : SessionTool --|> IActuator (realization). Also ISensor ⇒ kind=HYBRID: one tool perceives+acts.
+
+@dep Agent_ToolRegistry tier=code refs="class.FileSystemTool,class.RagSensorTool,class.SessionTool" : Agent --composes--> ToolRegistry. Agent owns tool lifecycle: registers builtins (filesystem/rag/session), delegates execute/register/unregister/health to registry. All tool ops route through facade.

@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 """kb_compiler — Application Knowledge Base compiler.
 
-Source: .meta/doc/omt++/*.kb.omt → .meta/.omt/kb.index.jsonl + .meta/.omt/kb.ir.json
+feature_kb_akb P0 (PROJECT.md v2.1): unified build =
+  curated .meta/doc/omt++/*.kb.omt (EXCLUDING code.kb.omt)
+  + AST skeleton (kb_ast_extract over src/agentx — class/contract/dep)
+  + code.kb.omt concept-text overlay merge (overlay text wins; refs union)
+  → .meta/.omt/kb.index.jsonl (UNBOUNDED — no size budget) + kb.ir.json
+
+Index is unbounded by design (PROJECT §Budget policy): token cost is
+per-query (scoped + capped in omt_kb_nav), not per-index. Drift detectors:
+orphan overlay-key warning + orphan-ref error + duplicate-id error.
 
 Stdlib-only. Grammar: OMT-HDL subset.
   record := '@' kind SP id (SP attr)* (SP ' : ' payload)?
   attr := k=v | k="v,v"
-  content kinds: doc, flow, feature, pattern, xref, gotcha
+  curated kinds: doc, flow, feature, pattern, xref, gotcha
+  code kinds (overlay): class, contract, dep
   metadata kinds: version, var, budget (not rendered to index)
 """
 from __future__ import annotations
@@ -18,10 +27,17 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import kb_ast_extract
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-KB_KINDS = ("version", "var", "doc", "flow", "feature", "pattern", "xref", "gotcha", "budget")
+KB_KINDS = (
+    "version", "var", "budget",
+    "doc", "flow", "feature", "pattern", "xref", "gotcha",
+    "class", "contract", "dep",
+)
 CONTENT_KINDS = {"doc", "flow", "feature", "pattern", "xref", "gotcha"}
+CODE_KINDS = ("class", "contract", "dep")
 RID_RE = re.compile(r"[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*$")
 
 STOPWORDS = {
@@ -31,7 +47,12 @@ STOPWORDS = {
 }
 
 MAX_TEXT_LENGTH = 300
-DEFAULT_BUDGETS = {"kb_index": 32000}
+
+OVERLAY_NAME = "code.kb.omt"
+KB_SRC_DIR = REPO_ROOT / ".meta" / "doc" / "omt++"
+SRC_ROOT = REPO_ROOT / "src" / "agentx"
+INDEX_OUT = REPO_ROOT / ".meta" / ".omt" / "kb.index.jsonl"
+IR_OUT = REPO_ROOT / ".meta" / ".omt" / "kb.ir.json"
 
 
 @dataclass
@@ -78,7 +99,7 @@ def parse(text: str, errors: list[str] | None = None, src: str = "") -> list[KBR
             errors.append(f"kb.omt:{lineno}: unknown kind '@{kind}'")
             continue
 
-        # Skip metadata records (version, year, budget) — test fixture expects
+        # Skip metadata records (version, var, budget) — test fixture expects
         # parse() to only return content records.
         if kind in ("version", "var", "budget"):
             continue
@@ -201,23 +222,170 @@ def check_ids(records: list[KBRecord], errors: list[str]):
         seen[r.id] = r.line
 
 
-def check_budget(phase: str, budget_id: str, content: str, errors: list[str]):
-    """Check budget bounds."""
-    max_size = DEFAULT_BUDGETS.get(budget_id)
-    if max_size is None:
-        return
-    if len(content) > max_size:
-        errors.append(f"KB_BUDGET_EXCEEDED: {budget_id} {len(content)} > {max_size}")
+# ---------------------------------------------------------------------------
+# Unified build (feature_kb_akb P0)
+# ---------------------------------------------------------------------------
+def _curated_entry(r: KBRecord) -> dict:
+    entry: dict = {
+        "id": r.id,
+        "kind": r.kind,
+        "tags": r.tags,
+        "text": r.text,
+        "src": r.src,
+        "line": r.line,
+    }
+    if r.refs:
+        entry["refs"] = r.refs
+    entry["tier"] = r.tier
+    return entry
+
+
+def build_index(
+    kb_src_dir: Path, src_root: Path, repo_root: Path
+) -> tuple[list[dict], list[str], list[str]]:
+    """curated .kb.omt (excl. overlay) + AST skeleton + overlay merge.
+
+    Returns (entries, warnings, errors); entries in kb.index.jsonl schema.
+    Merge rules (PROJECT.md §Extraction contract):
+      - overlay `text` overrides skeleton auto-text (full style lint — curated)
+      - refs = union(skeleton, overlay), sorted
+      - skeleton src/line/tags always win (drift-free)
+      - un-curated skeleton records keep auto-text (length-checked only —
+        identifiers are symbols, not prose: stopword lint is for curated text)
+      - orphan overlay key (no skeleton id) → warning, record not emitted
+      - unified duplicate-id + unresolved-ref checks → errors
+    """
+    warnings: list[str] = []
+    errors: list[str] = []
+    kb_src_dir = Path(kb_src_dir)
+    src_root = Path(src_root)
+    repo_root = Path(repo_root)
+
+    entries: list[dict] = []
+
+    # 1. curated records (overlay file EXCLUDED — merge source only)
+    curated_files = sorted(
+        f for f in kb_src_dir.glob("*.kb.omt") if f.name != OVERLAY_NAME
+    )
+    for f in curated_files:
+        try:
+            rel = f.relative_to(repo_root).as_posix()
+        except ValueError:
+            rel = f.as_posix()
+        for r in parse(f.read_text(encoding="utf-8"), errors, src=rel):
+            validate_style(r.id, r.text, errors)
+            entries.append(_curated_entry(r))
+
+    # 2. AST skeleton (code tier — ALL public classes, auto-text floor)
+    skeleton, skel_warnings = kb_ast_extract.extract(src_root, repo_root)
+    warnings.extend(skel_warnings)
+
+    # 3. overlay parse (code.kb.omt — kinds class/contract/dep)
+    overlay_path = kb_src_dir / OVERLAY_NAME
+    overlay: dict[str, KBRecord] = {}
+    if overlay_path.exists():
+        for r in parse(overlay_path.read_text(encoding="utf-8"), errors, src=OVERLAY_NAME):
+            overlay[r.id] = r
+
+    # 4. merge skeleton × overlay
+    merged_ids: set[str] = set()
+    for skel in skeleton:
+        ovl = overlay.get(skel["id"])
+        if ovl is not None:
+            merged_ids.add(skel["id"])
+            validate_style(ovl.id, ovl.text, errors)
+            skel = dict(skel)
+            skel["text"] = ovl.text
+            skel["refs"] = sorted(set(skel["refs"]) | set(ovl.refs))
+        elif len(skel["text"]) > MAX_TEXT_LENGTH:
+            errors.append(
+                f"KB:{skel['id']}: auto-text exceeds {MAX_TEXT_LENGTH} ({len(skel['text'])})"
+            )
+        entries.append(skel)
+
+    # 5. orphan overlay keys (drift detector: renamed/removed class)
+    for oid in sorted(overlay):
+        if oid not in merged_ids:
+            warnings.append(
+                f"kb_compiler: orphan overlay key '{oid}' — no matching skeleton record"
+            )
+
+    # 6. unified checks
+    seen: set[str] = set()
+    for e in entries:
+        if e["id"] in seen:
+            errors.append(f"KB:{e['id']}: duplicate id")
+        seen.add(e["id"])
+    all_ids = {e["id"] for e in entries}
+    for e in entries:
+        for ref in e.get("refs", []):
+            if ref not in all_ids:
+                errors.append(f"KB:{e['id']}: unresolved ref '{ref}'")
+
+    return entries, warnings, errors
+
+
+def _build_ir_unified(entries: list[dict], generated_from: str) -> dict:
+    return {
+        "version": "akb_hdl.1",
+        "generated_from": generated_from,
+        "records": [
+            {
+                "id": e["id"],
+                "kind": e["kind"],
+                "line": e["line"],
+                "tags": e["tags"],
+                "text": e["text"],
+                "refs": e.get("refs", []),
+                "tier": e["tier"],
+            }
+            for e in entries
+        ],
+    }
+
+
+def _render_index(entries: list[dict]) -> str:
+    return "\n".join(json.dumps(e) for e in entries) + "\n"
 
 
 # -- CLI --
 def main() -> int:
-    """CLI: build or check."""
+    """CLI: build (write index+IR) or check (report only)."""
     args = sys.argv[1:]
     if not args or args[0] not in ("build", "check"):
         print("Usage: kb_compiler.py <build|check>")
         return 2
-    # placeholder — module is primarily a library
+    mode = args[0]
+
+    entries, warnings, errors = build_index(KB_SRC_DIR, SRC_ROOT, REPO_ROOT)
+
+    kinds: dict[str, int] = {}
+    for e in entries:
+        kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
+    summary = ", ".join(f"{k}={n}" for k, n in sorted(kinds.items()))
+    print(f"kb_compiler {mode}: {len(entries)} records ({summary})")
+
+    for w in warnings:
+        print(f"WARNING: {w}")
+    for e in errors:
+        print(f"ERROR: {e}")
+    if errors:
+        print(f"kb_compiler {mode}: {len(errors)} errors — outputs NOT written")
+        return 1
+
+    if mode == "build":
+        INDEX_OUT.parent.mkdir(parents=True, exist_ok=True)
+        INDEX_OUT.write_text(_render_index(entries), encoding="utf-8")
+        IR_OUT.write_text(
+            json.dumps(
+                _build_ir_unified(entries, f"{KB_SRC_DIR}/*.kb.omt + {SRC_ROOT}"),
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        size = INDEX_OUT.stat().st_size
+        print(f"wrote {INDEX_OUT} ({size} B, unbounded) + {IR_OUT}")
     return 0
 
 

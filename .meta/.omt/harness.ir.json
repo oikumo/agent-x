@@ -3,7 +3,6 @@
     "agents_md": 2560,
     "digest_cap": 1024,
     "ir_json": 20480,
-    "kb_index": 32768,
     "meta_harness_md": 2048,
     "meta_md": 6144,
     "nav_index": 64000,
@@ -259,6 +258,12 @@
       "id": "file_thoughts",
       "on": "file_read",
       "text": "first read of a TA:-carrying file per session appends the file's thoughts (feature_022 D1 point-of-use; awareness \u2260 consult \u2014 no think_consult record)"
+    },
+    {
+      "budget": 256,
+      "id": "kb_bootstrap",
+      "on": "first_tool_result",
+      "text": "AKB tip \u2014 omt_kb_nav{op:nav, query} before src/ edits (g.kb blocks); CLASS_/CONTRACT_/DEP_/LAYER_ tags, tag_type:TIER_CODE, list_sections file:<substr> (feature_kb_akb)"
     }
   ],
   "msgs": {
@@ -305,7 +310,7 @@
     "kb_required": {
       "see": "",
       "sev": "block",
-      "text": "KB consult required \u2014 run omt_kb_nav{op:list} or omt_kb_nav{op:nav,query} before editing src/ (feature_kb_akb)"
+      "text": "KB consult required \u2014 run omt_kb_nav{op:nav, query} (tag-prefix CLASS_/CONTRACT_/DEP_/LAYER_ or symbol id; tag_type:TIER_CODE) before editing src/ (feature_kb_akb)"
     },
     "mvc_new_hard": {
       "see": "@msg.err_v2m",

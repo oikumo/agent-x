@@ -142,15 +142,12 @@ class TestKbCompilerStyle:
         kb_compiler.check_ids(records, errors)
         assert len(errors) > 0
 
-    def test_budget_fails_when_oversize(self, tmp_path):
-        """Budget violation when index exceeds max."""
+    def test_budget_machinery_removed(self):
+        """kb_index budget removed (feature_kb_akb v2: index UNBOUNDED)."""
         import kb_compiler
 
-        oversized = "x" * 32001
-        errors: list[str] = []
-        kb_compiler.check_budget("build", "kb_index", oversized, errors)
-        assert len(errors) > 0
-        assert "budget" in errors[0].lower()
+        assert not hasattr(kb_compiler, "DEFAULT_BUDGETS")
+        assert not hasattr(kb_compiler, "check_budget")
 
 
 class TestKbCompilerCli:
@@ -218,3 +215,89 @@ class TestKbCompilerCli:
         assert ir_path.exists()
         ir_data = json.loads(ir_path.read_text())
         assert len(ir_data["records"]) == 4
+
+
+class TestKbCompilerBuildUnified:
+    """feature_kb_akb P0: build_index = curated + AST skeleton + overlay merge."""
+
+    def _make_tree(self, tmp_path: Path, overlay: str) -> tuple[Path, Path]:
+        kb_dir = tmp_path / "kb"
+        kb_dir.mkdir()
+        (kb_dir / "arch.kb.omt").write_text(
+            '@version akb_hdl n=1\n'
+            '@doc mvcpp tags="ARCH_MVCPP,TIER_CORE" tier=core : MVC++ layers\n'
+        )
+        (kb_dir / "code.kb.omt").write_text(overlay)
+        src_root = tmp_path / "src" / "agentx"
+        (src_root / "model").mkdir(parents=True)
+        (src_root / "model" / "foo.py").write_text(
+            "from abc import ABC, abstractmethod\n\n\n"
+            "class IBar(ABC):\n"
+            "    @abstractmethod\n"
+            "    def bar(self): ...\n\n\n"
+            "class Foo(IBar):\n"
+            "    def bar(self): ...\n\n\n"
+            "class Baz:\n"
+            "    pass\n"
+        )
+        return kb_dir, src_root
+
+    def test_build_merges_curated_skeleton_overlay(self, tmp_path):
+        """Unified entries: overlay text wins, refs union, skeleton src/line win."""
+        import kb_compiler
+
+        kb_dir, src_root = self._make_tree(
+            tmp_path,
+            '@version akb_hdl n=1\n'
+            '@class Foo tier=code refs="contract.IBar" : Foo curated concept text\n',
+        )
+        entries, warnings, errors = kb_compiler.build_index(kb_dir, src_root, tmp_path)
+        assert errors == [], f"errors: {errors}"
+        by_id = {e["id"]: e for e in entries}
+
+        # curated kept; skeleton comprehensive (incl. un-curated Baz)
+        assert "doc.mvcpp" in by_id
+        assert "contract.IBar" in by_id
+        assert "class.Foo" in by_id
+        assert "class.Baz" in by_id
+        assert "dep.Foo_IBar" in by_id
+
+        # overlay text wins; refs = union(skeleton, overlay)
+        assert by_id["class.Foo"]["text"] == "Foo curated concept text"
+        assert set(by_id["class.Foo"]["refs"]) == {"contract.IBar"}
+        assert by_id["class.Foo"]["tier"] == "code"
+
+        # skeleton src/line win over overlay bookkeeping
+        assert by_id["class.Foo"]["src"] == "src/agentx/model/foo.py"
+
+        # un-curated keeps auto-text
+        assert by_id["class.Baz"]["text"] == "Baz"
+
+    def test_overlay_not_emitted_as_curated(self, tmp_path):
+        """code.kb.omt excluded from the curated glob: code ids emit exactly once."""
+        import kb_compiler
+
+        kb_dir, src_root = self._make_tree(
+            tmp_path,
+            '@version akb_hdl n=1\n'
+            '@class Foo tier=code : Foo curated concept text\n',
+        )
+        entries, _, errors = kb_compiler.build_index(kb_dir, src_root, tmp_path)
+        assert errors == [], f"errors: {errors}"
+        ids = [e["id"] for e in entries]
+        assert ids.count("class.Foo") == 1
+        foo = {e["id"]: e for e in entries}["class.Foo"]
+        assert foo["src"].startswith("src/agentx/")
+
+    def test_orphan_overlay_key_warns(self, tmp_path):
+        """Overlay key with no matching skeleton id -> warning, not emitted."""
+        import kb_compiler
+
+        kb_dir, src_root = self._make_tree(
+            tmp_path,
+            '@version akb_hdl n=1\n'
+            '@class Ghost tier=code : Ghost has no matching class\n',
+        )
+        entries, warnings, errors = kb_compiler.build_index(kb_dir, src_root, tmp_path)
+        assert any("class.Ghost" in w for w in warnings), f"warnings: {warnings}"
+        assert "class.Ghost" not in {e["id"] for e in entries}

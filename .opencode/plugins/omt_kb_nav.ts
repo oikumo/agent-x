@@ -10,6 +10,11 @@
 //   list_sections(file?) — list all records for a source file (tier-filterable)
 //   cross_ref(xref) — resolve a cross-reference id
 //   quick_ref(workflow?) — find patterns by QUICK_ tag
+//
+// Result bound (PROJECT.md v2 §Budget policy): the index is UNBOUNDED
+// (comprehensive coverage); token cost is bounded PER QUERY — every op caps
+// at MAX_RECORDS with a `truncated` marker when exceeded. Refine with
+// tag_type / file / symbol id / longer tag prefix.
 
 import { tool } from "@opencode-ai/plugin"
 import {
@@ -25,6 +30,16 @@ interface KbRecord {
   line: number
   refs?: string[]
   tier: string
+}
+
+// Per-query result bound (P0 with a 500-800 record index — PROJECT.md v2).
+const MAX_RECORDS = 25
+
+function capRecords(hits: KbRecord[], render: (r: KbRecord) => string, sep = "\n"): string {
+  const out = hits.slice(0, MAX_RECORDS).map(render).join(sep)
+  return hits.length > MAX_RECORDS
+    ? out + `${sep}… truncated: ${MAX_RECORDS}/${hits.length} records — refine query (tag_type, file, symbol id, longer prefix)`
+    : out
 }
 
 // --- record search primitives (index-only; no grep fallback) -----------------
@@ -65,7 +80,7 @@ function createKbNavTools() {
       file: tool.schema.string().optional().describe(
         "Optional: restrict to records from one source file"),
       tag_type: tool.schema.string().optional().describe(
-        "Optional: TIER_CORE|TIER_EXTENDED|TIER_REFERENCE|all"),
+        "Optional: TIER_CORE|TIER_EXTENDED|TIER_REFERENCE|TIER_CODE|all"),
       include_context: tool.schema.boolean().optional().describe(
         "Include full record text (default: id+line+text+tags)"),
     },
@@ -92,16 +107,18 @@ function createKbNavTools() {
 
       const hits = kbQuery(pool, query)
       if (hits.length === 0) {
-        return `No KB results for "${query}". Try: ARCH_, TIER_CORE, FEAT_, FLOW_, EXT_, SUBSYS_, PERSIST_`
+        return `No KB results for "${query}". Try: ARCH_, TIER_CORE, TIER_CODE, CLASS_, CONTRACT_, DEP_, LAYER_, FEAT_, FLOW_`
       }
 
       if (include_context) {
-        return hits
-          .map(r => `${r.id} (${r.tier}) [${r.kind}] : ${r.text}` + (r.refs?.length ? ` →${r.refs.join(",")}` : "" ))
-          .join("\n\n")
+        return capRecords(
+          hits,
+          r => `${r.id} (${r.tier}) [${r.kind}] : ${r.text}` + (r.refs?.length ? ` →${r.refs.join(",")}` : ""),
+          "\n\n",
+        )
       }
 
-      return hits.map(r => `${r.id}: ${r.text}`).join("\n")
+      return capRecords(hits, r => `${r.id}: ${r.text}`)
     },
   })
 
@@ -118,10 +135,10 @@ function createKbNavTools() {
       if (!recs) {
         return "No KB index found — run kb_compiler.py build first."
       }
-      // Tier order: core > extended > reference
-      const tierOrd: Record<string, number> = { core: 0, extended: 1, reference: 2 }
+      // Tier order: core > extended > reference > code
+      const tierOrd: Record<string, number> = { core: 0, extended: 1, reference: 2, code: 3 }
       const sorted = [...recs].sort((a, b) => (tierOrd[a.tier] ?? 9) - (tierOrd[b.tier] ?? 9))
-      return sorted.map(r => `${r.tier}: ${r.id}  [${r.tags.join(", ")}]`).join("\n")
+      return capRecords(sorted, r => `${r.tier}: ${r.id}  [${r.tags.join(", ")}]`)
     },
   })
 
@@ -148,7 +165,7 @@ function createKbNavTools() {
         r.text.toLowerCase().includes(xref.toLowerCase())
       )
       return hits.length
-        ? hits.map(r => `${r.id} (${r.tier}): ${r.text}`).join("\n")
+        ? capRecords(hits, r => `${r.id} (${r.tier}): ${r.text}`)
         : `No references for "${xref}".`
     },
   })
@@ -175,7 +192,7 @@ function createKbNavTools() {
         pool = pool.filter(r => r.tags.some(t => t.startsWith("TIER_CORE")))
       }
       return pool.length
-        ? pool.map(r => `${r.id} (${r.tier}): ${r.text}`).join("\n")
+        ? capRecords(pool, r => `${r.id} (${r.tier}): ${r.text}`)
         : `No patterns${workflow ? ` for "${workflow}"` : ""}. Try: TIER_CORE, ARCH_, FLOW_`
     },
   })
@@ -187,7 +204,7 @@ function createKbNavTools() {
       op: tool.schema.string().describe("nav|list_sections|cross_ref|quick_ref"),
       query: tool.schema.string().optional().describe("nav: tag prefix ('ARCH_', 'TIER_CORE') or keyword"),
       file: tool.schema.string().optional().describe("nav/list_sections: restrict to one source file"),
-      tag_type: tool.schema.string().optional().describe("nav: TIER_CORE|TIER_EXTENDED|TIER_REFERENCE|all"),
+      tag_type: tool.schema.string().optional().describe("nav: TIER_CORE|TIER_EXTENDED|TIER_REFERENCE|TIER_CODE|all"),
       include_context: tool.schema.boolean().optional().describe("nav: include full record text (default: false)"),
       xref: tool.schema.string().optional().describe("cross_ref: e.g. 'doc.mvcpp'"),
       workflow: tool.schema.string().optional().describe("quick_ref: e.g. 'TIER_CORE', 'ARCH_'"),

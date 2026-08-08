@@ -122,7 +122,7 @@ AGENTS_QUICK_FLOWS = ["start_bug", "start_major", "skip_src", "status", "lint"]
 
 MEASURABLE_BUDGETS = {"agents_md", "work_md", "work_scratchpad", "tool_schemas",
                         "tool_args", "nav_index", "ir_json",
-                        "meta_harness_md", "meta_md", "kb_index"}  # compiler-measurable
+                        "meta_harness_md", "meta_md"}  # compiler-measurable
 REPORT_ONLY_BUDGETS = {"nav_tip", "digest_cap"}  # TS-rendered; test-pinned (R7 T5)
 
 

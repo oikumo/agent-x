@@ -16,4 +16,4 @@
 
 @doc config tags="ARCH_CONFIG,TIER_REFERENCE" tier=reference : opencode.jsonc→deny:git,py,pip,env. omt_enforcer.ts→process gate. AGENTS.md→agent rules. mvc_check.py→linter. new_feature.py→scaffolder. omt_phase→src/ edits, omt_complete→phase advance.
 
-@doc Decisions tags="ARCH_DECISIONS,TIER_CORE" tier=core : No ORM/Alembic. Agent→SessionSnapshot. Single-active goal→GoalManager. Reflection AI-optional, skipped without AI. .env gitignored, OPENROUTER_API_KEY at boot. --no-tui or no TTY→console.
+@doc decisions tags="ARCH_DECISIONS,TIER_CORE" tier=core : No ORM/Alembic. Agent→SessionSnapshot. Single-active goal→GoalManager. Reflection AI-optional, skipped without AI. .env gitignored, OPENROUTER_API_KEY at boot. --no-tui or no TTY→console.

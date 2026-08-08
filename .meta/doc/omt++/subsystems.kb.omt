@@ -14,7 +14,7 @@
 
 @doc agent_tools tags="SUBSYS_AGENT_TOOLS,TIER_CORE" tier=core : ToolRegistry: FileSystemTool(hybrid,MAX2000), RagSensorTool(hybrid), SessionTool(hybrid,save/status). _decision_to_command→tool_id+action→ActuatorCommand. Fixed: tools read command.action not command.parameters (F010).
 
-@doc aontpresist tags="SUBSYS_AGENT_PERSIST,TIER_CORE" refs="doc.persist_agent_schema,flow.persist" tier=core : SessionDB (DBS) +4 repos: Goal+Memory+Policy+Reflection. Schema schema_db.py idempotent DDL. SessionSnapshot: config+v.taripol+mem+policy+goals+reflection_pos.→persistence.md§3.
+@doc agent_persist tags="SUBSYS_AGENT_PERSIST,TIER_CORE" refs="doc.persist_agent_schema,flow.persist" tier=core : SessionDB (DBS) +4 repos: Goal+Memory+Policy+Reflection. Schema schema_db.py idempotent DDL. SessionSnapshot: config+volatile+mem+policy+goals+reflection_pos.→persistence.md§3.
 
 @doc agent_controllers tags="SUBSYS_AGENT_CTRLS,TIER_CORE" tier=core : AgentController: submit_goal,run_cycle,update_policy,save_snapshot,list_*,approve,reset,load_demo,get_cycle. Session+Tool controllers thin. AgentScreen keys: q/r/s/d/esc.
 
@@ -28,6 +28,6 @@
 
 @doc ui tags="SUBSYS_UI,TIER_EXTENDED" tier=extended : Screen triads: Main, Chat, RAG, Agent. Sub: repo select/create/chat/ingest. Keys: q/ESC back, c/r/ag/h/ctrl+l. 10cmds: help,history,chat,new,quit,clear,rag,sum. Issues: ChatView local ABC, "waning" typo, show_react dead import.
 
-@doc to tags="SUBSYS_DEMO,TIER_REFERENCE" tier=reference : DemoScenario data. Type1: FileReader 1cycle. Type3: KnowledgeAssistant multi-step(notes→summary). Published→Agent/Consisth; seed_sandbox, controller xlates specs→Goal+PolicyRule.
+@doc demo tags="SUBSYS_DEMO,TIER_REFERENCE" tier=reference : DemoScenario data. Type1: FileReader 1cycle. Type3: KnowledgeAssistant multi-step(notes→summary). Published→Agent/Console; seed_sandbox, controller xlates specs→Goal+PolicyRule.
 
-@doc utils tags="SUBSYS_UTILS_REFERENCE" tier=reference : constants.py→btS_OP_VERSION, SESSION_DEFAULT_TEMP_DIR,Xertion, allowed deletion. utils.py→safe_int,clear_console,dir creation timestamped, safe deletion. utils_dirflz→pathlib toolkit. utils_input→valid_url.
+@doc utils tags="SUBSYS_UTILS_REFERENCE,TIER_REFERENCE" tier=reference : constants.py→APP_VERSION, SESSION_DEFAULT_BASE_DIRECTORY, DIRECTORIES_DELETION_ALLOWED. utils.py→safe_int, clear_console, create_directory_with_timestamp, dir-deletion predicate. utils_directories.py→pathlib toolkit. utils_input.py→url validation.

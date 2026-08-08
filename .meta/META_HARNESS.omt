@@ -138,7 +138,7 @@
 @msg wrn_sql_dp sev=warn : SQL outside DP classes (non-*_db.py has SQL) — TOAST
 @msg wrn_god_ctl sev=warn : Controller >300 lines — TOAST
 @msg wrn_ctl_ui sev=warn : print()/console in Controller — TOAST
-@msg kb_required sev=block : KB consult required — run omt_kb_nav{op:list} or omt_kb_nav{op:nav,query} before editing src/ (feature_kb_akb)
+@msg kb_required sev=block : KB consult required — run omt_kb_nav{op:nav, query} (tag-prefix CLASS_/CONTRACT_/DEP_/LAYER_ or symbol id; tag_type:TIER_CODE) before editing src/ (feature_kb_akb)
 
 # ============================================================
 # STATE — runtime state files (mode: append|rotate|rewrite)
@@ -152,6 +152,7 @@
 # ============================================================
 @inject session_bootstrap on=first_tool_result budget=1536 : ONE emission per session (nav tip ≤512B deferred when nav-first R7 T3; compact TA digest ≤1024B DIGEST_CAP_BYTES — counts + per-file counts + stale ⚠️ + pointer, full texts via omt_think{op:list} / D1)
 @inject file_thoughts on=file_read budget=1024 : first read of a TA:-carrying file per session appends the file's thoughts (feature_022 D1 point-of-use; awareness ≠ consult — no think_consult record)
+@inject kb_bootstrap on=first_tool_result budget=256 : AKB tip — omt_kb_nav{op:nav, query} before src/ edits (g.kb blocks); CLASS_/CONTRACT_/DEP_/LAYER_ tags, tag_type:TIER_CODE, list_sections file:<substr> (feature_kb_akb)
 
 # ============================================================
 # DOC — harness knowledge corpus (nav-indexed; app-doc tags are scraped at build)
@@ -242,7 +243,6 @@
 @budget ir_json max=20480 : harness.ir.json bytes — plugin-internal (improvement006/OPT-D: previously unchecked)
 @budget meta_harness_md max=2048 : .meta/META_HARNESS.md stub bytes — on-demand (improvement007/OPT-B: state-note rotation 5526→1366; only the latest note inline, older → git history)
 @budget meta_md max=6144 : .meta/META.md bytes — on-demand (improvement007/OPT-B: stale READ-FIRST directive → omt_nav routing + dir-tree slim 6754→5002)
-@budget kb_index max=32768 : kb.index.jsonl bytes — on-demand KB nav answers (feature_kb_akb)
 
 # ============================================================
 # TOOL — registry (perms → jsonc block; one-line schema text → IR; CMD_ tags)

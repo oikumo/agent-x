@@ -93,6 +93,14 @@ export function getSearchPath(output: any): string | null {
 const navReminderMsg = () =>
   `💡 NAVIGATION TIP: docs search → omt_nav (op=nav|list_sections|cross_ref|quick_ref) BEFORE grep/glob (read+src exempt; skip: omt_skip{scope:"nav"}).`
 
+// feature_kb_akb: AKB reminder (@inject kb_bootstrap) — text sourced from the
+// IR injects (single source: META_HARNESS.omt), emitted once per session
+// riding the firstEver bootstrap branch. Fail-open null when IR lacks it.
+const kbBootstrapMsg = (): string | null => {
+  const inj = (loadIr()?.injects ?? []).find((i: any) => i?.id === "kb_bootstrap")
+  return inj?.text ? `💡 ${inj.text}` : null
+}
+
 // Before-hook instrumentation (feature_020): track nav-vs-search usage for
 // every tool. HDL-2 (improvement006/OPT-F): the BLOCK decision moved to the
 // data-driven gate chain — lib/enforcer/gate_driver.ts IMPLS["g.nav"].
@@ -136,7 +144,11 @@ export async function sessionBootstrap(env: EnforcerEnv, input: any, output: any
     if (typeof output?.output === "string") {
       const parts: string[] = []
       if (sendReminder) parts.push(navReminderMsg())
-      if (firstEver) parts.push(thinkDigest())
+      if (firstEver) {
+        parts.push(thinkDigest())
+        const kb = kbBootstrapMsg()
+        if (kb) parts.push(kb)
+      }
       if (parts.length) output.output += "\n\n" + parts.join("\n\n")
     }
   } catch (e: any) {
