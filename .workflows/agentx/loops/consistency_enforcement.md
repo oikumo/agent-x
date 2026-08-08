@@ -10,7 +10,7 @@ The error must be fixed and Python and OMT++ intend must be followed
 # Applying consistency strategy
 1. Read the project documentation and requirements
 2. Understand the current application implementation and try to find gaps between the core idea the actual implementation
-3. Identify the issues if it exits, and propose fix alternatives in a new document or update one document in ./sandbox/consitency_enforcement/round_<NNN>_<BRIEF_DESCRIPTION>.md
+3. Identify the issues if they exist, and propose fix alternatives in a new document or update one document in ./sandbox/consistency_enforcement/round_<NNN>_<BRIEF_DESCRIPTION>.md
 4. Ask the user what alternatives have to perform the changes to improve the agentx consistency
 5. Execute the alternative chosen by the user
 6. Update the results in the same file of step 3, ./sandbox/consistency_enforcement/round_<NNN>_<BRIEF_DESCRIPTION>.md

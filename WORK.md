@@ -32,6 +32,7 @@
 - [x] **improvement006.meta_harness_evolution (ALL OPT A–H)** — DONE (2026-08-01): schemas 1484→775 B + 18→7 tools (omt_tdd/omt_nav/omt_think op=) · WORK.md 5.9→3.3 KB DONE-rotation · seed-drift lint · @derive+nav/IR budgets · status compact+2 fixes · HDL-2 gate_driver (IR-ordered chain) · root-hygiene gate. Details: .sandbox/meta/improvement006/OUTCOME.md + git log.
 - [x] **feature_tui_dark_mode** — TUI dark mode toggle + theme selector
 - [x] **feature_023.production_hook_effects_test** — Test 6 MVC++ gate root-caused (after-hook args on `input`, SDK contract); tests green.
+- [x] **meta.workflows_definition_layer** — DONE (2026-08-08): `.workflows/` catalog definition layer — root `META.md` (8 sections: catalog purpose, subject namespaces, `loops/` vs top-level split, file schema, discovery & trigger contract read-order, output-path declaration, authoring template, recurring invariants) + 3 subject META.md (`agentx` 2 loops, `meta_harness` 2 loops + 1 one-shot, `app_knowledge_base` future/reserved). 3 open gaps fixed: empty `app_knowledge_base/loops/` stub declared future; `consitency_enforcement` typo corrected (grep zero hits); `pause_dev_for_resume_later.md` brought to full schema (# Rules + # Pause strategy). S5 dry-run verified — two distinct triggers matched without filename paste. S6 `git diff --stat` confirms only `.workflows/` touched. Details: `.projects/meta/workflows/PROJECT.md` Tasks + git log.
 ---
 
 ## Agent Scratchpad (auto-managed, do not edit manually)

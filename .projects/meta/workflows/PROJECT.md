@@ -106,6 +106,43 @@ The iteration is done when **all six** hold:
 
 - [x] Purpose (draft v1) — this section
 - [x] Scope & success criteria (v1) — locked from sess decisions (definition-only, agent-reads-catalog, informal gates, per-workflow output path)
-- [ ] Vision / goals — pending
-- [ ] Architecture — pending
-- [ ] Tasks — pending
+- [ ] Vision / goals — pending (deferred — not required for the definition-layer iteration; future project may draft a vision section)
+- [ ] Architecture — pending (deferred — the definition layer's "architecture" is the manifest's discovery contract; a richer architecture section is a future-project concern if/when a discovery helper or `omt_workflow` tool is proposed)
+- [x] Tasks — definition-layer iteration executed (see below)
+
+---
+
+## Tasks (definition-layer iteration — DONE 2026-08-08)
+
+| # | Task | Status | Artifact |
+|---|---|---|---|
+| T1 | Fill `.workflows/META.md` root manifest | [x] DONE | `.workflows/META.md` (catalog purpose, subject namespaces, `loops/` vs top-level split, file schema, trigger contract §4, output-path declaration §5, authoring template §6, recurring invariants §7) |
+| T2 | Create per-subject `META.md` (agentx) | [x] DONE | `.workflows/agentx/META.md` |
+| T3 | Create per-subject `META.md` (meta_harness) | [x] DONE | `.workflows/meta_harness/META.md` |
+| T4 | Create per-subject `META.md` (app_knowledge_base) | [x] DONE | `.workflows/app_knowledge_base/META.md` (declares subject reserved/future, `loops/` is an empty reserved stub) |
+| T5 | Gap-S4a resolve empty `app_knowledge_base/loops/` stub | [x] DONE | Decision: Option B — kept the directory, declared it future/reserved in `.workflows/app_knowledge_base/META.md` |
+| T6 | Gap-S4b fix the `consitency_enforcement` typo | [x] DONE | `.workflows/agentx/loops/consistency_enforcement.md` step 3 + step 6 rewritten to `./sandbox/consistency_enforcement/round_<NNN>_<BRIEF_DESCRIPTION>.md`; grep for the misspelling returns zero hits across `.workflows/` |
+| T7 | Gap-S4c `pause_dev_for_resume_later.md` up to schema | [x] DONE | `.workflows/meta_harness/pause_dev_for_resume_later.md` now has `# Rules` + `# Pause strategy` (6 steps, approval gate at step 4) + optional `# Result`; type one-shot stays declared in `.workflows/meta_harness/META.md` |
+| T8 | Authoring template delivered | [x] DONE | `.workflows/META.md` §6 (fenced template + authoring checklist) |
+| T9 | Discovery & trigger contract delivered | [x] DONE | `.workflows/META.md` §4 (read order, match procedure, approval gate hard invariant, OMT gate stance) |
+| T10 | Verify S5 by manual dry-run | [x] DONE | Two distinct natural-language triggers ("feature X doesn't work, fix it" → `agentx/loops/feature_fix.md`; "pause my work for resume later" → `meta_harness/pause_dev_for_resume_later.md`) — both land on the right file via the two-level read with no human pasting the filename |
+| T11 | Verify S6 by `git diff --stat` | [x] DONE | All changes are under `.workflows/` (3 modified + 3 newly-created META files) — no `src/`, `.opencode/`, `.meta/`, `META_HARNESS.omt`, or `AGENTS.md` modifications |
+
+### Success criteria outcome
+
+| # | Success criterion | Result |
+|---|---|---|
+| S1 | `.workflows/META.md` is non-empty and documents catalog purpose, subject namespaces, `loops/` vs top-level split, file schema, trigger contract (read-order + approval gate), per-workflow output-path declaration convention | ✅ `.workflows/META.md` — 8 sections covering all required content |
+| S2 | Each subject dir has non-empty `META.md` listing workflows with name, purpose, trigger keywords, output-path pattern | ✅ Three subject META.md files (agentx: 2 loops, meta_harness: 2 loops + 1 one-shot, app_knowledge_base: future/reserved with zero workflows yet declared) |
+| S3 | Authoring template exists showing the problem → `# Rules` → `# <Strategy>` → optional `# Result` shape with the per-workflow output-path field filled | ✅ `.workflows/META.md` §6 — fenced template that can be copied to author a new workflow |
+| S4 | Three open gaps resolved | ✅ (a) `app_knowledge_base/loops/` kept as empty reserved stub, declared future in its SUBJECT META.md; (b) the misspelled path is fixed and the path follows the per-workflow-declared nested-round convention; (c) `pause_dev_for_resume_later.md` brought up to the full schema (Rules + Strategy + Result); `consitency` grep returns zero hits |
+| S5 | A fresh agent session given only a natural-language trigger can identify the correct `.workflows/` file by reading root + matched subject META.md, without a human pasting the filename | ✅ Manual dry-run with two distinct triggers (one feature-fix, one session-pause) — both correctly selected |
+| S6 | No `src/`, `.opencode/`, or `META_HARNESS.omt` files modified | ✅ `git diff --stat` shows changes only under `.workflows/`; untracked additions all under `.workflows/` |
+
+### Out-of-scope reminders (deferred to future projects, not done)
+
+- Discovery helper code in `src/` — this iteration delivered the markdown contract such a helper would consume, but did not build the helper.
+- First-class machine-parseable `gates:` field — the OMT-vs-override declaration stays informal, in `# Rules` prose line 1.
+- Harness integration (modifying `META_HARNESS.omt`, `AGENTS.md`, enforcer, adding an `omt_workflow` tool) — workflows sit above the harness; this iteration did not modify the harness.
+- New workflow content beyond the gap-fixes — the catalog's *definition* was the deliverable; authoring new workflows is a future project.
+- Workflow runtime (DAG executor, event bus) — reaffirmed: workflows are agent-read procedures.
