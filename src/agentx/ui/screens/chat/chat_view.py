@@ -33,8 +33,20 @@ class ChatView:
     def show_message(self, message):
         self.console.info(message)
 
-    def show_message_chat_error(self):
-        self.console.error("chat error")
+    def show_message_chat_error(self, message: str | None = None):
+        """Show chat error.
+
+        Args:
+            message: When supplied (e.g. ``"[chat error] NVIDIA NIM: [403] "
+                "Forbidden — check NVIDIA_API_KEY"``) it is rendered verbatim
+                so the user can see *which* provider failed and *what* to
+                check.  Falls back to the legacy generic banner for
+                backward-compatible no-arg callers.
+        """
+        if message:
+            self.console.error(message)
+        else:
+            self.console.error("chat error")
 
     def show_stream_message(self, message: str):
         self.console.info(message)

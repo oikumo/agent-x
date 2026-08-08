@@ -239,13 +239,16 @@ class TestTUIChatAdapterError:
         adapter.show_message_chat_error()  # Should not raise
 
     def test_show_message_chat_error_ignores_args(self, mock_chat_controller):
-        """The method takes no arguments (only self)."""
+        """The method accepts the optional ``message`` arg (feature_024 chat
+        error surfacing: the controller now passes an actionable provider/credential
+        text; a no-arg call forwards ``None``, which the screen resolves to its
+        own generic banner)."""
         adapter = TUIChatAdapter(mock_chat_controller)
         mock_screen = MagicMock()
         adapter.set_screen(mock_screen)
-        
+
         adapter.show_message_chat_error()  # should not raise TypeError
-        mock_screen.show_message_chat_error.assert_called_once_with()
+        mock_screen.show_message_chat_error.assert_called_once_with(None)
 
 
 # ---------------------------------------------------------------------------

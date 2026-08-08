@@ -196,9 +196,18 @@ class ChatTUIScreen(BaseAgentXScreen):
         """Stream message with typing effect (alias for show_partial_message)."""
         self.show_partial_message(message)
 
-    def show_message_chat_error(self) -> None:
-        """Show chat error."""
-        self._add_message("Error: Failed to get response from assistant.", "assistant")
+    def show_message_chat_error(self, message: str | None = None) -> None:
+        """Show chat error.
+
+        Args:
+            message: When supplied, surfaced verbatim in the chat feed so the
+                user sees *which* provider failed and *what* credential to
+                check (e.g. ``"[chat error] NVIDIA NIM: [403] Forbidden —
+                check NVIDIA_API_KEY"``).  ``None`` falls back to a generic
+                banner for backward-compatible no-arg callers.
+        """
+        text = message if message else "Error: Failed to get response from assistant."
+        self._add_message(text, "assistant")
 
     def _on_streaming_complete(self) -> None:
         """Called when streaming is complete."""

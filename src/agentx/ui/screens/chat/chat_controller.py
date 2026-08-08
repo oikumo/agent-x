@@ -61,9 +61,52 @@ class ChatController(IChatViewPartner):
 
         except Exception as e:
             self.history.pop()
-            print(f"Error: {e}")
+            message = self._format_chat_error(e)
+            if self.view:
+                self.view.show_message_chat_error(message)
+            else:
+                print(message)
 
             return True
+
+    # Error-message affordance map for the catalog providers (feature_024 chat
+    # error surfacing).  Maps the provider's ``ProviderInfo.id`` to the env var
+    # whose value controls that provider's auth — gives the user an actionable
+    # hint instead of a bare ``[403] Forbidden``.
+    _AUTH_ENV_VARS: dict[str, str] = {
+        "openrouter": "OPENROUTER_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "gemini": "GOOGLE_API_KEY",
+        "nvidia": "NVIDIA_API_KEY",
+        "ollama": "OLLAMA base URL",
+        "llamacpp": "local GGUF path",
+    }
+
+    def _format_chat_error(self, exc: Exception) -> str:
+        """Build a user-facing error message that surfaces *which* provider
+        failed and the actionable credential/env-var to check.
+
+        Replaces the pre-fix bare ``print(f"Error: {e}")`` — that swallowed LLM
+        exceptions so silently a dead ``NVIDIA_API_KEY`` (e.g. a 403 from a
+        revoked key on the NVIDIA API Catalog) looked like "chat silently
+        fails" with one bare line on stdout and no UI feedback.
+        """
+        # Resolve the active provider's display name + id defensively — the
+        # selector may be in any state; never raise from an error handler.
+        provider_name = "Unknown provider"
+        provider_id = ""
+        try:
+            ai = AIService()
+            info = ai.get_current_provider_info()
+            provider_name = info.name
+            provider_id = info.id
+        except Exception:
+            pass
+        hint = self._AUTH_ENV_VARS.get(provider_id, "API key / config")
+        return (
+            f"[chat error] {provider_name}: {exc} "
+            f"— check {hint}"
+        )
 
     def get_streaming_response(self, llm: BaseChatModel, history: list):
         for chunk in llm.stream(history):

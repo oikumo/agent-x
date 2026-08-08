@@ -30,8 +30,11 @@ class RagChatView:
     def show_message(self, message):
         self.console.info(message)
 
-    def show_message_chat_error(self):
-        self.console.error("chat error")
+    def show_message_chat_error(self, message: str | None = None):
+        if message:
+            self.console.error(message)
+        else:
+            self.console.error("chat error")
 
     def show_stream_message(self, message: str):
         self.console.info(message)

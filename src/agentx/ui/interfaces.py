@@ -113,8 +113,14 @@ class IChatView(ABC):
         pass
 
     @abstractmethod
-    def show_message_chat_error(self) -> None:
-        """Show chat error."""
+    def show_message_chat_error(self, message: str | None = None) -> None:
+        """Show chat error.
+
+        Args:
+            message: Optional actionable error text (e.g. provider name +
+                credential hint).  When ``None`` the view uses its own
+                generic "chat error" string (backward compatibility).
+        """
         pass
 
 

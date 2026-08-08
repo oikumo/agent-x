@@ -61,7 +61,16 @@ class TUIChatAdapter(BaseScreenAdapter, IChatView):
         if self._screen:
             self._screen.show_stream_message(message)
 
-    def show_message_chat_error(self) -> None:
-        """Show chat error."""
+    def show_message_chat_error(self, message: str | None = None) -> None:
+        """Show chat error.
+
+        Args:
+            message: When supplied, surfaces the actionable provider/credential
+                text in the chat feed (e.g. "[chat error] NVIDIA NIM: [403]
+                Forbidden — check NVIDIA_API_KEY").  ``None`` (default) is the
+                legacy no-arg call that delegates to the screen's generic
+                banner.  The default value is explicitly forwarded so the
+                screen implementation can fall back to its own text.
+        """
         if self._screen:
-            self._screen.show_message_chat_error()
+            self._screen.show_message_chat_error(message)
