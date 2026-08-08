@@ -523,7 +523,7 @@
     "plugin_dir": ".opencode/plugins/",
     "process_root": ".meta/software_development_process",
     "receipt_path": ".meta/.omt/omt_harness_e2e_last_run.json",
-    "root_allowlist": "AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,src,tests,tests_automated,.projects,workflows",
+    "root_allowlist": "AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,src,tests,tests_automated,.projects,.workflows",
     "scaffold": "uv run scripts/omt/new_feature.py",
     "search_tools": "grep|glob|rg|find",
     "shared_lib": ".opencode/lib/omt_shared.ts",

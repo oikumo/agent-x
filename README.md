@@ -77,10 +77,56 @@ agentx is developed with **opencode** using a mechanically enforced **META HARNE
 | **Harness Compiler** | `scripts/omt/harnessc.py` | Projects the DSL → `AGENTS.md`, `opencode.jsonc` blocks, plugin IR, nav index; derives records at projection time; drift-tested; lints grammar vocab, tool-seed drift, message orphans, root hygiene |
 | **Ledger** | `.meta/.omt/ledger.jsonl` | Audit trail of all phase declarations and completions (rotated at 64 KB) |
 | **Configuration** | `opencode.jsonc`, `AGENTS.md` | Protected files, denied commands, process rules — **generated projections of the DSL, never hand-edited** |
+| **Workflows Catalog** | `.workflows/` | Operational workflow playbooks the agent loads and executes on user demand — markdown recipes (NOT a runtime engine). Sits **above** the harness: each workflow's `# Rules` line 1 declares whether it follows or overrides OMT. Two-level discovery read: `.workflows/META.md` → matched subject `META.md` → matched file. Mandatory approval gate (no auto-fix). See [`.workflows/META.md`](.workflows/META.md) |
+
+### Workflows (`.workflows/`)
+
+The `.workflows/` catalog holds **human-authored triggered procedures** — operational playbooks the coding agent loads and executes on demand. A workflow is a markdown recipe: a problem statement, a `# Rules` list, and a numbered `# <Strategy>` the agent follows step by step. It is **not** a runtime engine (no DAG executor, no `src/` parser, no event bus) and it is **not** a replacement for OMT — it sits *above* the harness and decides when to invoke it.
+
+**Subjects** namespace the catalog by area of the codebase:
+
+| Subject | Path | State |
+|---------|------|-------|
+| `agentx` | `.workflows/agentx/` | active — 2 loops (`consistency_enforcement`, `feature_fix`) |
+| `meta_harness` | `.workflows/meta_harness/` | active — 2 loops (`meta_harness_evolution`, `meta_harness_project`) + 1 one-shot (`pause_dev_for_resume_later`) |
+| `app_knowledge_base` | `.workflows/app_knowledge_base/` | future — reserved empty stub |
+
+**How a trigger works** (agent-read procedure, no parser):
+
+```text
+user trigger ("feature X doesn't work, fix it")
+   │
+   ▼  read root manifest
+┌─────────────────────────┐
+│ .workflows/META.md      │  ← subjects, schema, read-order
+└────────┬────────────────┘
+         ▼  pick matched subject, read its META
+┌───────────────────────────┐
+│ .workflows/<subj>/META.md │ ← per-workflow purpose, keywords, output path
+└────────┬──────────────────┘
+         ▼  load the matched workflow file
+┌─────────────────────────────────┐
+│ .workflows/<subj>/loops/<wf>.md │ ← # Rules (OMT stance line 1) + # <Strategy>
+└────────┬────────────────────────┘
+         ▼  execute steps → MANDATORY approval gate → write result to .sandbox/
+```
+
+**OMT stance.** Each workflow's `# Rules` line 1 declares whether the harness gates apply:
+- `Follow omt methodology` → `omt_phase` / `g.kb` / think-gates apply normally.
+- `Do not follow the omt methodology, focus on <X>` → gates are advisory for that run (still uses `omt_think` to embed knowledge).
+
+**Recurring invariants** (preserved across every workflow, treated as non-negotiable):
+1. **Human approval is mandatory** — no workflow auto-applies a fix; the user picks the alternative at the approval gate.
+2. **`omt_think` is always used** to embed knowledge in source — even when the workflow overrides OMT methodology.
+3. **Automated unit tests with mocks** are the preferred verification tool.
+4. **Sub-agents** are preferred for parallel analysis whenever useful.
+5. **Future agent token consumption** is the primary cost to minimize (terse definitions, explicit output paths, two-level read order).
+
+To author a new workflow: copy the template in [`.workflows/META.md`](.workflows/META.md) §6, fill it, drop it under the right subject (`loops/` for recurring, subject root for one-shot), and update that subject's `META.md` table. The full contract (schema, discovery procedure, output-path convention, the approval-gate hard invariant) lives in [`.workflows/META.md`](.workflows/META.md).
 
 ### Single Source of Truth: the META HARNESS DSL (OMT-HDL)
 
-Every rule above — deny lists, protected paths, gates and their execution order, tool schemas, TDD state machines, doc structure, size budgets — is declared in **one file**: [`.meta/META_HARNESS.omt`](.meta/META_HARNESS.omt) (OMT-HDL v1: 234 records across 18 record kinds such as `@var`, `@deny`, `@protect`, `@gate`, `@tool`, `@fsm`, `@hat`, `@pred`, `@budget`, `@doc` — including records the compiler *derives* at projection time instead of hand-maintaining).
+Every rule above — deny lists, protected paths, gates and their execution order, tool schemas, TDD state machines, doc structure, size budgets — is declared in **one file**: [`.meta/META_HARNESS.omt`](.meta/META_HARNESS.omt) (OMT-HDL v1: 243 records across 18 record kinds such as `@var`, `@deny`, `@protect`, `@gate`, `@tool`, `@fsm`, `@hat`, `@pred`, `@budget`, `@doc` — including records the compiler *derives* at projection time instead of hand-maintaining).
 
 A compiler projects that single source into everything the runtime and the agent consume:
 

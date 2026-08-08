@@ -784,7 +784,7 @@ def render_agents(c: Corpus) -> str:
     docs = {r.rid: r.payload for r in c.of("doc")}
     flows = {r.rid: r.payload for r in c.of("flow")}
     for need in ("startup", "runtime", "enforcement", "nav.enforcement",
-                 "think.021", "think.gate_not_skip"):
+                 "think.021", "think.gate_not_skip", "workflows"):
         if need not in docs:
             raise SystemExit(f"harnessc: error: @doc {need} missing (AGENTS.md projection needs it)")
     for need in AGENTS_QUICK_FLOWS:
@@ -859,6 +859,7 @@ def render_agents(c: Corpus) -> str:
 - **§12 artifacts:** {decl_tts} → declaration only · {design_tts} → + design doc on disk (`new_feature.py`) · `docs` → none
 - **TDD (feature_016):** {auto_txt} auto-activates `{cycle}` — two-hats: RED tests/ only · GREEN/REFACTOR src/ only (auto-revert on break)
 - **Tools:** {n_tools} `omt_*` — catalog `omt_nav{{query:"CMD_", tag_type:"CMD"}}` · workflows `omt_quick_ref`
+- **Workflows (.workflows/):** {docs['workflows']}
 - **Nav gate (feature_020):** nav tools before grep/glob on docs (read + src/non-doc exempt) · **Think gate (feature_021):** TA: files need `omt_think{{op:list}}` consult (NOT skip-bypassable)
 """
 
