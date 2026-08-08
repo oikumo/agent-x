@@ -8,7 +8,15 @@ from dotenv import load_dotenv
 from agentx.ui.screens.main.main_controller import MainController
 from agentx.ui.providers import ProviderRegistry
 
-load_dotenv()
+# ``override=True`` makes the ``.env`` file authoritative for secrets/config:
+# ``python-dotenv`` by default does NOT overwrite an existing ``os.environ``
+# value, so a stale shell export (e.g. a dead ``NVIDIA_API_KEY`` left over in
+# ``~/.bashrc``) would silently mask the valid key written in this repo's
+# ``.env`` — and ``ChatNVIDIA`` would then 403 with no actionable hint.
+# Passing ``override=True`` means the ``.env`` value always wins, which is the
+# intent of having a committed ``.env`` for credentials in the first place.
+# (Also fixes the symmetric case at ``llama_cpp_factory.py:6``.)
+load_dotenv(override=True)
 
 if not os.getenv("OPENROUTER_API_KEY"):
     os.environ["OPENROUTER_API_KEY"] = getpass.getpass(

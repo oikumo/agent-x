@@ -3,7 +3,10 @@ from dotenv import load_dotenv
 
 from agentx.model.ai.local.llama_cpp.llamacpp import LlamaCpp
 
-load_dotenv()
+# ``override=True`` makes the ``.env`` authoritative — see ``main.py`` for the
+# full rationale (stale shell exports would otherwise mask the file's value,
+# breaking local llamacpp model loading the same way they broke NIM keys).
+load_dotenv(override=True)
 
 LLAMA_CPP_MODEL_QWEN_2_5 = "Qwen2.5-1.5B-Instruct-GGUF"
 LLAMA_CPP_MODEL_QWEN_3 = "Qwen3-4B-GGUF"
