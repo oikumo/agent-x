@@ -9,7 +9,8 @@ Console parity commands + console views:
   (b) ``MainController.load_commands`` registers
       react/coding/models/agent/fast-agent.
   (c) ``ConsoleReactView.show()`` REPL loop → ``controller.send_message``;
-      exits on empty input (real controllers expose ``send_message``, NOT the
+      empty input re-prompts (does NOT exit); ``q``/``quit``/``exit`` or
+      Ctrl+C/Ctrl+D exits (real controllers expose ``send_message``, NOT the
       spec'd ``process_user_message`` — duck-typed partner).
   (d) ``ConsoleReactView.show_partial_message`` → ``console.stream_write``.
   (e) ``ConsoleModelsView`` provider listing + numeric selection.
@@ -117,13 +118,41 @@ class TestConsoleReactView(TestCase):
         self.view = view_cls(self.controller)
         self.view.console = MagicMock()
 
-    def test_show_enters_repl_loop_and_exits_on_empty_input(self) -> None:
+    def test_show_enters_repl_loop_and_exits_on_interrupt(self) -> None:
+        """None (Ctrl+C/Ctrl+D) still exits the react module to the main menu."""
         self.view.console.capture_input.side_effect = ["hello agent", None]
 
         self.view.show()
 
         self.controller.send_message.assert_called_once_with("hello agent")
         assert self.view.console.capture_input.call_count == 2
+
+    def test_show_empty_input_reprompts_does_not_exit(self) -> None:
+        """feature_024 fix: a bare Enter (empty string) re-prompts the react
+        module instead of returning to the agentx main menu. The message is NOT
+        sent to the agent and the loop continues to the next capture.
+        """
+        self.view.console.capture_input.side_effect = ["", "hello agent", "q"]
+
+        self.view.show()
+
+        # The empty first input must not be sent to the agent.
+        self.controller.send_message.assert_called_once_with("hello agent")
+        # Three captures: empty (reprompt) → message (send) → q (exit).
+        assert self.view.console.capture_input.call_count == 3
+
+    def test_show_exits_on_quit_token(self) -> None:
+        """feature_024 fix: q/quit/exit tokens exit the react module (TUI
+        ReactTUIScreen parity — empty no longer exits).
+        """
+        for token in ("q", "quit", "exit", "QUIT", "Exit"):
+            self.controller.reset_mock()
+            self.view.console.reset_mock()
+            self.view.console.capture_input.side_effect = [token]
+
+            self.view.show()
+
+            self.controller.send_message.assert_not_called()
 
     def test_show_partial_message_streams_via_stream_write(self) -> None:
         self.view.show_partial_message("token-1")

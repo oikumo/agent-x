@@ -18,6 +18,14 @@ class ConsoleReactView(IReactView):
 # TA: gotcha: BUG (feature_024): ConsoleReactView missing 6 streaming callbacks (show_thinking, show_tool_call, show_tool_result, show_answer_chunk, show_answer_final, show_error) — ReactController streaming silently no-ops. Added in bug_fix phase.
     """Console-based ReAct view (REPL loop + token streaming)."""
 
+    #: Exit tokens for the REPL (case-insensitive). Mirrors the TUI
+    #: ``ReactTUIScreen.action_send`` (``q``/``quit``/``exit``) so the console
+    #: and TUI quit the ReAct module the same way. Empty input (a bare Enter)
+    #: does NOT exit — it re-prompts; only ``None`` (Ctrl+C/Ctrl+D) or an exit
+    #: token returns to the agentx main menu (feature_024 fix: empty string
+    #: must prompt the react module again, not back to the main menu).
+    _EXIT_TOKENS = frozenset({"q", "quit", "exit"})
+
     def __init__(self, controller: Any) -> None:
         self.controller = controller
         self.console = UIConsole("(react)")
@@ -33,10 +41,19 @@ class ConsoleReactView(IReactView):
         self._answering_active: bool = False
 
     def show(self) -> None:
-        self.console.info("Starting ReAct session (empty input to exit):")
+        self.console.info("Starting ReAct session (q/quit/exit to return):")
         while True:
             user_input = self.console.capture_input()
-            if not user_input:
+            # None = Ctrl+C / Ctrl+D (interrupt) → exit to the agentx main menu.
+            if user_input is None:
+                return
+            # Bare Enter (empty string) → re-prompt, do NOT exit to the main
+            # menu (feature_024 fix: empty must prompt the react module again).
+            if user_input.strip() == "":
+                continue
+            # Explicit exit token → return to the agentx main menu (TUI parity).
+            # TA: gotcha: feature_024 fix: empty string (bare Enter) must re-prompt the react module, NOT return to the agentx main menu. Old code `if not user_input: return` exited on empty. New logic distinguishes None (Ctrl+C/Ctrl+D interrupt → exit) from "" (bare Enter → continue) and from exit tokens q/quit/exit (→ exit). Mirrors TUI ReactTUIScreen.action_send (empty=no-op, q/quit/exit=quit). capture_input() changed to return "" for empty and None only for interrupt.
+            if user_input.strip().lower() in self._EXIT_TOKENS:
                 return
             if not self.controller.send_message(user_input):
                 self.console.error("Agent is busy; please wait.")

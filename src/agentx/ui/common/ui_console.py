@@ -55,16 +55,22 @@ class UIConsole:
         self.ui_prompt += part
 
     def capture_input(self) -> str | None:
+        """Capture one line of user input.
+
+        Returns:
+            The stripped input string ('' for a bare Enter), or ``None`` when
+            the user interrupts (Ctrl+C) or sends EOF (Ctrl+D). The empty-vs-
+            ``None`` distinction lets REPLs re-prompt on a bare Enter while
+            still exiting on a real interrupt (feature_024 fix: react module
+            empty input must re-prompt, not return to the main menu).
+        """
         try:
             user_input = input(f"{self.ui_prompt} ").strip()
-            if user_input:
-                return user_input
-
+            return user_input
         except KeyboardInterrupt:
             self.error("received interrupt, exiting...")
         except EOFError:
             self.error("EOF received, exiting...")
-
         return None
 
     def partial_info(self, message: str) -> None:
