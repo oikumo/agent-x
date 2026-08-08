@@ -58,7 +58,7 @@ All measurable budgets OK per `harness.report` (compile fails on overflow). Git 
    immortal — no date/validity marker, no verify path (contrast: TA: thoughts have omt_think_verify
    + stale ⚠️). A fixed underlying bug leaves a forever-paid gotcha in every `GOTCHA_` full-list query.
 4. **F4 — evolution loop not in the harness corpus**: no `@doc`/`@flow` record points at
-   `../../../workflows/meta_harness/loops/meta_harness_evolution.md`; each run re-reads the raw prompt + re-pays the
+   `../../../.workflows/meta_harness/loops/meta_harness_evolution.md`; each run re-reads the raw prompt + re-pays the
    OPT-I reconciliation. (Folds into OPT-I fix.)
 5. **F5 — process state**: phase=Done, refactor unlock active (~8 h), e2e receipt fresh
    (omt_harness_e2e_last_run.json 2026-08-01 16:14). Pending product features unchanged:

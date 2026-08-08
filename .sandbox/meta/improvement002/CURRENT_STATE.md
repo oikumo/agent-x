@@ -34,7 +34,7 @@ All budgets OK per `harness.report` (compile fails on overflow).
 
 ## 3. New findings (improvement002)
 
-1. **The evolution-loop prompt itself is stale** (`../../../workflows/meta_harness/loops/meta_harness_evolution.md`):
+1. **The evolution-loop prompt itself is stale** (`../../../.workflows/meta_harness/loops/meta_harness_evolution.md`):
    - step 3/4/5 path `./sandbox/meta/...` ≠ actual practice `.sandbox/meta/...` (improvement001 used `.sandbox`);
    - step 7 "Update only the ./meta/META_HARNESS.md" predates R8 — that file is a retired
      non-compiled stub (1155 B); truth = `.meta/META_HARNESS.omt` + projections. improvement001
