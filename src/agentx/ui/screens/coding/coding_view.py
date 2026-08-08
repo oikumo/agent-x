@@ -24,6 +24,12 @@ class ConsoleCodingView(ICodingView):
         # line; flushed (one \n) on answer_final or before any non-thinking
         # callback (feature_024 single-line think output).
         self._thinking_active: bool = False
+        # Streaming answer-state: answer deltas accumulate inline on a single
+        # line via stream_write (no per-chunk newline). show_answer_final emits
+        # one trailing \n to close the answer line so the next REPL prompt
+        # starts on a fresh line (feature_024 fix: think output then response
+        # must be separated by a newline).
+        self._answering_active: bool = False
 
     def show(self) -> None:
         self.console.info("Starting Coding session (empty input to exit):")
@@ -68,11 +74,25 @@ class ConsoleCodingView(ICodingView):
         Only fires once per reasoning stream: the first delta printed the ``💭 ``
         prefix inline and subsequent deltas appended without newlines, so the
         whole reasoning block sits on one line. This restores the cursor to a
-        fresh line before any tool/answer/error output.
+        fresh line before any answer/tool/error output. Does NOT touch the
+        answer line — ``show_answer_chunk`` calls this to transition think→answer
+        and must not split a streamed answer across lines.
         """
         if self._thinking_active:
             print()  # newline closes the single-line thinking block
             self._thinking_active = False
+
+    def _flush_streaming(self) -> None:
+        """Close the single-line thinking AND answer blocks before an interruption.
+
+        Used by ``show_tool_call`` / ``show_tool_result`` / ``show_error`` (and
+        any callback that is neither thinking nor answer): it closes whichever
+        inline block is currently open so the interruption renders on its own line.
+        """
+        self._flush_thinking()
+        if self._answering_active:
+            print()  # newline closes the single-line answer block
+            self._answering_active = False
 
     def show_thinking(self, text: str) -> None:
 # TA: gotcha: gotcha: show_thinking MUST stream via stream_write (no per-delta newline) and flush a single \n on answer_final/_flush_thinking — calling console.info per delta (one print() per reasoning token) renders each token on its own line. Mirrors react_view.py fix.
@@ -91,24 +111,39 @@ class ConsoleCodingView(ICodingView):
 
     def show_tool_call(self, name: str, args: str) -> None:
         """Display a tool call."""
-        self._flush_thinking()
+        self._flush_streaming()
         self.console.info(f"🔧 {name}({args})")
 
     def show_tool_result(self, name: str, result: str) -> None:
         """Display a tool result."""
-        self._flush_thinking()
+        self._flush_streaming()
         self.console.info(f"📊 {result}")
 
     def show_answer_chunk(self, text: str) -> None:
-        """Display a streaming answer chunk."""
+        """Display a streaming answer chunk.
+
+        Flushes any pending *thinking* line (think→answer transition) but NOT
+        an already-active answer line — answer chunks accumulate inline on one
+        line and are closed by ``show_answer_final``.
+        """
         self._flush_thinking()
         self.console.stream_write(text)
+        self._answering_active = True
 
     def show_answer_final(self) -> None:
-        """Finalize the streaming answer (and close any pending thinking line)."""
+        """Finalize the streaming answer (and close any pending thinking line).
+
+        Emits the trailing newline that closes an inline-streamed answer so the
+        next REPL prompt starts on a fresh line. Also closes any still-pending
+        thinking line (the typical stream is think → answer_chunk → answer_final,
+        where the first answer_chunk already flushed thinking).
+        """
         self._flush_thinking()
+        if self._answering_active:
+            print()  # newline closes the single-line answer block
+            self._answering_active = False
 
     def show_error(self, text: str) -> None:
         """Display an error message."""
-        self._flush_thinking()
+        self._flush_streaming()
         self.console.error(f"⚠️ {text}")

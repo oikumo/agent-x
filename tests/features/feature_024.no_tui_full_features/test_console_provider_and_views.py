@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from agentx.ui.common.ui_console import UIConsole
 from agentx.ui.interfaces import (
@@ -451,6 +451,105 @@ class TestConsoleReactViewReplSync(TestCase):
         self.view.console.error.assert_called()
         args = self.view.console.error.call_args[0][0]
         assert "busy" in args.lower(), f"expected busy message, got: {args}"
+
+
+class TestConsoleReactViewAnswerNewline(TestCase):
+    """ConsoleReactView emits a trailing newline after streamed answer chunks.
+
+    Regression (feature_024): ``show_answer_chunk`` streams via
+    ``console.stream_write`` (no newline). ``show_answer_final`` used to only
+    flush a pending *thinking* line — but thinking was already flushed by the
+    first ``show_answer_chunk``, so ``show_answer_final`` became a no-op and
+    the cursor stayed right after the last answer token. The next REPL prompt
+    then appeared on the same line as the answer ("42(react) _").
+
+    Fix: track an ``_answering_active`` flag. ``show_answer_chunk`` sets it
+    True after streaming; ``show_answer_final`` emits one trailing newline
+    when an answer was streamed, then clears the flag.
+    """
+
+    def setUp(self) -> None:
+        self.controller = MagicMock()
+        self.view: Any = ConsoleReactView(self.controller)
+        self.view.console = MagicMock()
+
+    def test_show_answer_chunk_sets_answering_active_true(self) -> None:
+        """Streaming an answer chunk must mark an answer line as active."""
+        assert self.view._answering_active is False
+        self.view.show_answer_chunk("Hello")
+        assert self.view._answering_active is True
+
+    def test_show_answer_final_emits_newline_when_answer_was_streamed(self) -> None:
+        """answer_final must close the streamed answer with a trailing newline."""
+        import builtins
+        with patch.object(builtins, "print") as mock_print:
+            self.view.show_answer_chunk("The answer is 42")
+            self.view.show_answer_final()
+        # Exactly one newline emitted to close the answer line.
+        assert mock_print.call_count == 1, (
+            f"expected 1 newline to close answer, got {mock_print.call_count}"
+        )
+        # _answering_active must be cleared after finalizing.
+        assert self.view._answering_active is False
+
+    def test_show_answer_final_is_noop_when_no_answer_was_streamed(self) -> None:
+        """answer_final with no streamed answer must NOT emit a stray newline."""
+        import builtins
+        with patch.object(builtins, "print") as mock_print:
+            self.view.show_answer_final()
+        assert mock_print.call_count == 0, "no answer streamed → no newline"
+        assert self.view._answering_active is False
+        self.view.console.stream_write.assert_not_called()
+
+    def test_think_then_answer_emits_two_newlines_total(self) -> None:
+        """think-close (on first answer_chunk) + answer-close (on answer_final)."""
+        import builtins
+        with patch.object(builtins, "print") as mock_print:
+            self.view.show_thinking("reasoning...")
+            self.view.show_answer_chunk("A1")
+            self.view.show_answer_chunk("A2")
+            self.view.show_answer_final()
+        # print() called once to close the thinking line (first answer_chunk)
+        # and once to close the answer line (answer_final) — total 2.
+        assert mock_print.call_count == 2, (
+            f"expected 2 newlines (think-close + answer-close), got "
+            f"{mock_print.call_count}"
+        )
+        # Verify only newlines were printed (no body text via print()).
+        for call in mock_print.call_args_list:
+            assert call.kwargs.get("end", "\n") == "\n"
+
+
+class TestConsoleCodingViewAnswerNewline(TestCase):
+    """ConsoleCodingView mirrors react — trailing newline after answer stream."""
+
+    def setUp(self) -> None:
+        self.controller = MagicMock()
+        self.view: Any = ConsoleCodingView(self.controller)
+        self.view.console = MagicMock()
+
+    def test_show_answer_chunk_sets_answering_active_true(self) -> None:
+        assert self.view._answering_active is False
+        self.view.show_answer_chunk("code")
+        assert self.view._answering_active is True
+
+    def test_show_answer_final_emits_newline_when_answer_was_streamed(self) -> None:
+        import builtins
+        with patch.object(builtins, "print") as mock_print:
+            self.view.show_answer_chunk("done")
+            self.view.show_answer_final()
+        assert mock_print.call_count == 1, (
+            f"expected 1 newline to close answer, got {mock_print.call_count}"
+        )
+        assert self.view._answering_active is False
+
+    def test_show_answer_final_is_noop_when_no_answer_was_streamed(self) -> None:
+        import builtins
+        with patch.object(builtins, "print") as mock_print:
+            self.view.show_answer_final()
+        assert mock_print.call_count == 0, "no answer streamed → no newline"
+        assert self.view._answering_active is False
+        self.view.console.stream_write.assert_not_called()
 
 
 class TestConsoleCodingViewReplSync(TestCase):
