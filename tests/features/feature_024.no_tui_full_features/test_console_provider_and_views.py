@@ -111,6 +111,79 @@ class TestConsoleCodingView(TestCase):
         self.view.console.stream_write.assert_called_once_with("token-1")
 
 
+class TestConsoleCodingViewStreaming(TestCase):
+    """ConsoleCodingView streaming — single-line think output (feature_024 fix).
+
+    Mirrors ``TestConsoleReactViewStreaming``: reasoning deltas accumulate inline
+    (no per-delta newline), flushed on ``show_answer_final`` or another callback.
+    """
+
+    def setUp(self) -> None:
+        self.controller = MagicMock()
+        self.view: Any = ConsoleCodingView(self.controller)
+        self.view.console = MagicMock()
+
+    def test_show_thinking_first_delta_prints_prefix_via_stream_write(self) -> None:
+        self.view.show_thinking("reasoning")
+
+        self.view.console.stream_write.assert_any_call("💭 ")
+        self.view.console.stream_write.assert_any_call("reasoning")
+        self.view.console.info.assert_not_called()
+
+    def test_show_thinking_subsequent_deltas_append_without_repeating_prefix(self) -> None:
+        self.view.show_thinking("part-1 ")
+        self.view.show_thinking("part-2")
+
+        prefixes = [c for c in self.view.console.stream_write.call_args_list
+                    if c.args and c.args[0] == "💭 "]
+        assert len(prefixes) == 1, "prefix 💭 must be emitted exactly once"
+        written = "".join(c.args[0] for c in self.view.console.stream_write.call_args_list)
+        assert written == "💭 part-1 part-2"
+
+    def test_show_thinking_does_not_emit_console_info(self) -> None:
+        """Regression: show_thinking used to call console.info per delta → multi-line."""
+        self.view.show_thinking("delta-1")
+        self.view.show_thinking("delta-2")
+
+        self.view.console.info.assert_not_called()
+
+    def test_show_answer_final_clears_thinking_state(self) -> None:
+        self.view.show_thinking("thinking ")
+        assert self.view._thinking_active is True
+
+        self.view.show_answer_final()
+
+        assert self.view._thinking_active is False
+
+    def test_show_tool_call_flushes_pending_thinking_line(self) -> None:
+        self.view.show_thinking("thinking...")
+        self.view.show_tool_call("calc", "2+2")
+
+        assert self.view._thinking_active is False
+        self.view.console.info.assert_called_once_with("🔧 calc(2+2)")
+
+    def test_show_tool_result_flushes_pending_thinking_line(self) -> None:
+        self.view.show_thinking("thinking...")
+        self.view.show_tool_result("calc", "4")
+
+        assert self.view._thinking_active is False
+        self.view.console.info.assert_called_once_with("📊 4")
+
+    def test_show_answer_chunk_flushes_pending_thinking_line(self) -> None:
+        self.view.show_thinking("thinking...")
+        self.view.show_answer_chunk("A")
+
+        assert self.view._thinking_active is False
+        self.view.console.stream_write.assert_any_call("A")
+
+    def test_show_error_flushes_pending_thinking_line(self) -> None:
+        self.view.show_thinking("thinking...")
+        self.view.show_error("boom")
+
+        assert self.view._thinking_active is False
+        self.view.console.error.assert_called_once_with("⚠️ boom")
+
+
 class TestConsoleAgentView(TestCase):
     """ConsoleAgentView REPL loop + token streaming."""
 
@@ -225,18 +298,92 @@ class TestConsoleParityInterfaces(TestCase):
 
 
 class TestConsoleReactViewStreaming(TestCase):
-    """ConsoleReactView implements all 6 streaming callbacks."""
+    """ConsoleReactView streaming callbacks render think output on a single line.
+
+    Feature_024 fix: ``show_thinking`` must NOT emit one ``console.info`` line
+    per reasoning delta (that produced multi-line think output). Reasoning
+    deltas accumulate inline via ``console.stream_write`` (no inter-delta
+    newlines); the trailing newline is flushed by ``show_answer_final`` (or
+    implicitly by another callback via ``_flush_thinking``).
+    """
 
     def setUp(self) -> None:
         self.controller = MagicMock()
-        self.view = ConsoleReactView(self.controller)
+        self.view: Any = ConsoleReactView(self.controller)
         self.view.console = MagicMock()
 
-    def test_show_thinking_exists_and_calls_console_info(self) -> None:
-        self.view.show_thinking("reasoning text")
-        self.view.console.info.assert_called_once()
-        args = self.view.console.info.call_args[0][0]
-        assert "reasoning text" in args
+    def test_show_thinking_first_delta_prints_prefix_via_stream_write(self) -> None:
+        """First reasoning delta prints the 💭 prefix inline (no newline)."""
+        self.view.show_thinking("reasoning")
+
+        self.view.console.stream_write.assert_any_call("💭 ")
+        self.view.console.stream_write.assert_any_call("reasoning")
+        self.view.console.info.assert_not_called()
+
+    def test_show_thinking_subsequent_deltas_append_without_repeating_prefix(self) -> None:
+        """Subsequent deltas append via stream_write; prefix printed only once."""
+        self.view.show_thinking("part-1 ")
+        self.view.show_thinking("part-2")
+        self.view.show_thinking("part-3")
+
+        prefixes = [c for c in self.view.console.stream_write.call_args_list
+                    if c.args and c.args[0] == "💭 "]
+        assert len(prefixes) == 1, "prefix 💭 must be emitted exactly once"
+        # all deltas must appear inline (in order)
+        written = "".join(c.args[0] for c in self.view.console.stream_write.call_args_list)
+        assert written == "💭 part-1 part-2part-3"
+
+    def test_show_thinking_does_not_emit_console_info(self) -> None:
+        """Regression: show_thinking used to call console.info per delta → multi-line."""
+        self.view.show_thinking("delta-1")
+        self.view.show_thinking("delta-2")
+
+        self.view.console.info.assert_not_called()
+
+    def test_show_answer_final_clears_thinking_state(self) -> None:
+        """answer_final closes the single-line thinking block + clears state."""
+        self.view.show_thinking("hello ")
+        self.view.show_thinking("world")
+        assert self.view._thinking_active is True
+
+        self.view.show_answer_final()
+
+        assert self.view._thinking_active is False
+
+    def test_show_tool_call_flushes_pending_thinking_line(self) -> None:
+        """A tool call must close any open thinking line before rendering."""
+        self.view.show_thinking("thinking...")
+        assert self.view._thinking_active is True
+
+        self.view.show_tool_call("calc", "2+2")
+
+        # thinking line closed and tool rendered on its own line
+        assert self.view._thinking_active is False
+        self.view.console.info.assert_called_once_with("🔧 calc(2+2)")
+
+    def test_show_tool_result_flushes_pending_thinking_line(self) -> None:
+        """A tool result must close any open thinking line before rendering."""
+        self.view.show_thinking("thinking...")
+        self.view.show_tool_result("calc", "4")
+
+        assert self.view._thinking_active is False
+        self.view.console.info.assert_called_once_with("📊 4")
+
+    def test_show_answer_chunk_flushes_pending_thinking_line(self) -> None:
+        """An answer chunk must close any open thinking line before streaming."""
+        self.view.show_thinking("thinking...")
+        self.view.show_answer_chunk("A")
+
+        assert self.view._thinking_active is False
+        self.view.console.stream_write.assert_any_call("A")
+
+    def test_show_error_flushes_pending_thinking_line(self) -> None:
+        """An error must close any open thinking line before rendering."""
+        self.view.show_thinking("thinking...")
+        self.view.show_error("boom")
+
+        assert self.view._thinking_active is False
+        self.view.console.error.assert_called_once_with("⚠️ boom")
 
     def test_show_tool_call_exists_and_calls_console_info(self) -> None:
         self.view.show_tool_call("tool_name", '{"arg": "value"}')
@@ -252,12 +399,12 @@ class TestConsoleReactViewStreaming(TestCase):
 
     def test_show_answer_chunk_exists_and_calls_stream_write(self) -> None:
         self.view.show_answer_chunk("token")
-        self.view.console.stream_write.assert_called_once_with("token")
+        self.view.console.stream_write.assert_called_with("token")
 
-    def test_show_answer_final_exists_and_resets_state(self) -> None:
+    def test_show_answer_final_is_idempotent_when_no_thinking_active(self) -> None:
+        """answer_final without a pending thinking line is a no-op (no stray newline)."""
         self.view.show_answer_final()
-        # Just verify it's callable without error
-        pass
+        assert self.view._thinking_active is False
 
     def test_show_error_exists_and_calls_console_error(self) -> None:
         self.view.show_error("error message")
@@ -281,7 +428,7 @@ class TestConsoleReactViewReplSync(TestCase):
         self.worker = MagicMock()
         self.worker.is_alive.return_value = False
         self.controller._worker_thread = self.worker
-        self.view = ConsoleReactView(self.controller)
+        self.view: Any = ConsoleReactView(self.controller)
         self.view.console = MagicMock()
 
     def test_show_joins_worker_after_send_message(self) -> None:
@@ -318,7 +465,7 @@ class TestConsoleCodingViewReplSync(TestCase):
         self.worker = MagicMock()
         self.worker.is_alive.return_value = False
         self.controller._worker_thread = self.worker
-        self.view = ConsoleCodingView(self.controller)
+        self.view: Any = ConsoleCodingView(self.controller)
         self.view.console = MagicMock()
 
     def test_show_joins_worker_after_send_message(self) -> None:
