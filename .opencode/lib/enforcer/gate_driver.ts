@@ -76,6 +76,12 @@ const SESSION_FLAGS: Record<string, (ctx: GateCtx) => boolean> = {
     const s = ctx.session ? ctx.env.state.nav.get(ctx.session) : undefined
     return !!s?.usedNav || hasNavUnlock(ctx.session)
   },
+  // feature_kb_akb: g.kb gate's `session_flag(kb_consulted)` predicate. Set by
+  // kbTrack on any omt_kb_nav op call (nav_gate.ts); guards src/ edit-tools.
+  kb_consulted: (ctx) => {
+    const s = ctx.session ? ctx.env.state.kb.get(ctx.session) : undefined
+    return !!s?.consulted
+  },
 }
 
 function ledgerHas(ctx: GateCtx, arg: string, ir: any): boolean {

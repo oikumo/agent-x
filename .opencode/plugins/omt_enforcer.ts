@@ -39,7 +39,7 @@ import { initOmtShared } from "../lib/omt_shared"
 import {
   OmtBlock, createSessionState, makeSafeLog, makeNotify, type EnforcerEnv,
 } from "../lib/enforcer/session_state"
-import { navTrack, sessionBootstrap } from "../lib/enforcer/nav_gate"
+import { navTrack, sessionBootstrap, kbTrack } from "../lib/enforcer/nav_gate"
 import { runAfterGates, runBeforeGates } from "../lib/enforcer/gate_driver"
 import { createPhaseTools } from "../lib/enforcer/phase_gate"
 import { createTddTools } from "../lib/enforcer/tdd_hats"
@@ -79,6 +79,10 @@ export default async ({ client, $, directory: cwd, worktree }) => {
         // feature_020: nav-vs-search tracking (instrumentation — the g.nav
         // block decision is in the data-driven chain below).
         await navTrack(env, session, input)
+
+        // feature_kb_akb: KB consult tracking — g.kb gate predicate consumes
+        // state.kb(session).consulted (gate_driver.ts SESSION_FLAGS).
+        await kbTrack(env, session, input)
 
         // HDL-2 (improvement006/OPT-F): the gate chain is data-driven — the
         // driver iterates IR before-gates in order=, matching tools= and

@@ -35,6 +35,7 @@ HARNESS_FILES = [
     ".opencode/plugins/omt_status.ts",
     ".opencode/plugins/omt_think.ts",
     ".opencode/plugins/omt_nav.ts",
+    ".opencode/plugins/omt_kb_nav.ts",
     ".opencode/lib/omt_shared.ts",
     ".opencode/lib/enforcer/session_state.ts",
     ".opencode/lib/enforcer/nav_gate.ts",
@@ -277,6 +278,28 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "digestSessions" not in think  # R2 S6: Tier-1c hook deleted
     assert '"tool.execute.after"' not in think  # tools-only plugin now
     checks.append("meta_harness_dsl R2: composition root + guarded lib/enforcer modules + S6 single bootstrap")
+
+    # 12. feature_kb_akb: g.kb consult gate is WIRED — `session_flag(kb_consulted)`
+    # must have a backing SESSION_FLAGS impl, and the omt_enforcer before-hook
+    # must invoke a tracker that flips the per-session flag when omt_kb_nav is
+    # called. Without these, g.kb hard-blocks all src/ edits forever (the
+    # acceptance-B6 regression caught when this gate went live unwired).
+    gate_driver = _read(".opencode/lib/enforcer/gate_driver.ts")
+    assert 'kb_consulted: (ctx)' in gate_driver, (
+        "g.kb gate requires SESSION_FLAGS[\"kb_consulted\"] impl in gate_driver.ts")
+    assert "kbTrack" in enforcer, (
+        "omt_enforcer.ts before-hook must call kbTrack to set the kb_consulted flag")
+    assert 'env.state.kb.get(ctx.session)' in gate_driver, (
+        "kb_consulted predicate must read env.state.kb (session-state Map)")
+    nav_gate = _read(".opencode/lib/enforcer/nav_gate.ts")
+    assert 'const KB_TOOLS' in nav_gate, (
+        "nav_gate.ts must declare KB_TOOLS set for the consult tracker")
+    assert "export async function kbTrack" in nav_gate, (
+        "nav_gate.ts must export kbTrack (consult-tracker mirror of navTrack)")
+    session_state = _read(".opencode/lib/enforcer/session_state.ts")
+    assert 'kb: new Map<string, { consulted: boolean }>()' in session_state, (
+        "session_state.ts must declare the per-session kb consult Map")
+    checks.append("feature_kb_akb: g.kb consult gate wired (SESSION_FLAGS + kbTrack + state.kb Map)")
 
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

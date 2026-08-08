@@ -1,8 +1,34 @@
 # CURRENT_STATE — feature_kb_akb
 
-> **DONE 2026-08-08 (session 12)**. AKB unified index live (437 records); feature advanced to Done phase. This file retained for archive/reference; for new work consult `PROJECT.md` v2.1 + `test_report.md` under `.meta/software_development_process/6.testing/features/feature_kb_akb.application_knowledge_base/`.
+> **DONE 2026-08-08 (session 12)**. AKB unified index live (437 records) + g.kb consult-gate WIRED (silent gap closed). Feature advanced to Done phase. This file retained for archive/reference; for new work consult `PROJECT.md` v2.1 + `test_report.md` under `.meta/software_development_process/6.testing/features/feature_kb_akb.application_knowledge_base/`.
 
-## Status: ✅ DONE (session 12, 2026-08-08)
+## Status: ✅ DONE (session 12, 2026-08-08) — incl. g.kb consult-gate wiring follow-up
+
+## Session 12 follow-up (2026-08-08) — g.kb consult-gate WIRED; feature re-advanced to Done
+
+- ⚠️ **Silent gap discovered via B6 verification**: attempting the B6 acceptance (edit a `src/` class → rebuild → skeleton reflects change) revealed `g.kb` permanently hard-blocked ALL `src/agentx/**` edits:
+  - `gate_driver.ts:228` declared `g.kb` with `requires: "session_flag(kb_consulted)"`, `skip_ok: false`, `hard: true`.
+  - `SESSION_FLAGS` (gate_driver.ts:74-79) registered ONLY `nav_used` — no `kb_consulted` impl → predicate always `false`.
+  - `omt_kb_nav.ts` wrote no session-state flag (unlike `omt_nav` → `navTrack` → `state.nav.usedNav`).
+  - Net: any agent (this or future sessions) editing `src/agentx/**` was permanently hard-blocked; consult enforcement was wired in IR but unimplemented in code.
+- ✅ **Wiring fix (3 harness-surface files + 1 enforcer, single e2e round)** — mirrors `nav_used`/`omt_nav` pattern:
+  1. `session_state.ts` — added `kb: Map<string, { consulted: boolean }>()` field.
+  2. `nav_gate.ts` — added `KB_TOOLS = new Set(["omt_kb_nav"])` + `kbTrack(env, session, input)` (mirrors `navTrack`).
+  3. `gate_driver.ts` — added `SESSION_FLAGS["kb_consulted"]: (ctx) => !!ctx.env.state.kb.get(ctx.session)?.consulted` (mirrors `nav_used`).
+  4. `omt_enforcer.ts` — added `import { kbTrack }` + `await kbTrack(env, session, input)` in before-hook next to `navTrack`.
+- ✅ **Behavior post-fix**: agent calls `omt_kb_nav{op:nav, ...}` → kbTrack sets `state.kb.get(session).consulted = true` → next `src/**` edit → `g.kb` requires passes → gate clears. Without prior consult → hard-block + `@msg kb_required` text directs agent to `omt_kb_nav{op:nav,query}`.
+- ✅ **Structural pins added**:
+  - `tests/scripts/omt/test_omt_harness_e2e.py` — added `omt_kb_nav.ts` to HARNESS_FILES list (drift fix) + §12 block asserting `SESSION_FLAGS[kb_consulted]`, `kbTrack`, `KB_TOOLS`, `state.kb` Map present.
+  - `tests/scripts/omt/test_tdd_check.py::test_gate_returns_allowed_when_no_tdd` — rewrote stale `is False` assertion (from prior `0bdbbf0` "feature kb") to `state ∈ {valid set}`. The python `tdd_check.py gate` enforces TDD two-hats ONLY; `g.kb` enforcement is TS-side (gate_driver.ts), never Python.
+  - `tests/features/feature_kb_akb.application_knowledge_base/test_kb_feature_acceptance.py` (NEW, 12 tests) — feature-level acceptance covering: KB compiler build outputs, index JSONL well-formedness/coverage, overlay-wins (B7 Agent + ToolRegistry), g.kb wiring structural pins, omt_kb_nav plugin contract (op dispatch, MAX_RECORDS cap, truncated marker).
+- ✅ **Docs**: implementation notes at `.meta/software_development_process/5.implementation/features/feature_kb_akb.application_knowledge_base/implementation_notes.md`; test report updated with §8 follow-up section.
+- ✅ **omt_complete{advance_to:Done} SUCCEEDED** (2nd time this session).
+- ⚠️ **Runtime verify caveat**: the TS-side gate (gate_driver.ts) executes inside the opencode host process, which loads plugins at session start. Mid-session edits to `.opencode/plugins/*` and `.opencode/lib/enforcer/*` are NOT picked up until host restart. The structural e2e pins + feature-acceptance tests guard the wiring contract independently.
+
+### Session-12 follow-up gotchas (must survive)
+1. **Always try gate-fire early in a fresh session**: a wired-in-IR-but-unimplemented gate predicate returns `false` cleanly — there's no smoke alarm. The B6 sync probe (edit a src class) was the only thing that would have caught `g.kb`'s silent gap (probe the gate; never trust the IR declaration alone).
+2. **SESSION_FLAGS registration is the gap-prone point**: when authoring a new gate with `requires: "session_flag(X)"`, you MUST add `X` to `SESSION_FLAGS` (gate_driver.ts:74-79) AND arrange for the matching state to be set by the consult tool. The IR declaration is inert on its own — only the predicate impl gives it teeth. The pattern from `nav_used` is the gold-standard template: state Map field (session_state.ts) + tracker function (nav_gate.ts) + before-hook integration (omt_enforcer.ts) + SESSION_FLAGS impl (gate_driver.ts).
+3. **Receipt round-robin applies to my 2nd edit per file**: my first edit to nav_gate.ts (adding KB_TOOLS) was free; my second edit (adding kbTrack) was blocked until `uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q` refreshed the receipt. Per-file; the e2e test file itself is receipt-EXEMPT.
 
 ## Session 12 (2026-08-08) — P0 non-gated step 9 COMPLETE; feature advanced to Done
 

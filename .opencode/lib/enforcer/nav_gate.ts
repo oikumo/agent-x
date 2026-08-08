@@ -14,6 +14,10 @@ import { loadIr, relOf, thinkDigest } from "../omt_shared"
 import { type EnforcerEnv } from "./session_state"
 
 const NAV_TOOLS = new Set(["omt_nav"])  // improvement006/OPT-H: consolidated
+// feature_kb_akb: any op on the KB nav tool marks the session as having
+// consulted the Application Knowledge Base — the g.kb gate predicate
+// `session_flag(kb_consulted)` reads this (gate_driver.ts SESSION_FLAGS).
+const KB_TOOLS = new Set(["omt_kb_nav"])
 // improvement007/OPT-E: .omt @var search_tools is the FUNCTIONAL source; the
 // literal is the pinned IR-missing fallback. "read" was dropped from the old
 // hand set — it is gate-exempt (navGateDecision) and not a conceptual search.
@@ -121,6 +125,26 @@ export async function navTrack(
   }
   // improvement007 R6: usedSearch/searchCount write-only counters deleted
   // (zero readers); searchTools() above stays — IR-accessor pin target.
+}
+
+// feature_kb_akb: track KB consult (before-hook instrumentation). The block
+// decision is in the data-driven gate chain — IMPLS["g.kb"] resolves via the
+// generic impl evaluating `requires: "session_flag(kb_consulted)"`.
+export async function kbTrack(
+  env: EnforcerEnv,
+  session: string | undefined,
+  input: any,
+): Promise<void> {
+  if (!session) return
+  const toolName = input?.tool
+  if (!env.state.kb.has(session)) {
+    env.state.kb.set(session, { consulted: false })
+  }
+  const state = env.state.kb.get(session)!
+  if (KB_TOOLS.has(toolName)) {
+    state.consulted = true
+    env.safeLog("info", `Session ${session}: KB consult tool ${toolName} used`)
+  }
 }
 
 // After-hook branch (R6 S6): the session bootstrap — compact TA digest

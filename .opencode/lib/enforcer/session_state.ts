@@ -29,6 +29,10 @@ export function createSessionState() {
     // feature_020: sessionID -> nav usage (improvement007 R6: the write-only
     // usedSearch/searchCount instrumentation counters deleted — zero readers)
     nav: new Map<string, { usedNav: boolean }>(),
+    // feature_kb_akb: sessionID -> KB-consult flag; consulted=true after any
+    // omt_kb_nav op call in the session. Read by the g.kb gate predicate
+    // `session_flag(kb_consulted)` (gate_driver.ts SESSION_FLAGS).
+    kb: new Map<string, { consulted: boolean }>(),
     // feature_022 D1: sessionID -> absPaths already thought-injected (sessionless → "" bucket)
     injected: new Map<string, Set<string>>(),
     // R6 S6: sessions that already received the bootstrap injection (nav tip + TA digest)
