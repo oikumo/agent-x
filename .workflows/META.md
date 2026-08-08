@@ -38,9 +38,10 @@ The catalog is namespaced by **subject** — the area of the codebase the workfl
 │   └── loops/
 │       ├── meta_harness_evolution.md
 │       └── meta_harness_project.md
-└── app_knowledge_base/          # subject: the application knowledge base (FUTURE)
-    ├── META.md                  # subject manifest — declares the subject reserved
-    └── loops/                   # empty reserved stub — no workflows yet
+└── app_knowledge_base/          # subject: the application knowledge base (ACTIVE — 1 loop)
+    ├── META.md                  # subject manifest
+    └── loops/
+        └── akb_smart_population_and_update.md   # smart pop/update pass
 ```
 
 ### Subject list
@@ -49,7 +50,7 @@ The catalog is namespaced by **subject** — the area of the codebase the workfl
 |---|---|---|---|
 | `agentx` | `.workflows/agentx/` | active — 2 workflows | about an agentx feature or the agentx application as a whole |
 | `meta_harness` | `.workflows/meta_harness/` | active — 3 workflows (2 loops + 1 top-level one-shot) | about the OMT++ harness, harness development, or session pause/resume |
-| `app_knowledge_base` | `.workflows/app_knowledge_base/` | **future** — empty reserved stub | about the application knowledge base; no workflows authored yet |
+| `app_knowledge_base` | `.workflows/app_knowledge_base/` | **active** — 1 workflow (smart population / update loop; was `future` reserved-stub until 2026-08-08) | about the application knowledge base — populate, update, audit, re-tile, drift-fix, curate overlay `text`, fix `g.kb` consult-gate / `kb_compiler` / `kb_ast_extract` / `omt_kb_nav` behaviour |
 
 ### `loops/` vs top-level `.md`
 
@@ -232,6 +233,7 @@ Every existing workflow converges on five principles. This manifest treats them 
 ## 8. Status & maintenance
 
 - This iteration (`workflows` project, `.projects/meta/workflows/PROJECT.md`) delivered the catalog's **definition layer**: this root manifest, the three subject manifests, the authoring template, and the resolution of three open gaps (the empty `app_knowledge_base/loops/` stub, the misspelled path in `consistency_enforcement.md`, the one-line-only pause workflow).
-- **Out of scope (deferred to future projects):** discovery helper code in `src/`; a first-class machine-parseable `gates:` field; harness integration / an `omt_workflow` tool; new workflow content beyond the gap-fixes.
-- **To add a workflow:** copy the template in §6, fill it, drop it under the right subject, update that subject's `META.md`. Keep §3's schema and §4.3's approval gate invariants.
+- **First catalog content added post-definition-layer (2026-08-08, same session):** the `app_knowledge_base` subject moved from `future — reserved stub` to `active — 1 loop` with the `akb_smart_population_and_update.md` workflow (a large-effort, nested-round smart pop/update pass over the AKB). The §2 subject list, the §2 tree, and `.workflows/app_knowledge_base/META.md` were updated together to keep the three manifests in agreement (see "To add a workflow" below).
+- **Out of scope (deferred to future projects):** discovery helper code in `src/`; a first-class machine-parseable `gates:` field; harness integration / an `omt_workflow` tool.
+- **To add a workflow:** copy the template in §6, fill it, drop it under the right subject, update that subject's `META.md` AND §2's subject-list row + tree above (so the root manifest's state stays in agreement with the subject manifest's count). Keep §3's schema and §4.3's approval gate invariants.
 - **To add a subject:** make a new top-level directory, add a `META.md` in it using the other subjects as the shape, add the subject to §2's subject list and the tree above.
