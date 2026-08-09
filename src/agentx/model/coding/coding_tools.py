@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from langchain.tools import tool
+# TA: xref: NOTE (feature_025): these @tool wrappers return dataclasses; under create_deep_agent the FilesystemMiddleware offloads results exceeding 20k tokens to a StateBackend (pointer + 10-line preview in history). Tool inputs/outputs themselves UNCHANGED — only the in-history representation is compressed.
 
 
 # ── Data Classes ────────────────────────────────────────────────────────────────

@@ -50,10 +50,13 @@ class TestKbFeatureAcceptance:
         with the expected record distribution and 0 errors."""
         result = _run(["uv", "run", "scripts/omt/kb_compiler.py", "build"])
         assert result.returncode == 0, result.stdout + result.stderr
-        # 437 records (239 class + 32 contract + 104 dep + 39 doc + 12 feature + 9 flow + 2 xref)
-        assert "class=239" in result.stdout, result.stdout
+        # 439 records (240 class + 32 contract + 105 dep + 39 doc + 12 feature + 9 flow + 2 xref)
+        # 437→439 drift introduced by feature_025 (added 2 test classes under
+        # tests/features/feature_025.coding_context_window_optimization/). Re-pin
+        # update is mechanical — bumps class=239→240, dep=104→105.
+        assert "class=240" in result.stdout, result.stdout
         assert "contract=32" in result.stdout, result.stdout
-        assert "dep=104" in result.stdout, result.stdout
+        assert "dep=105" in result.stdout, result.stdout
         # Index written
         assert (REPO_ROOT / ".meta/.omt/kb.index.jsonl").exists()
         assert (REPO_ROOT / ".meta/.omt/kb.ir.json").exists()

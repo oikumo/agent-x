@@ -32,6 +32,7 @@ dependencies = [
     "textual>=8.2.8",
     "httptools==0.8.0",
     "watchfiles==1.2.0",
+    "deepagents>=0.7",
 ]
 
 [dependency-groups]
