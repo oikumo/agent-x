@@ -1,5 +1,63 @@
 # PROJECT: rag_v2 — RAG v2 (console-only, new module, deepagents grounding)
 
+> Status: **v1.2 (2026-08-09)** — v1.1 scope locked + Vision written; v1.2 adds the §New Session Quick Start block (this header) + `CURRENT_STATE.md` iter-0 entry so a fresh session lands on the three exact next commands without re-reading 210 lines. Definition body (Summary → Purpose → Vision → Scope → Decisions → References) unchanged from v1.1.
+
+---
+
+## New Session Quick Start
+
+> Read this block first. The v1.1 *definition* below (Summary → Purpose → Vision → §Scope G1–G6 closure matrix → Decisions log) is **locked** — do **not** re-derive scope, re-pick the RAG pattern, or re-litigate D1–D8 (see Decisions log). Architecture + Tasks + feature dir + phase declaration are all **intentionally PENDING** (§Status below) — they are design-phase and feature-dir work, not project-home work. This block names the three exact next commands a fresh session needs.
+
+**Where this project is, in one line:** a *console-only new module* (`src/agentx/model/rag_v2/` + `src/agentx/ui/screens/rag_v2/`) that grounds RAG retrieval as a `@tool` on the deepagents stack (feature_025's `create_deep_agent` + `StateBackend`), ships the feature_024 console MVC++ contract, and closes all six v1 gaps (G1–G6). v1 RAG stays untouched until a cutover decision (D3, deferred to the v2 design phase).
+
+### What's locked (read once, then act — do NOT re-negotiate)
+
+| § locked section | Anchor | What a fresh session needs from it |
+|---|---|---|
+| §Summary | one line | RAG v2 = greenfield rewrite as `feature_027.rag_v2`, console-only new module, deepagents-grounded retrieval, v1 untouched → legacy. |
+| §Purpose / v1 current state | the six v1 gaps | G1 creation placeholder, G2 selection None, G3 state None, G4 no PDF/MD, G5 multi-repo incomplete, G6 predates console parity + deepagents. v2 owns the closure of all six. |
+| §Vision + standing principle | "retrieval is a tool, not a parallel agent" | v2 inverts the v1 parallel-agent topology — retrieval becomes a `@tool` on the deepagents orchestrator (the *retrieve, offload, and delegate* pattern, D5). Main objectives (a) closed gaps, (b) architectural consistency, (c) proven cutover. |
+| §Scope & success criteria | G1–G6 closure matrix + in-scope axis→verification map | Boundary locked; exact pytest node IDs sharpen at design time. |
+| §Decisions log D1–D8 | slug `feature_027.rag_v2`, console-only, new module, deepagents-grounded, retrieve-offload-delegate RAG pattern, async=ingestion-only, TDD mandatory, G1–G6 verification anchor | All eight locked. Do NOT re-pick the RAG base pattern (D5) without new evidence + a new PROJECT.md iteration. |
+
+### The three exact next commands (run in this order)
+
+> These are the **only** blocked-on-feature-dir items blocking actual code work. Architecture, Tasks, and `design_001_*.md` are owned by the Analysis → Design phases the second command declares — not by this document.
+
+1. **Scaffold the feature dir.** Confirmed free slot: feature_027 (025=coding context window, 026=omt_q per current `2.requirements/features/` listing).
+   ```bash
+   uv run scripts/omt/new_feature.py "rag v2" --type major_feature
+   ```
+   Creates `.meta/software_development_process/{2.requirements,...}/features/feature_027.rag_v2/`. Per the v1.1 lock: the feature dir owns Architecture, Tasks, the `design_001_*.md` test plan, and the cutover decision record (D3) — the PROJECT.md home intentionally does *not*.
+
+2. **Declare the major_feature phase (Analysis).** Triggers feature_016 TDD enforcement auto-activation at Programming; Analysis itself is TDD-free.
+   ```
+   omt_phase{task_type:"major_feature", scope:"rag v2 — Analysis: scaffold substrate reads (v1 RAG surface, feature_025 deepagents stack, feature_024 console MVC++ contract, LangChain deepagents-RAG docs) and write analysis_001_*.md; v1 untouched.", feature:"feature_027.rag_v2"}
+   ```
+
+3. **Run the Analysis substrate reads.** Four sources, parallelizable — Vision v1.1 added each one as grounded evidence; Analysis re-verifies each against the *current* working tree before the design doc commits to a shape:
+   - **v1 RAG surface (the six gaps)** — read `src/agentx/model/rag/` + `src/agentx/ui/screens/rag/` + `feature_002.rag_retrieval_augmented_generation/FEATURE.md` §Status; confirm G1–G5 still hold; gap #6 (console parity + deepagents) confirmed by absence.
+   - **feature_025 deepagents stack (the grounding)** — read `src/agentx/model/coding/coding_agent_service.py` `create_deep_agent(...)` call + `coding_tools.py:18` `@tool` offload note; confirm the `tools=[...]` array is the surface v2 adds the retrieval `@tool` to.
+   - **feature_024 console MVC++ contract (the UI shape)** — read `design_001_console_parity.md` + `operation_spec_001_console_commands.md` + `use_case.md`; confirm `ConsoleProvider` factory + `IRagV2View`/`IRagV2ViewPartner` ABC pair + `RagV2MainController` command registration match.
+   - **LangChain deepagents-RAG docs (the pattern)** — re-read [docs.langchain.com/oss/python/deepagents/rag](https://docs.langchain.com/oss/python/deepagents/rag) (the *retrieve, offload, and delegate* pattern D5 locks) + the [subagents](https://docs.langchain.com/oss/python/deepagents/subagents) + [backends](https://docs.langchain.com/oss/python/deepagents/backends) companion docs. Confirm `backend.upload_files()` + `task({subagentType, description})` are the primitives v2's retrieval `@tool` + chunk-analyst subagent consume.
+   Write `analysis_001_*.md` to `3.analysis/features/feature_027.rag_v2/` citing all four sources.
+
+### What NOT to do (the v1.1 deferred-in-this-document list — re-read before overriding)
+
+- ❌ **Do NOT scaffold the feature dir from this document.** Step 1 above is the *first run-in-a-new-session* action; the v1.1 doc defers it deliberately. (§Out-of-scope-reminders point 1.)
+- ❌ **Do NOT edit v1 RAG (`src/agentx/model/rag/`, `src/agentx/ui/screens/rag/`) — D3 lock.** v2 is a sibling, not an edit. The cutover *decision* (remove v1 OR keep as opt-in fallback) is open at design time; the *gate* is fixed (v2 surface proven against G1–G6 → then a decision, with downstream-consumer audit).
+- ❌ **Do NOT pick a different RAG base pattern — D5 lock.** v2 implements *retrieve, offload, and delegate*. If the design phase finds rubric-checked grounding needs to compose on top, surface it as a §Standing principle extension, not a D5 replacement — see TA: risk at line ~210.
+- ❌ **Do NOT introduce a TUI variant / `TUIProvider` adapter / `React*` screen — D2 lock.** v2 is console-only from the start.
+- ❌ **Do NOT modify the deepagents stack — D4 lock.** v2 *consumes* `create_deep_agent` + middleware + `StateBackend`; it does not modify them.
+- ❌ **Do NOT introduce a new vector store or a bespoke retrieval DSL — §Out of scope.** Reuse ChromaDB under a `VectorStore` interface; LangChain primitives only.
+- ❌ **Do NOT declare TDD via `omt_skip` at Programming — D7 lock.** `feature_027.rag_v2` is `major_feature`; feature_016 TDD auto-activates at Programming; close via `omt_tdd{op:done}` with `checklist.suite_passes:true`, NOT via skip.
+
+### Resume entry point
+
+A fresh session that needs more than the Quick Start (e.g., prior session context, prior decisions still in-flight, prior TA: thought consults) reads `.projects/meta/rag_v2/CURRENT_STATE.md` next — newest entry on top, one `## <date>` block per session. The iter-0 entry there points back here.
+
+---
+
 > Status: **v1.1 (2026-08-09)** — scope locked, Vision written. v1 had Summary + Purpose + draft scope; v1.1 (i) promotes the draft scope to a locked scope with a v1-gap→v2 closure matrix, (ii) adds the **Vision + standing principle + main objectives** section that the v1 doc deferred — grounded in (a) the canonical LangChain-deepagents "retrieve, offload, and delegate" RAG pattern documented at docs.langchain.com/oss/python/deepagents/rag, (b) feature_025's actual deepagents ship (`create_deep_agent` + `FilesystemMiddleware` + `SummarizationMiddleware` + `MemoryMiddleware` + `SkillsMiddleware` + `StateBackend` — verified in `src/agentx/model/coding/coding_agent_service.py`), (c) feature_024's console MVC++ contract (`ConsoleProvider` + `I<X>View`/`I<X>ViewPartner` ABC pair + `MainController` command registration), and (d) feature_002's three v1 design docs (creation / selection / state) confirming v1's intended MVC++-with-ChromaDB-and-SQLite architecture that nonetheless predates console parity and deepagents grounding. Architecture, Tasks, feature-dir scaffolding, and phase declaration remain deferred (Status checklist below).
 
 > Scope anchor (user-pinned, 2026-08-09): **console-only** (no TUI variant, no TUI↔console adapter parity) · **new module** (`src/agentx/model/rag_v2/` + `src/agentx/ui/screens/rag_v2/`, v1 untouched) · **deepagents-grounded retrieval** (consumes `create_deep_agent`).
@@ -151,10 +209,11 @@ The boundary is locked here: every v1 gap must close **or** render moot in v2, e
 - [x] Purpose (what it is / what it isn't / v1 gaps / principles)
 - [x] Scope & success criteria (locked v1.1 — v1-gap→v2 closure matrix, in-scope axis→verification map, locked boundaries)
 - [x] Vision / standing principle / main objectives (locked v1.1 — "retrieval is a tool, not a parallel agent," grounded in the deepagents retrieve-offload-delegate pattern; main objectives (a)-(c))
+- [x] **New Session Quick Start block (v1.2 — prepends the locked v1.1 definition with the three exact next commands: scaffold feature_027, declare major_feature Analysis, run substrate reads)**
 - [ ] Architecture — pending (deferred to the feature_027 design phase; `feature_027.rag_v2/design_001_*.md` will own it)
 - [ ] Tasks — pending (no tasks until the feature dir is scaffolded and the first phase is declared)
-- [ ] Feature dir scaffolded — pending (`uv run scripts/omt/new_feature.py "rag v2" --type major_feature`, deferred until this project definition is approved)
-- [ ] Phase declared — pending (`omt_phase{task_type:"major_feature", ...}`, deferred until feature dir exists and scope is locked)
+- [ ] Feature dir scaffolded — pending (Quick Start step 1; `uv run scripts/omt/new_feature.py "rag v2" --type major_feature`, deferred until this project definition is approved)
+- [ ] Phase declared — pending (Quick Start step 2; `omt_phase{task_type:"major_feature", ...}`, deferred until feature dir exists and scope is locked)
 
 ---
 
@@ -191,6 +250,11 @@ The boundary is locked here: every v1 gap must close **or** render moot in v2, e
   5. Status checklist updated: Scope → `[x] locked v1.1`, Vision → `[x] locked v1.1`. Architecture and Tasks remain pending (deferred to feature dir phases).
   6. Decisions log + this iteration log + References sections added (mirroring the meta_harness_2 PROJECT.md convention).
 - Gestalt: the v1.1 round was grounded by reading four sources in parallel before writing — the LangChain-deepagents RAG docs (via MCP), feature_025's actual ship (via grep of `src/agentx/model/coding/`), feature_024's design dir, and feature_002's three v1 design docs (creation / selection / state). The Vision's claim that v2 is "backed by existing deepagents code, not aspirational" is the grounded payoff.
+- **iter v1.2 (2026-08-09)** — **Quick Start block + CURRENT_STATE.md iter-0** (this round). Three moves, all in the project home (no src/ edit, no feature dir scaffold — deferred items stay deferred per the v1.1 lock):
+  1. **§New Session Quick Start** block prepended to the document (between the H1 + v1.2 status line and the v1.1 Status preamble). The block has five named sub-sections — *What's locked* (a 5-row table mapping each locked v1.1 section to what a fresh session needs from it: Summary / Purpose-v1-gaps / Vision-standing-principle / Scope-G1-G6-matrix / Decisions-D1-D8), *The three exact next commands* (verbatim runnable: (1) `uv run scripts/omt/new_feature.py "rag v2" --type major_feature`, (2) `omt_phase{task_type:"major_feature", ..., feature:"feature_027.rag_v2"}` declaring Analysis, (3) run the four Analysis substrate reads + write `analysis_001_*.md`), *What NOT to do* (seven ❌ items: don't scaffold from this doc / don't edit v1 / don't pick a different RAG pattern / don't add TUI / don't modify the deepagents stack / don't add a new vector store / don't close TDD via skip), each citing the locked decision it would re-litigate, and *Resume entry point* (pointing to CURRENT_STATE.md). The block is **navigational**, not re-definitional — no scope axis is changed; the Quick Start block writes the *path to start* over the *definition of the project* (which is still the locked v1.1 body below it).
+  2. **Status checklist bumped**: header status line promoted v1.1→v1.2 with a one-sentence changelog naming the Quick Start block + CURRENT_STATE.md; the checklist itself gained a new `[x] New Session Quick Start block (v1.2 — ...)` row between the four v1.1-locked items and the four design-phase-pending items. Architecture, Tasks, feature dir scaffold, phase declared stay `[ ]` (their deferral is part of the v1.1 lock — Quick Start *names* the three commands that will flip them; it does not run them).
+  3. **`CURRENT_STATE.md` iter-0 created** (the companion session-log + resume-point file). Its iter-0 entry is the v1.2 Quick Start block's resume pointer — a fresh session reading CURRENT_STATE.md first lands on the iter-0 entry which says "read PROJECT.md §New Session Quick Start, then run the three commands" — closing the meta_harness_2-defined two-file convention (PROJECT = canonical design_doc, CURRENT_STATE = session log + resume point) so the project is *resumeable*, not just *defined*.
+- Gestalt: the v1.2 round was driven by the user's "refine to be start in a new session" request — interpreted as *navigational* (Quick Start + CURRENT_STATE), not *definitional* (Architecture/Tasks still deferred to the feature dir per the v1.1 lock). Verified the next free feature slot is 027 (025=coding context window, 026=omt_q per current `2.requirements/features/` listing — confirms the D1 slug `feature_027.rag_v2`). Verified feature_027 dir does NOT yet exist (only 025 + 026 dirs under `2.requirements/features/`). Did NOT re-read the four v1.1 evidence sources (LangChain docs, feature_025 ship, feature_024 contract, feature_002 designs) — v1.1 already grounded them and v1.2 is navigational. The three next-commands the Quick Start names are the v1.1-pending items the new session opens with; Quick Start just *makes them the explicit landing surface*, so a fresh session doesn't re-derive "what's blocked first" by re-reading 210 lines.
 
 ---
 
