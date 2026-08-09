@@ -228,22 +228,26 @@ class TestReactScreenLifecycle:
         screen = ReactTUIScreen(mock_controller)
         screen._is_mounted = True
 
-        # Mock the app property to return a mock app
+        # Mock the app property via a scoped context manager — the
+        # `type(screen).app = PropertyMock(...)` form permanently mutates the
+        # ReactTUIScreen class (no auto-restore), leaking a mock `app` into
+        # later Pilot tests and crashing Screen._update_auto_focus (which reads
+        # self.app.AUTO_FOCUS). patch.object restores on exit.
         mock_app = MagicMock()
-        type(screen).app = PropertyMock(return_value=mock_app)
-
-        with patch.object(screen, "query_one") as mock_query:
-            mock_input = MagicMock()
-            mock_query.return_value = mock_input
-            with patch.object(screen, "call_later") as mock_call_later:
-                with patch.object(screen, "_add_message") as mock_add:
-                    screen.on_mount()
-                    # Should focus input
-                    mock_input.focus.assert_called_once()
-                    # Should call start_new_conversation
-                    mock_controller.start_new_conversation.assert_called_once()
-                    # Should show welcome message via _add_message
-                    mock_add.assert_called_once()
+        with patch.object(type(screen), "app", new_callable=PropertyMock,
+                          return_value=mock_app):
+            with patch.object(screen, "query_one") as mock_query:
+                mock_input = MagicMock()
+                mock_query.return_value = mock_input
+                with patch.object(screen, "call_later") as mock_call_later:
+                    with patch.object(screen, "_add_message") as mock_add:
+                        screen.on_mount()
+                        # Should focus input
+                        mock_input.focus.assert_called_once()
+                        # Should call start_new_conversation
+                        mock_controller.start_new_conversation.assert_called_once()
+                        # Should show welcome message via _add_message
+                        mock_add.assert_called_once()
 
     def test_react_screen_on_mount_handles_controller_error(self) -> None:
         """on_mount should handle controller errors gracefully."""
@@ -255,18 +259,18 @@ class TestReactScreenLifecycle:
         screen = ReactTUIScreen(mock_controller)
         screen._is_mounted = True
 
-        # Mock the app property to return a mock app
+        # See note above: scoped context manager (NOT `type(screen).app = ...`).
         mock_app = MagicMock()
-        type(screen).app = PropertyMock(return_value=mock_app)
-
-        with patch.object(screen, "query_one") as mock_query:
-            mock_input = MagicMock()
-            mock_query.return_value = mock_input
-            with patch.object(screen, "call_later"):
-                with patch.object(screen, "_add_message"):
-                    # Should not raise
-                    screen.on_mount()
-                    mock_input.focus.assert_called_once()
+        with patch.object(type(screen), "app", new_callable=PropertyMock,
+                          return_value=mock_app):
+            with patch.object(screen, "query_one") as mock_query:
+                mock_input = MagicMock()
+                mock_query.return_value = mock_input
+                with patch.object(screen, "call_later"):
+                    with patch.object(screen, "_add_message"):
+                        # Should not raise
+                        screen.on_mount()
+                        mock_input.focus.assert_called_once()
 
     def test_react_screen_on_input_submitted_sends_message(self) -> None:
         """on_input_submitted should call action_send for react-input."""
