@@ -168,7 +168,7 @@ Blocks `src/` edits until `omt_kb_nav` consult recorded (ledger `kb_consult`). `
 |---|---|---|
 | KB compiler (curated parse + skeleton merge) | `scripts/omt/kb_compiler.py` | ⚠️ **library-only — `main()` placeholder (l.220); NOTHING builds the index. Build-gap = critical-path blocker** |
 | AST source skeleton extractor | `scripts/omt/kb_ast_extract.py` (NEW) | 📋 planned |
-| Curated concept-text overlay (code `text` values) | `.meta/doc/omt++/code.kb.omt` (NEW) | 📋 planned (seed = 11 sample texts, ported to extractor-stable ids) |
+| Curated concept-text overlay (code `text` values) | `.meta/doc/omt++/code.kb.omt` | ✅ live — 17 entries (11 sess-6 sample texts ported to extractor-stable ids, +1 `class.Agent` facade sess-12, +5 more in TODO); curation progressive per subsystem → round_001 in `.sandbox/akb_smart_population_and_update/` |
 | Rebuild trigger | `uv run scripts/omt/kb_compiler.py build` | 📋 define as THE rebuild command (sync acceptance runs it; harnessc chaining optional) |
 | `omt_kb_nav` plugin | `.opencode/plugins/omt_kb_nav.ts` | ✅ exists (4 ops); ⚠️ no result-cap |
 | `g.kb` gate | `META_HARNESS.omt` | ✅ exists (order=55); ⚠️ `@msg kb_required` says invalid `op:list` → fix to `op:nav` |
@@ -219,7 +219,9 @@ Blocks `src/` edits until `omt_kb_nav` consult recorded (ledger `kb_consult`). `
 
 ## Prior-resume checklist (content debt)
 
-### `.kb.omt` content bugs (6 — confirmed live in nav output)
+> **All 6 `.kb.omt` content bugs below were APPLIED in session 10.** Kept here as audit trail — not live debt. Confirmed by `akb_smart_population_and_update` round_001 (2026-08-08): `subsystems.kb.omt:33 doc.utils`, `subsystems.kb.omt:17 doc.agent_persist`, `architecture.kb.omt:19 doc.decisions`, `features.kb.omt:27 features_xref`, `persistence.kb.omt:17 persist_xref` are all LIVE and clean in the rebuilt `.meta/.omt/kb.index.jsonl` (439 records, 0 errors). Subsequent overlay growth is tracked by `.sandbox/akb_smart_population_and_update/round_*.md`.
+
+### `.kb.omt` content bugs (6 — APPLIED sess 10, recorded for audit)
 | File:line | Record | Fix |
 |---|---|---|
 | `subsystems.kb.omt:17` | `doc.aontpresist` | → `doc.agent_persist`; text `v.taripol` → `volatile` |
@@ -289,4 +291,4 @@ Blocks `src/` edits until `omt_kb_nav` consult recorded (ledger `kb_consult`). `
 
 ---
 
-*Created: 2026-08-02 | v2 rewritten: 2026-08-02 (source-code-primary, concept-altitude, unbounded index) | v2.1: 2026-08-02 sess 9 (coverage policy fixed: ALL public classes + auto-text floor; doc-tier deferred; live-verified drift fixes: build gap, 3-site budget, layer table, gate msg `op:list`, sample ephemerality, rebuild trigger) | Status: IMPLEMENTING — P0 steps 1-8 DONE (sess 10-11: overlay, extractor, build CLI, budget removed ×3, gate msg + bootstrap, nav cap 25); PAUSED mid-step 9 — ONE blocker (`doc.utils` stopword) + resume spec in CURRENT_STATE.md §Session 11*
+*vCreated: 2026-08-02 | v2 rewritten: 2026-08-02 (source-code-primary, concept-altitude, unbounded index) | v2.1: 2026-08-02 sess 9 (coverage policy fixed: ALL public classes + auto-text floor; doc-tier deferred; live-verified drift fixes: build gap, 3-site budget, layer table, gate msg `op:list`, sample ephemerality, rebuild trigger) | Status: ✅ DONE (sess 12 — 439 records live; g.kb consult-gate wired; 21/21 test_kb_* green) — Prior-resume checklist APPLIED (sess 10); overlay grew 11→17 (sess 12 + Agent facade record). Subsequent overlay growth curated via `.workflows/app_knowledge_base/loops/akb_smart_population_and_update.md` → round artifacts in `.sandbox/akb_smart_population_and_update/`. |*

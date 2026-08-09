@@ -41,6 +41,7 @@ CODE_KINDS = ("class", "contract", "dep")
 RID_RE = re.compile(r"[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*$")
 
 STOPWORDS = {
+# TA: gotcha: Linter regex [a-zA-Z]+ splits snake_case — abstractmethod names is_running/can_run/should_X in CURATED overlay text (code.kb.omt) trip the linter. Round_001 caught 4× is_running + 1× "a" token inside nvidia model string + 1× "can" English word. Auto-text skeleton EXEMPT (length-only). Cure = reword identifiers into noun-phrases (running-flag, ai_consumers swap, drop model name strings); NEVER relax STOPWORDS. Mirror of CURRENT_STATE.md sess-12 gotcha #4.
     "the", "a", "an", "is", "are", "was", "were", "must", "should",
     "will", "would", "could", "may", "might", "shall", "can",
     "need", "require", "ensure", "verify", "confirm",

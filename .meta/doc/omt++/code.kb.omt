@@ -46,3 +46,87 @@
 @dep SessionTool_IActuator tier=code : SessionTool --|> IActuator (realization). Also ISensor ⇒ kind=HYBRID: one tool perceives+acts.
 
 @dep Agent_ToolRegistry tier=code refs="class.FileSystemTool,class.RagSensorTool,class.SessionTool" : Agent --composes--> ToolRegistry. Agent owns tool lifecycle: registers builtins (filesystem/rag/session), delegates execute/register/unregister/health to registry. All tool ops route through facade.
+
+# --- contracts: MVC++ view-partner layer (agent/interfaces.py + ui/interfaces.py) ---
+# Curated round_001 (akb_smart_population_and_update). Concept text: role+why+connections,
+# ≤300c, stopword-free; snake_case avoided (regex splits [a-zA-Z]+ → "is"/"can" trip linter).
+
+@contract IAgentModelPartner tier=code : IAgentModelPartner(ABC) — Controller→Agent facade contract. Full session API: start/resume/submit_goal/run_cycle/persist/load_snapshot/list_rules/list_goals/query_memory/list_tools/execute_tool_action/proposals. Defined agent/interfaces.py — gates controller off concrete Agent.
+
+@contract IAgentViewPartner tier=code : IAgentViewPartner(ABC) — Controller→View partner contract. abstractmethods: show_status, show_reflection_log, show_memory_view, show_policy_editor, refresh_goal_tree, show_message. Inverts AgentScreen dependency off concrete agent_view.
+
+@contract IGoalManager tier=code : IGoalManager(ABC) — abstract goal store contract. abstractmethods: add_goal, get_goal, get_tree, update_status. Defined agent/interfaces.py; default realizer GoalManager. Swap point for feature_001 Petri-net manager experiment.
+
+@contract IMemoryStorePartner tier=code : IMemoryStorePartner(ABC) — Model-side memory store partner. abstractmethods: store, retrieve, consolidate, evict. Inverts Agent off concrete MemoryManager — allows storage-strategy substitution (volatile LRU vs persistent repo).
+
+@contract IPolicyStorePartner tier=code : IPolicyStorePartner(ABC) — Model-side policy store partner. abstractmethods: add_rule, remove_rule, resolve_conflicts. Inverts PolicyEngine off concrete PolicyRepo; supports conflict-resolution swapping (priority/recent/user-prompt/deny).
+
+@contract IPersistencePartner tier=code : IPersistencePartner(ABC) — Agent→persistence partner contract. abstractmethods: save_snapshot, load_snapshot. Inverts Agent off concrete SessionRepository; load_snapshot returns None when absent (m7 fallback).
+
+@contract IAIServicePartner tier=code : IAIServicePartner(ABC) — reflection-engine AI partner contract. abstractmethods: complete(prompt)→str. Inverts ReflectionEngine off concrete AIService; lets AI stay optional (skipped cleanly when no provider registered).
+
+@contract IUIProvider tier=code : IUIProvider(ABC) — abstract UI factory. abstractmethods: create_{main,rag,chat,react,coding,models,agent,fast_agent}_view, initialize, shutdown. Inverts controllers off concrete views — every screen reaches via this factory, never direct construction.
+
+@contract IMainView tier=code : IMainView(ABC) — main-screen view contract seen by MainController. abstractmethods: show, print_message, print_error_message, print_warring_message, print_response, print_response_error. First screen in nav stack; entry to chat/rag/agent sub-screens.
+
+@contract IMainViewPartner tier=code : IMainViewPartner(ABC) — MainView→MainController partner contract. abstractmethods: run_command, error, print, show_chat, show_rag. Implements MVC++ inversion: view depends on partner, not concrete controller.
+
+@contract IChatView tier=code : IChatView(ABC) — chat-screen view contract. abstractmethods: show, show_initial_message, show_message, show_partial_message, show_stream_message, show_message_chat_error. Streaming architecture — partial_message enables token-by-token LLM display.
+
+@contract IChatViewPartner tier=code : IChatViewPartner(ABC) — ChatView→ChatController partner contract. abstractmethods: process_user_message, close, start_interactive_streaming. Inverts ChatView off ChatController — console+TUI both reach chat via partner.
+
+@contract IRagView tier=code : IRagView(ABC) — RAG-screen view contract. abstractmethods: show, print_message, print_message_error, show_repository_state, show_menu. Renders repository selection/creation/chat/ingest sub-screens.
+
+@contract IRagViewPartner tier=code : IRagViewPartner(ABC) — RagView→RagController partner contract. abstractmethods: select_repository, create_repository, show_chat, show_web_ingestion, close, get_rag_state. Inverts RagView off RagController.
+
+@contract IModelsView tier=code : IModelsView(ABC) — models-selector view contract (feature_024 console parity). abstractmethods: show, show_available_providers, show_models_for_provider, show_message, print_error. Two-screen flow: list providers → list models per provider.
+
+@contract IModelsViewPartner tier=code : IModelsViewPartner(ABC) — ModelsView→ModelsController partner contract. abstractmethods: select_model, close. Defined ui/interfaces.py (canonical) — duplicate in models_controller.py kept first-by-sorted-path (legacy dup warning).
+
+@contract IReactView tier=code : IReactView(ABC) — ReAct chat view contract (feature_024). abstractmethods: show, show_message, show_partial_message, show_stream_message, print_error. Mirrors IChatView shape — agent conversation with streaming.
+
+@contract IReactViewPartner tier=code : IReactViewPartner(ABC) — ReactView→ReactController partner contract. abstractmethods: send_message, cancel, running-flag, get_history, close, start_new_conversation. Realized by TUI React screen virtually (subclass register — metaclass compat-skip).
+
+@contract ICodingView tier=code : ICodingView(ABC) — Coding-screen view contract (feature_024). abstractmethods: show, show_message, show_partial_message, show_stream_message, print_error. Mirrors IReactView shape — separate screen for coding-mode agent.
+
+@contract ICodingViewPartner tier=code : ICodingViewPartner(ABC) — CodingView→CodingController partner contract. abstractmethods: send_message, cancel, running-flag, get_history, close, start_new_conversation. Realized virtually by TUI Coding screen.
+
+@contract IAgentView tier=code : IAgentView(ABC) — Advanced Agent screen view contract (feature_024). abstractmethods: show, show_message, show_partial_message, show_stream_message, print_error. Full agent cycle display.
+
+@contract IConsoleAgentViewPartner tier=code : IConsoleAgentViewPartner(ABC) — ConsoleAgentView→AgentController partner contract (console mode, feature_024). abstractmethods: send_message, cancel, running-flag, get_history, close, start_new_conversation. Dual-mode (console+TUI) reaches same controller.
+
+@contract IFastAgentView tier=code : IFastAgentView(ABC) — Fast Agent modal view contract (feature_011). abstractmethods: show, show_cycle_summary, print_error. Modal-stack UI: GoalModal→Running→Reflection→Result.
+
+@contract IConsoleFastAgentViewPartner tier=code : IConsoleFastAgentViewPartner(ABC) — ConsoleFastAgentView→FastAgentController partner contract. abstractmethods: send_message, cancel, running-flag, get_cycle_summary, close, start_new_conversation. Extra cycle_summary getter vs other partners.
+
+@contract Command tier=code : Command(ABC) — ui Command pattern contract. abstractmethods: run(args). Key+controller constructor; dispatched by CommandParser. 10 concrete command classes in ui/screens/main/commands/. MainController.load_commands() builds registry.
+
+# --- classes: LLM provider strategy (model/ai/providers.py) ---
+
+@contract LLMProvider tier=code : LLMProvider(ABC) — LLM provider strategy contract. abstractmethods: create_llm()→BaseChatModel. Defined model/ai/providers.py. Lets AIService swap cloud/local backends without touching consumers; test fixtures substitute fakes.
+
+@class LlamaCppProvider tier=code refs="contract.LLMProvider" : LlamaCppProvider(LLMProvider) — local LlamaCpp backend provider. Configurable model_filename + context_size. Wraps model_factory_llamacpp; Qwen 2.5 default. Reaches GPU/CPU via llama.cpp + Python bindings.
+
+@class OpenAIProvider tier=code refs="contract.LLMProvider" : OpenAIProvider(LLMProvider) — OpenAI GPT-3.5-turbo cloud provider. Hardcoded model — wraps ChatOpenAI langchain adapter. Simpler provider (no constructor config); auth via OPENAI_API_KEY env.
+
+@class OpenRouterProvider tier=code refs="contract.LLMProvider" : OpenRouterProvider(LLMProvider) — OpenRouter cloud provider (default fallback in ai_service). Configurable model_name="openrouter/auto"; temperature 0.7, max_tokens 2048, retries 2, freq_penalty 0.5. Routes between cloud models via single OPENROUTER_API_KEY env.
+
+@class OllamaProvider tier=code refs="contract.LLMProvider" : OllamaProvider(LLMProvider) — local Ollama server provider. Default model qwen3.5:0.8b. Lazy import inside create_llm() so missing Ollama server surfaces on use, not module load — graceful degradation in AI adapter fallback chain.
+
+@class GeminiProvider tier=code refs="contract.LLMProvider" : GeminiProvider(LLMProvider) — Google Gemini cloud provider. Default gemini-2.5-flash-lite. Lazy import of google_gemini factory keeps provider-module load light; surfaces missing package on use.
+
+@class NvidiaProvider tier=code refs="contract.LLMProvider" : NvidiaProvider(LLMProvider) — NVIDIA NIM cloud provider (NVIDIA API catalog). Wrapper around langchain_nvidia_ai_endpoints.ChatNVIDIA. Auth via NVIDIA_API_KEY env. Lazy import keeps module load light; surfaces missing package on use.
+
+# --- classes: agent/types.py — domain enums (state machines) ---
+
+@class AgentState tier=code : AgentState(str,Enum) — agent cycle-stage enum. INITIALIZING→PERCEIVING→DECIDING→ACTING→REFLECTING→PERSISTING state sequence; PAUSED/TERMINATED exits. Single-active state drives facade `run_cycle()` stage dispatch.
+
+@class AutonomyLevel tier=code : AutonomyLevel(str,Enum) — agent autonomy tier enum. FULLY_AUTONOMOUS / SUPERVISED / CONFIRMATION_REQUIRED / MANUAL_ONLY. Bounds which actions execute without user confirmation; configurable in AgentConfig.autonomy_level.
+
+@class GoalType tier=code : GoalType(str,Enum) — goal classification enum. USER_OBJECTIVE / AGENT_SUBGOAL / MAINTENANCE / EXPLORATION. Distinguishes terminal objectives from intermediate sub-goals + long-running maintenance vs curiosity-driven exploration.
+
+@class GoalStatus tier=code : GoalStatus(str,Enum) — goal-tree node status enum. PENDING→ACTIVE→COMPLETED|FAILED|ABANDONED; BLOCKED recoverable. GoalManager.single-active constraint transitions on PENDING→ACTIVE.
+
+@class ToolKind tier=code : ToolKind(str,Enum) — registry tool-role enum. SENSOR / ACTUATOR / HYBRID. Hybrid = same-id sensor+actuator pair upgraded by ToolRegistry (tool perceives AND acts).
+
+@class ActionType tier=code : ActionType(str,Enum) — decision-engine action-type enum. EXECUTE_TOOL / SET_GOAL / MODIFY_MEMORY / UPDATE_POLICY / REQUEST_CONFIRMATION / PAUSE. Policy decision maps into these; executor dispatches per type.
