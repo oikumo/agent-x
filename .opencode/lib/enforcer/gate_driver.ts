@@ -269,6 +269,56 @@ export async function runBeforeGates(
   }
 }
 
+// Phase-A interrogative layer (feature_026.omt_q_interrogative_first_ops):
+// a dryRun variant of the before-chain that captures OmtBlock per-gate and
+// returns decision rows instead of throwing. The existing runBeforeGates is
+// byte-identical — real edits still throw OmtBlock as today; this sibling is
+// omt_q{op:plan}'s "predict what would block" path. NEVER used by the real
+// composition root (runBeforeGates remains the throw path).
+export type GateDecision = {
+  gate_id: string
+  blocked: boolean
+  msg: string
+  skip_ok: boolean
+}
+
+export async function runBeforeGatesDry(ctx: GateCtx): Promise<GateDecision[]> {
+  const ir = loadIr()
+  const gates = (Array.isArray(ir?.gates) && ir.gates.length ? ir.gates : FALLBACK_GATES)
+    .filter((g: any) => g.on === "before")
+    .sort((a: any, b: any) => a.order - b.order)
+  const decisions: GateDecision[] = []
+  const tool = ctx.tool
+  for (const gate of gates) {
+    const tools = String(gate.tools ?? "").split("|").filter(Boolean)
+    if (tools.length && !tools.includes(tool)) continue
+    if (ctx.rel !== null && gate.when && !evalPredExpr(gate.when, ctx, ir)) {
+      decisions.push({ gate_id: gate.id, blocked: false, msg: "", skip_ok: !!gate.skip_ok })
+      continue
+    }
+    const impl = IMPLS[gate.id] ?? genericImpl
+    try {
+      const r = await impl(gate, ctx)
+      decisions.push({ gate_id: gate.id, blocked: false, msg: "", skip_ok: !!gate.skip_ok })
+      if (r === "stop") break
+    } catch (e) {
+      if (e instanceof OmtBlock) {
+        decisions.push({
+          gate_id: gate.id,
+          blocked: true,
+          msg: e.message,
+          skip_ok: !!gate.skip_ok,
+        })
+        // dryRun never propagates — capture and continue (so the agent sees
+        // ALL before-gates that would fire, not just the first blocker).
+        continue
+      }
+      throw e // non-OmtBlock errors are real failures — propagate
+    }
+  }
+  return decisions
+}
+
 // --- after-gates (improvement007 R7 / OPT-F): data-driven like the before-chain
 //
 // The root's after-hook keeps composition-only concerns (session bootstrap,
