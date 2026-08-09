@@ -72,14 +72,23 @@ console.log(result)
 
 
 def _q_probe(args_str: str, session: str = "ses_probe", extra_files: dict | None = None,
-             use_real_ir: bool = False, tmp_path: Path | None = None) -> dict:
-    """Invoke omt_q with the given args JSON-string under a tmp root; return parsed envelope."""
+             use_real_ir: bool = False, tmp_path: Path | None = None,
+             use_real_root: bool = False) -> dict:
+    """Invoke omt_q with the given args JSON-string under a tmp root; return parsed envelope.
+
+    ``use_real_root=True`` runs the probe against ``REPO_ROOT`` instead of the
+    hermetic ``tmp_path`` — used by tests whose contract is to read the live
+    repo substrate (e.g. U10 parses the real ``scripts/omt/tdd/state.py``).
+    The hermetic ``tmp_path`` is still required for the fixture-setup plumbing
+    but is ignored when ``use_real_root`` is set.
+    """
     if tmp_path is None:
         raise AssertionError("tmp_path required")
     assert BUN is not None, "bun runtime required for _q_probe (guard against skipif bypass)"
-    if use_real_ir:
+    root = REPO_ROOT if use_real_root else tmp_path
+    if use_real_ir and not use_real_root:
         _copy_real_ir(tmp_path)
-    if extra_files:
+    if extra_files and not use_real_root:
         for rel, contents in extra_files.items():
             dst = tmp_path / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
@@ -96,7 +105,7 @@ def _q_probe(args_str: str, session: str = "ses_probe", extra_files: dict | None
             .replace("%SESSION%", session),
         encoding="utf-8",
     )
-    out = subprocess.run([BUN, str(probe), str(tmp_path)],
+    out = subprocess.run([BUN, str(probe), str(root)],
                          capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, f"bun probe failed:\n{out.stderr}\n---"
     lines = out.stdout.strip().splitlines()
@@ -446,9 +455,14 @@ class TestOpStateKnownSuiteFailuresParse:
     @pytest.mark.skipif(BUN is None, reason="bun runtime not available")
     @pytest.mark.skipif(not OMT_Q_PLUGIN.exists(), reason="omt_q.ts not implemented yet (RED)")
     def test_u10_known_suite_failures_from_state_py(self, tmp_path):
+        # U10's contract is to parse the LIVE scripts/omt/tdd/state.py — run the
+        # probe at REPO_ROOT (not a hermetic tmp_path which has no state.py).
+        # The IR copy into tmp_path is harmless plumbing here; use_real_root
+        # makes the bun probe run against the real repo substrate.
         _copy_real_ir(tmp_path)
         out = _q_probe(json.dumps({"op": "state"}),
-                       session="ses_u10", use_real_ir=True, tmp_path=tmp_path)
+                       session="ses_u10", use_real_ir=True, tmp_path=tmp_path,
+                       use_real_root=True)
         assert out["op"] == "state"
         assert "known_suite_failures" in out, (
             f"U10 known_suite_failures missing: {out}")

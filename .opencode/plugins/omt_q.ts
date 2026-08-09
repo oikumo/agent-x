@@ -427,6 +427,25 @@ function buildCtxFromInputs(args: {
   }
 }
 
+// Shared envelope emit + ledger append (consolidates the 3-op duplication:
+// latency_ms + appendLedger{kind:"q"} + JSON.stringify). Fail-open on ledger.
+function emitQEnvelope(
+  start: number, op: string,
+  op_set: string[], fold_used: string,
+  extra: Record<string, any>,
+  ledger_extra: Record<string, any> = {},
+): string {
+  const latency_ms = Date.now() - start
+  try {
+    appendLedger({
+      kind: "q", op, ts: new Date().toISOString(),
+      op_set, fold_used, latency_ms, as_of: "HEAD",
+      ...ledger_extra,
+    })
+  } catch { /* ledger fail-open */ }
+  return JSON.stringify({ op, ...extra })
+}
+
 // ---------------------------------------------------------------------------
 // createQTools: built post-init (mirrors omt_nav's createNavTools).
 // ---------------------------------------------------------------------------
@@ -499,36 +518,23 @@ function createQTools() {
           const thoughts = readThoughtsIndex()
           risky_thoughts.push(...thoughts)
         } catch { /* fail open */ }
-        const envelope = {
-          as_of_commit,
-          op: "state",
-          feature,
-          session,
-          phase,
-          tdd_position,
-          stranded_red,
-          closed_via_skip,
-          decree_health,
-          skip_reason_tally,
-          live_smoke_count,
-          known_suite_failures: ksf.nodeIds,
-          known_suite_failures_parse_failed: ksf.parse_failed,
-          recent_consults,
-          consult_needed,
-          last_activity_ts: tsMax > 0 ? new Date(tsMax).toISOString() : "",
-          risky_thoughts,
-        }
-        const latency_ms = Date.now() - start
-        try {
-          appendLedger({
-            kind: "q", op: "state", feature, session,
-            ts: new Date().toISOString(),
-            op_set: ["U1", "U6", "U7", "U8", "U9", "U10", "U13"],
-            fold_used: "U1,U6,U7,U8,U9,U10,U13",
-            latency_ms, as_of: "HEAD",
-          })
-        } catch { /* ledger fail-open */ }
-        return JSON.stringify(envelope)
+        return emitQEnvelope(
+          start, "state",
+          ["U1", "U6", "U7", "U8", "U9", "U10", "U13"],
+          "U1,U6,U7,U8,U9,U10,U13",
+          {
+            as_of_commit,
+            feature, session, phase, tdd_position,
+            stranded_red, closed_via_skip, decree_health,
+            skip_reason_tally, live_smoke_count,
+            known_suite_failures: ksf.nodeIds,
+            known_suite_failures_parse_failed: ksf.parse_failed,
+            recent_consults, consult_needed,
+            last_activity_ts: tsMax > 0 ? new Date(tsMax).toISOString() : "",
+            risky_thoughts,
+          },
+          { feature, session },
+        )
       } catch {
         const envelope = {
           as_of_commit, op: "state", feature, session, phase: "Unknown",
@@ -573,31 +579,20 @@ function createQTools() {
         if (ctx.rel && ctx.abs) {
           receipt_detail = foldReceiptDetail(ctx.rel, ctx.abs)
         }
-        const envelope = {
-          as_of_commit,
-          op: "plan",
-          path,
-          tool: args?.tool ?? "edit",
-          session: args?.session,
-          predicted_chain,
-          first_blocker,
-          receipt_detail,
-        }
-        const latency_ms = Date.now() - start
-        try {
-          appendLedger({
-            kind: "q", op: "plan", path, tool: args?.tool,
-            session: args?.session, ts: new Date().toISOString(),
-            op_set: ["U2", "U11"], fold_used: "U2,U11",
-            latency_ms, as_of: "HEAD",
-          })
-        } catch { /* ledger fail-open */ }
-        return JSON.stringify(envelope)
-      } catch (e: any) {
+        return emitQEnvelope(
+          start, "plan", ["U2", "U11"], "U2,U11",
+          {
+            as_of_commit, path,
+            tool: args?.tool ?? "edit",
+            session: args?.session,
+            predicted_chain, first_blocker, receipt_detail,
+          },
+          { path, tool: args?.tool, session: args?.session },
+        )
+      } catch {
         const envelope = {
           as_of_commit, op: "plan", path,
-          error: "plan op failed (fail-open): " + String(e?.message || e),
-          stack: e?.stack,
+          error: "plan op failed (fail-open)",
         }
         return JSON.stringify(envelope)
       }
@@ -612,21 +607,10 @@ function createQTools() {
       const as_of_commit = headSha()
       try {
         const { drift_records, count_drift } = foldDrift()
-        const envelope = {
-          as_of_commit,
-          op: "drift",
-          drift_records,
-          count_drift,
-        }
-        const latency_ms = Date.now() - start
-        try {
-          appendLedger({
-            kind: "q", op: "drift", ts: new Date().toISOString(),
-            op_set: ["U3"], fold_used: "U3",
-            latency_ms, as_of: "HEAD",
-          })
-        } catch { /* ledger fail-open */ }
-        return JSON.stringify(envelope)
+        return emitQEnvelope(
+          start, "drift", ["U3"], "U3",
+          { as_of_commit, drift_records, count_drift },
+        )
       } catch {
         const envelope = {
           as_of_commit, op: "drift",

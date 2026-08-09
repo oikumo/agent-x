@@ -8,7 +8,7 @@
     "nav_index": 64000,
     "nav_tip": 512,
     "tool_args": 1792,
-    "tool_schemas": 1024,
+    "tool_schemas": 1280,
     "work_md": 5120,
     "work_scratchpad": 3072
   },
@@ -480,6 +480,12 @@
       "description": "Declare phase before src/ edits (task_type/scope \u2192 ledger; \u00a712 unlock matrix).",
       "perm": "allow",
       "tags": "CMD_OMT_PHASE"
+    },
+    "omt_q": {
+      "args": "op,feature?,session?,path?,tool?,as_of?",
+      "description": "TA: Interrogative layer \u2014 read-only. op=state(feature?,session?,as_of?) | plan(path,tool?,session?,as_of?) | drift(as_of?). Returns JSON envelope with as_of_commit=HEAD-sha.",
+      "perm": "allow",
+      "tags": "CMD_Q"
     },
     "omt_skip": {
       "args": "reason,scope?",
