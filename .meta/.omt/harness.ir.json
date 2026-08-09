@@ -1,6 +1,6 @@
 {
   "budgets": {
-    "agents_md": 2560,
+    "agents_md": 2816,
     "digest_cap": 1024,
     "ir_json": 20480,
     "meta_harness_md": 2048,

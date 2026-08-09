@@ -78,6 +78,7 @@ agentx is developed with **opencode** using a mechanically enforced **META HARNE
 | **Ledger** | `.meta/.omt/ledger.jsonl` | Audit trail of all phase declarations and completions (rotated at 64 KB) |
 | **Configuration** | `opencode.jsonc`, `AGENTS.md` | Protected files, denied commands, process rules — **generated projections of the DSL, never hand-edited** |
 | **Workflows Catalog** | `.workflows/` | Operational workflow playbooks the agent loads and executes on user demand — markdown recipes (NOT a runtime engine). Sits **above** the harness: each workflow's `# Rules` line 1 declares whether it follows or overrides OMT. Two-level discovery read: `.workflows/META.md` → matched subject `META.md` → matched file. Mandatory approval gate (no auto-fix). See [`.workflows/META.md`](.workflows/META.md) |
+| **Projects Home** | `.projects/` | Per-feature design & project-planning home — `PROJECT.md` (canonical single-source design doc) + `CURRENT_STATE.md` (session-by-session log + resume point) + supporting artifacts. Non-gated (NOT in `harness_paths`). Companion to the phase-gated design doc under `.meta/software_development_process/4.design/features/`. Subfolders under `.projects/meta/<feature>/`. See [`.projects/meta/`](.projects/meta/) |
 
 ### Workflows (`.workflows/`)
 
@@ -124,9 +125,32 @@ user trigger ("feature X doesn't work, fix it")
 
 To author a new workflow: copy the template in [`.workflows/META.md`](.workflows/META.md) §6, fill it, drop it under the right subject (`loops/` for recurring, subject root for one-shot), and update that subject's `META.md` table. The full contract (schema, discovery procedure, output-path convention, the approval-gate hard invariant) lives in [`.workflows/META.md`](.workflows/META.md).
 
+### Projects Home (`.projects/`)
+
+The `.projects/` directory is the **per-feature design & project-planning home** — a non-gated companion to the phase-gated design doc that lives under `.meta/software_development_process/4.design/features/`. Each major feature or meta-project gets one subfolder under `.projects/meta/` holding its canonical design document plus the session-by-session log. The harness neither writes here nor gates edits: `.projects/` is not in `@var harness_paths`, not under `src/`, and not protected — the agent consults it before scoping a new feature and writes the resume point back at the end of each session.
+
+**Per-feature folder layout:**
+
+| File | Role |
+|------|------|
+| `PROJECT.md` | Canonical single-source design doc — vision, scope, architecture, acceptance criteria, implementation plan, decision log. On any disagreement with the companion file below, `PROJECT.md` wins. |
+| `CURRENT_STATE.md` | Session-by-session log — what was done, must-survive gotchas, and the precise "start here" resume point for the next session. |
+| Supporting artifacts | Samples, backups, superseded earlier drafts (e.g. `design_001_*.md` marked SUPERSEDED). |
+
+**Existing project folders:**
+
+| Folder | Subject | State |
+|--------|---------|--------|
+| `.projects/meta/feature_kb_akb/` | Application Knowledge Base (AKB) | ✅ DONE 2026-08-08 — UNIFIED concept-altitude index 437 records, `g.kb` consult-gate wired |
+| `.projects/meta/workflows/` | `.workflows/` catalog definition layer | ✅ DONE 2026-08-08 — root + 3 per-subject `META.md` + authoring schema + 3 open-gap fixes |
+
+**Relationship to the phase-gated design doc.** `@phase design_req` (in `.meta/META_HARNESS.omt`) requires a design doc on disk for `major_feature`/`new_screen`. The phase gate's `resolveArtifact` accepts an explicit `design_doc=` argument first (any path that exists), else auto-detects under `.meta/software_development_process/4.design/features/<feature>/`. Pointing `omt_phase{design_doc:".projects/meta/<feature>/PROJECT.md"}` makes the richer `PROJECT.md` the canonical artifact while the auto-detected `design_001_*.md` stub acts as a pointer — both paths satisfy the gate; the `.projects/` folder is the richer of the two by convention.
+
+To start a new project folder: create `.projects/meta/<feature_slug>/` and seed `PROJECT.md` (purpose, scope, acceptance criteria) + `CURRENT_STATE.md` (empty or with a session-1 placeholder). The phase-gated design doc scaffold is created separately by `uv run scripts/omt/new_feature.py "<name>" --type major_feature`. The full contract (component + path records) is nav-indexed under `COMP_PROJECTS` / `PTH_PROJECTS` in `.meta/META_HARNESS.omt`.
+
 ### Single Source of Truth: the META HARNESS DSL (OMT-HDL)
 
-Every rule above — deny lists, protected paths, gates and their execution order, tool schemas, TDD state machines, doc structure, size budgets — is declared in **one file**: [`.meta/META_HARNESS.omt`](.meta/META_HARNESS.omt) (OMT-HDL v1: 243 records across 18 record kinds such as `@var`, `@deny`, `@protect`, `@gate`, `@tool`, `@fsm`, `@hat`, `@pred`, `@budget`, `@doc` — including records the compiler *derives* at projection time instead of hand-maintaining).
+Every rule above — deny lists, protected paths, gates and their execution order, tool schemas, TDD state machines, doc structure, size budgets — is declared in **one file**: [`.meta/META_HARNESS.omt`](.meta/META_HARNESS.omt) (OMT-HDL v1: 246 records across 18 record kinds such as `@var`, `@deny`, `@protect`, `@gate`, `@tool`, `@fsm`, `@hat`, `@pred`, `@budget`, `@doc` — including records the compiler *derives* at projection time instead of hand-maintaining).
 
 A compiler projects that single source into everything the runtime and the agent consume:
 
@@ -149,7 +173,7 @@ A compiler projects that single source into everything the runtime and the agent
 | `uv run scripts/omt/harnessc.py check --verify-projections` | **Drift test** — fails if any projection is stale or hand-edited |
 | `uv run scripts/omt/harnessc.py build` | Regenerate all projections from the `.omt` |
 
-**Why a DSL?** Constants such as the ledger rotation cap used to live in three places (TS plugin, Python engine, docs). Now `@var` records single-source them — with `{@var.x}` interpolation across records (unknown names are check errors) — and both the TypeScript plugins and the Python engine consume the compiled IR at runtime (7 hand-mirrored constant blocks deleted; pin-tests assert TS == PY == `.omt`). Gate execution order, nav-gate doc paths, and size budgets (AGENTS.md ≤ 2.5 KiB · WORK.md ≤ 4 KiB · scratchpad ≤ 3 KiB · tool schemas ≤ 1 KiB · tool arg describes ≤ 1.5 KiB) are likewise declared once and mechanically verified on every build.
+**Why a DSL?** Constants such as the ledger rotation cap used to live in three places (TS plugin, Python engine, docs). Now `@var` records single-source them — with `{@var.x}` interpolation across records (unknown names are check errors) — and both the TypeScript plugins and the Python engine consume the compiled IR at runtime (7 hand-mirrored constant blocks deleted; pin-tests assert TS == PY == `.omt`). Gate execution order, nav-gate doc paths, and size budgets (AGENTS.md ≤ 2.75 KiB · WORK.md ≤ 4 KiB · scratchpad ≤ 3 KiB · tool schemas ≤ 1 KiB · tool arg describes ≤ 1.5 KiB) are likewise declared once and mechanically verified on every build.
 
 ### Token Discipline: every byte that costs tokens is budgeted
 

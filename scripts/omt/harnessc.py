@@ -781,10 +781,11 @@ def check_tool_seed_sync(c: Corpus) -> None:
 # --- projections ---------------------------------------------------------------
 
 def render_agents(c: Corpus) -> str:
+# TA: why: meta.projects_harness_surface: render_agents() now emits `**Projects home (.projects/):**` between `.workflows/` and `Nav gate` lines (mirrors .workflows/ precedent). projects_home added to required-docs check (line 787). 3 new .omt records nav-indexed under COMP_PROJECTS / PTH_PROJECTS / PROJECTS_HOME.
     docs = {r.rid: r.payload for r in c.of("doc")}
     flows = {r.rid: r.payload for r in c.of("flow")}
     for need in ("startup", "runtime", "enforcement", "nav.enforcement",
-                 "think.021", "think.gate_not_skip", "workflows"):
+                 "think.021", "think.gate_not_skip", "workflows", "projects_home"):
         if need not in docs:
             raise SystemExit(f"harnessc: error: @doc {need} missing (AGENTS.md projection needs it)")
     for need in AGENTS_QUICK_FLOWS:
@@ -860,6 +861,7 @@ def render_agents(c: Corpus) -> str:
 - **TDD (feature_016):** {auto_txt} auto-activates `{cycle}` — two-hats: RED tests/ only · GREEN/REFACTOR src/ only (auto-revert on break)
 - **Tools:** {n_tools} `omt_*` — catalog `omt_nav{{query:"CMD_", tag_type:"CMD"}}` · workflows `omt_quick_ref`
 - **Workflows (.workflows/):** {docs['workflows']}
+- **Projects home (.projects/):** {docs['projects_home']}
 - **Nav gate (feature_020):** nav tools before grep/glob on docs (read + src/non-doc exempt) · **Think gate (feature_021):** TA: files need `omt_think{{op:list}}` consult (NOT skip-bypassable)
 """
 

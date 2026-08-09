@@ -181,6 +181,8 @@
 @doc comp.hdl tags="COMP_HDL" : .meta/META_HARNESS.omt + scripts/omt/harnessc.py — THIS source + its compiler (projections: harness.ir.json, AGENTS.md, nav.index.jsonl, opencode.jsonc blocks, harness.report)
 @doc comp.workflows tags="COMP_WORKFLOWS" : .workflows/ — operational workflow catalog (triggered procedures the agent executes on demand); root manifest .workflows/META.md is the entry point; sits ABOVE the harness (each workflow's # Rules line 1 declares follow-vs-override OMT); no runtime/parser (agent-read markdown, two-level discovery read: root META → matched subject META → matched file; mandatory approval gate)
 @doc pth.workflows tags="PTH_WORKFLOWS" : .workflows/META.md — root manifest of the operational workflow catalog (entry point read on every trigger)
+@doc comp.projects tags="COMP_PROJECTS" : .projects/ — per-feature design & project-planning home; non-gated (NOT in harness_paths); subject folders .projects/meta/<feature>/{PROJECT.md, CURRENT_STATE.md, supporting artifacts}; PROJECT.md = canonical single-source design doc (sess log + resume point in CURRENT_STATE.md); companion to the phase-gated design doc (@phase design_req auto-detected under 4.design/features/feature_<n>/ OR accepts design_doc= pointing here)
+@doc pth.projects tags="PTH_PROJECTS" : .projects/meta/<feature>/PROJECT.md — canonical design doc per feature (single source of truth; CURRENT_STATE.md is the session-by-session log + resume point)
 # DERIVED (R9/OPT-I): doc.prot.files ← @protect+g.tests · doc.esc ← @tool omt_skip+gates
 @doc ext.complete tags="EXT_COMPLETE" : omt_complete{feature,advance_to:Design|Programming|Testing|Done} → verifies phase artifacts + TDD validate-exit + syncs WORK.md [x]
 @doc sts.cmd tags="STS_CMD" : omt_status tool (or: uv run scripts/omt/tdd_check.py status)
@@ -203,6 +205,7 @@
 @doc pth.work tags="PTH_WORK" : WORK.md
 @doc pth.rules tags="PTH_RULES" : AGENTS.md (GENERATED from .meta/META_HARNESS.omt)
 @doc workflows tags="WORKFLOWS" : .workflows/ operational workflow catalog — triggered procedures the agent loads on demand (markdown recipes, NOT a runtime). Sits ABOVE the harness: each workflow's `# Rules` line 1 declares follow-vs-override OMT. Two-level discovery read: .workflows/META.md → matched subject META → matched file. Mandatory approval gate (no auto-fix). Detail: @doc comp.workflows + .workflows/META.md.
+@doc projects_home tags="PROJECTS_HOME" : .projects/ per-feature design & project home — non-gated; PROJECT.md (canonical) + CURRENT_STATE.md (session log); companion to @phase design_doc. Detail: @doc comp.projects + .projects/meta/.
 
 # DERIVED (R9/OPT-I): doc.tree.{src,tst,doc} ← @gate when= path_in chains + @phase
 # ============================================================
@@ -235,7 +238,7 @@
 # ============================================================
 # BUDGET — compile-enforced token budgets (R7 T5/T8 → build errors; F32/F33)
 # ============================================================
-@budget agents_md max=2560 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers, 5120→2560)
+@budget agents_md max=2816 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers, 5120→2560; 2026-08-08: 2560→2816 to add .projects/ component line mirroring .workflows/)
 @budget work_md max=5120 : WORK.md bytes — read at every session startup (feature_kb_akb: +1 task entry pushed 4096→5120)
 @budget work_scratchpad max=3072 : WORK.md Agent Scratchpad section bytes (T2: CURRENT/RECURRING only; shrunk 6144→3072 in improvement002/OPT-B after gotcha relocation to @doc gotcha.*)
 @budget nav_tip max=512 : session-bootstrap nav-tip bytes (C5, conversation-resident, re-paid per turn F32)
