@@ -3,7 +3,7 @@
 ``build_retriever`` returns a callable ``(query, k) -> list[tuple]`` against
 the repository's ChromaDB vector store. Production path; the @tool path calls
 this when no ``_retriever`` is injected. The retriever yields the tuple shape
-``_rag_search_impl`` consumes:
+``_search_documents_impl`` consumes:
     (chunk_id, content, score, source_path, page, line)
 """
 

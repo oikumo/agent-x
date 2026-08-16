@@ -131,7 +131,9 @@ class TestBoundToolSchema(TestCase):
         )
         tools = factory("/tmp/rag_v2_test")
         names = {t.name for t in tools}
-        assert names == {"rag_search", "rag_ingest_status"}
+        # feature_029 rename: rag_search → search_documents,
+        # rag_ingest_status → ingestion_status (clean cut, no aliases).
+        assert names == {"search_documents", "ingestion_status"}
         for t in tools:
             assert "repository_path" not in t.args, (
                 f"bound tool '{t.name}' must NOT expose repository_path — "
@@ -139,15 +141,15 @@ class TestBoundToolSchema(TestCase):
             )
 
     def test_bound_rag_search_uses_the_bound_path(self) -> None:
-        """The bound rag_search routes to the impl with the factory's path."""
+        """The bound search_documents routes to the impl with the factory's path."""
         tools_mod = importlib.import_module("agentx.model.rag_v2.rag_v2_tools")
         tools = tools_mod.build_rag_v2_tools("/tmp/rag_v2_bound_test")
-        search = next(t for t in tools if t.name == "rag_search")
+        search = next(t for t in tools if t.name == "search_documents")
         hits = [("c0", "content 0", 0.9, "doc0.md", None, 1)]
         # Inject a fake retriever via the impl seam; assert the bound path.
         seen: dict[str, Any] = {}
 
-        original = tools_mod._rag_search_impl
+        original = tools_mod._search_documents_impl
 
         def _spy(query: str, repository_path: str, k: int = 5, **kw: Any):
             seen["repository_path"] = repository_path
@@ -155,14 +157,14 @@ class TestBoundToolSchema(TestCase):
                 query, repository_path, k, _retriever=lambda q, kk: hits
             )
 
-        tools_mod._rag_search_impl = _spy  # type: ignore[attr-defined]
+        tools_mod._search_documents_impl = _spy  # type: ignore[attr-defined]
         try:
             # The bound closure captured the module-level name at def time, so
             # rebind through the tool's underlying function globals instead:
-            search.func.__globals__["_rag_search_impl"] = _spy  # type: ignore[union-attr]
+            search.func.__globals__["_search_documents_impl"] = _spy  # type: ignore[union-attr]
             result = search.invoke({"query": "q", "k": 1})
         finally:
-            search.func.__globals__["_rag_search_impl"] = original  # type: ignore[union-attr]
+            search.func.__globals__["_search_documents_impl"] = original  # type: ignore[union-attr]
         assert seen.get("repository_path") == "/tmp/rag_v2_bound_test"
         assert len(result.hits) == 1
 

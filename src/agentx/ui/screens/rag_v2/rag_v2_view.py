@@ -1,10 +1,13 @@
-"""RagV2View — the console RAG v2 outer composite view (feature_027).
+"""RagV2View — the console RAG v2 outer composite view (feature_027;
+slash-command grammar added in feature_029).
 
 Console-only (no TUI screen sibling — v2 is console-only per the user's
-scope decision; v1 stays for the TUI path). Mirrors ``ConsoleReactView``'s
-REPL loop + token streaming (feature_024): empty input re-prompts, exit
-tokens / interrupt return to the main menu, answer deltas stream via
-``console.stream_write`` (no per-delta newline).
+scope decision; v1 stays for the TUI path). Hybrid interaction grammar
+(feature_029): bare text is a chat question for the active repository;
+``/…`` prefixes deterministic, no-LLM local commands (``/help`` lists them).
+Empty input re-prompts; exit tokens / ``/quit`` / interrupt return to the
+main menu; answer deltas stream via ``console.stream_write`` (no per-delta
+newline).
 """
 
 from __future__ import annotations
@@ -13,24 +16,31 @@ from typing import Any
 
 from agentx.ui.common.ui_console import UIConsole
 from agentx.ui.interfaces import IRagV2View
+from agentx.ui.screens.rag_v2.constants import (
+    RAG_V2_BANNER,
+    RAG_V2_HELP,
+    RAG_V2_MENU,
+)
 
 
 class RagV2View(IRagV2View):
-    """Console RAG v2 view — REPL loop + streaming callbacks."""
+    """Console RAG v2 view — slash commands + chat REPL + streaming callbacks."""
 
     _EXIT_TOKENS = frozenset({"q", "quit", "exit"})
 
-    # Menu keys route to the controller's partner actions (v1 parity); any
-    # other input is a chat question for the active repository.
-    _MENU_ACTIONS = {
-        "1": "select_repository",
-        "2": "create_repository",
-        "3": "show_chat",
-        "4": "show_web_ingestion",
-        "5": "show_pdf_ingestion",
-        "6": "show_md_ingestion",
-        "s": "switch_repository",
+    # Slash commands routed to same-named controller operations (deterministic,
+    # no-LLM). ``help``/``quit`` are view-local; ``search`` is the explicit
+    # chat route (send_message). feature_029 design_001 §Command surface.
+    _CONTROLLER_COMMANDS = {
+        "repos": "list_repositories",
+        "use": "use_repository",
+        "create": "create_repository_named",
+        "ingest": "ingest",
+        "status": "show_status",
+        "reset": "reset_chat",
     }
+    # Commands whose controller operation takes NO argument.
+    _NO_ARG_COMMANDS = frozenset({"repos", "status", "reset"})
 
     def __init__(self, controller: Any) -> None:
         self.controller = controller
@@ -39,7 +49,6 @@ class RagV2View(IRagV2View):
     # --- IRagV2View ---------------------------------------------------------
 
     def show(self) -> None:
-        self.console.info("Starting RAG v2 session (q/quit/exit to return):")
         self.show_menu()
         while True:
             user_input = self.console.capture_input()
@@ -49,21 +58,57 @@ class RagV2View(IRagV2View):
             # Bare Enter (empty string) → re-prompt, do NOT exit (feature_024 fix).
             if user_input.strip() == "":
                 continue
-            token = user_input.strip().lower()
-            if token in self._EXIT_TOKENS:
+            token = user_input.strip()
+            if token.lower() in self._EXIT_TOKENS:
                 return
-            # Menu keys drive repository management / ingestion sub-screens.
-            action = self._MENU_ACTIONS.get(token)
-            if action is not None:
-                handler = getattr(self.controller, action, None)
-                if callable(handler):
-                    handler()
-                self.show_menu()
+            # feature_029: `/…` is a deterministic command; anything else is a
+            # chat question for the active repository (the old _MENU_ACTIONS
+            # digit map is gone — bare "1"/"s" reach the agent).
+            if token.startswith("/"):
+                if not self._dispatch_command(token):
+                    return
                 continue
             # Drive the agent's retrieval+synthesis turn.
             if not self.controller.send_message(user_input):
                 self.console.error("Agent is busy; please wait.")
             self._wait_for_agent()
+
+    # --- Slash-command dispatch (feature_029) -------------------------------
+
+    def _dispatch_command(self, text: str) -> bool:
+        """Route a `/…` command. Returns False only for `/quit` (exit)."""
+        parts = text[1:].split(maxsplit=1)
+        name = parts[0].lower() if parts and parts[0] else ""
+        args = parts[1].strip() if len(parts) > 1 else ""
+        if name == "quit":
+            return False
+        if name == "help":
+            self.console.info(RAG_V2_HELP)
+            return True
+        if name == "search":
+            if not args:
+                self.console.error("Usage: /search <question>")
+                return True
+            if not self.controller.send_message(args):
+                self.console.error("Agent is busy; please wait.")
+            self._wait_for_agent()
+            return True
+        method_name = self._CONTROLLER_COMMANDS.get(name)
+        if method_name is None:
+            self.console.error(f"Unknown command: /{name} — try /help")
+            return True
+        handler = getattr(self.controller, method_name, None)
+        if not callable(handler):
+            self.console.error(f"Command /{name} is not available.")
+            return True
+        if name in self._NO_ARG_COMMANDS:
+            handler()
+        elif name == "ingest":
+            kind, _, target = args.partition(" ")
+            handler(kind or None, target.strip() or None)
+        else:
+            handler(args or None)
+        return True
 
     def print_message(self, message: str) -> None:
         self.console.info(message)
@@ -75,12 +120,9 @@ class RagV2View(IRagV2View):
         self.console.info(f"Repository state: {state}")
 
     def show_menu(self) -> None:
-        self.console.info(
-            "[1] select repository  [2] create repository  "
-            "[3] chat  [4] web ingestion  [5] pdf ingestion  "
-            "[6] md ingestion  [s] switch repository  [q] quit"
-        )
-        self.console.info("Type anything else to ask the active repository.")
+        """Banner + hint (feature_029: the command table prints on /help)."""
+        self.console.info(RAG_V2_BANNER)
+        self.console.info(RAG_V2_MENU)
 
     # --- Console-parity streaming (feature_024 pattern) ---------------------
 

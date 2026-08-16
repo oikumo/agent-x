@@ -16,6 +16,7 @@ import threading
 from dataclasses import dataclass
 
 from agentx.model.session.session_manager import SessionManager
+from agentx.model.rag_v2.rag_v2_provider import RagV2Provider
 from agentx.model.rag_v2.rag_v2_repository import RagV2Repository
 from agentx.ui.interfaces import IRagV2View, IRagV2ViewPartner
 
@@ -138,21 +139,172 @@ class RagV2MainController(IRagV2ViewPartner):
         else:
             self.view.print_message_error(f"Unknown repository: {repo_id}")
 
-    def show_chat(self) -> None:
-        """Menu [3]: prime the DeepAgents orchestrator for the active repo.
+    # --- Slash-command operations (feature_029 design_001 §Command surface) --
 
-        The console REPL itself is the chat loop (any non-menu input goes to
-        ``send_message``); this menu action just pre-builds the service so a
-        misconfiguration surfaces immediately, not on the first question.
+    def list_repositories(self) -> None:
+        """``/repos`` — list on-disk repositories, mark active, refresh registry.
+
+        Deterministic (no LLM): reads via ``RagV2Provider`` over the RAG
+        working directory; the session registry is refreshed from disk so
+        ``/use <id>`` can resolve repos created in earlier sessions.
         """
-        if self.current_repository is None:
-            if self._view is not None:
-                self._view.print_message_error(
-                    "No repository selected — create [2] or select [1] one first."
-                )
+        if self._view is None:
             return
-        if self._ensure_agent_service() and self._view is not None:
-            self._view.print_message("Chat ready — type your question (q to leave).")
+        repos = RagV2Provider(self.rag_working_directory).get_repositories()
+        self.repositories = {repo.id: repo for repo in repos}
+        if not repos:
+            self._view.print_message(
+                "No repositories yet — /create <name> to make one."
+            )
+            return
+        active_id = (
+            self.current_repository.id if self.current_repository is not None else None
+        )
+        lines = ["Repositories:"]
+        for repo in repos:
+            marker = " (active)" if repo.id == active_id else ""
+            lines.append(f"  {repo.id}{marker}")
+        self._view.print_message("\n".join(lines))
+
+    def use_repository(self, repo_id: str | None) -> None:
+        """``/use [id]`` — activate a repository directly (no LLM).
+
+        Bare ``/use`` falls back to the interactive picker
+        (``select_repository``). With an id: session registry first, then
+        on-disk via ``RagV2Provider`` (registering it), else an error. Any
+        successful swap invalidates the bound agent service (G5 closure).
+        """
+        if self._view is None:
+            return
+        if repo_id is None or not str(repo_id).strip():
+            self.select_repository()
+            return
+        repo_id = str(repo_id).strip()
+        repo = self.repositories.get(repo_id)
+        if repo is None:
+            repo = RagV2Provider(self.rag_working_directory).get_repository(repo_id)
+            if repo is not None:
+                self.repositories[repo.id] = repo
+        if repo is None:
+            self._view.print_message_error(f"Unknown repository: {repo_id}")
+            return
+        self.current_repository = repo
+        # Repo swap invalidates the agent service (bound to the old path).
+        self._agent_service = None
+        self._view.print_message(f"Active repository: {repo.id}")
+
+    def create_repository_named(self, name: str | None) -> RagV2Repository | None:
+        """``/create [name]`` — direct create (no LLM, no prompt).
+
+        Bare ``/create`` falls back to the prompt flow (``create_repository``).
+        With a name: same validation as the prompt flow (``_create_repository``);
+        success activates + registers the repo and invalidates the agent service.
+        """
+        if self._view is None:
+            return None
+        if name is None or not str(name).strip():
+            return self.create_repository()
+        repo = self._create_repository(str(name).strip())
+        if repo is None:
+            self._view.print_message_error(
+                f"Invalid repository name: {name!r} "
+                "(letters, digits, '_' and '-' only)."
+            )
+            return None
+        self.current_repository = repo
+        self.repositories[repo.id] = repo
+        # Repo swap invalidates the agent service (bound to the old path).
+        self._agent_service = None
+        self._view.print_message(f"Repository '{repo.id}' created successfully!")
+        return repo
+
+    def ingest(self, kind: str | None, target: str | None) -> None:
+        """``/ingest <web|pdf|md> <target>`` — direct ingestion (no LLM).
+
+        Calls the same ``ingest_web``/``ingest_pdf``/``ingest_md`` functions
+        the sub-screen controllers use, bound to the ACTIVE repository path.
+        Guards (in order): active repository, kind enum, non-empty target.
+        """
+        if self._view is None:
+            return
+        if self.current_repository is None:
+            self._view.print_message_error(
+                "No repository selected — /use <id> or /create <name> first."
+            )
+            return
+        if kind is None or kind not in self._INGEST_KINDS:
+            self._view.print_message_error(
+                "Usage: /ingest <web|pdf|md> <url|path>"
+            )
+            return
+        if target is None or not str(target).strip():
+            self._view.print_message_error(f"Usage: /ingest {kind} <url|path>")
+            return
+        try:
+            loader, fn_name = self._INGEST_KINDS[kind]
+            module = __import__(loader, fromlist=[fn_name])
+            chunks = getattr(module, fn_name)(
+                str(target).strip(),
+                repository_path=self.current_repository.path,
+            )
+            self._view.print_message(
+                f"Ingested {chunks} chunks into '{self.current_repository.id}'."
+            )
+        except Exception as exc:
+            # The REPL must survive ingestion failures (network, parse, etc.).
+            self._view.print_message_error(f"Ingestion failed: {exc}")
+
+    def show_status(self) -> None:
+        """``/status`` — active repo + ``RagV2State`` + thread id (no LLM)."""
+        if self._view is None:
+            return
+        if self.current_repository is None:
+            self._view.print_message(
+                "No active repository — /use <id> or /create <name> first."
+            )
+            return
+        state = self.get_rag_state()
+        lines = [
+            f"Repository: {self.current_repository.id}",
+            f"Path: {self.current_repository.path}",
+            f"URL: {(state.url if state else None) or '<none>'}",
+            "Database: "
+            f"{(state.data_base_location if state else None) or '<none>'}",
+            "Documents: "
+            f"{(state.documents_location if state else None) or '<none>'}",
+        ]
+        if self._agent_service is not None:
+            lines.append(f"Thread: {self._agent_service.thread_id}")
+        else:
+            lines.append("Thread: <no active conversation>")
+        self._view.print_message("\n".join(lines))
+
+    def reset_chat(self) -> None:
+        """``/reset`` — start a new conversation thread (no LLM)."""
+        if self._view is None:
+            return
+        if self._agent_service is None:
+            self._view.print_message("No active conversation — nothing to reset.")
+            return
+        self._agent_service.reset_conversation()
+        self._view.print_message("Conversation reset — next question starts fresh.")
+
+    # feature_029: friendly labels for streamed tool activity (» / « lines).
+    _TOOL_LABELS = {
+        "search_documents": "search",
+        "ingestion_status": "status",
+        "task": "analyst",
+    }
+
+    _INGEST_KINDS = {
+        "web": ("agentx.model.rag_v2.web_ingestion.web_ingest", "ingest_web"),
+        "pdf": ("agentx.model.rag_v2.pdf_ingestion.pdf_ingest", "ingest_pdf"),
+        "md": ("agentx.model.rag_v2.md_ingestion.md_ingest", "ingest_md"),
+    }
+
+    # feature_029: show_chat() removed — the [3] chat menu entry was a fake
+    # mode (chat is the REPL's bare-text default; the agent service builds
+    # lazily on the first question via send_message/_ensure_agent_service).
 
     # --- Console chat (feature_024 parity with ReactController.send_message) --
 
@@ -232,6 +384,14 @@ class RagV2MainController(IRagV2ViewPartner):
         try:
             service.stream_agent(
                 user_message,
+                # feature_029: surface retrieval/delegation as it happens —
+                # » labels map tool names to user-friendly verbs.
+                on_tool_call=lambda name, args: view.print_message(
+                    f"» {self._TOOL_LABELS.get(name, name)}: {args}"
+                ),
+                on_tool_result=lambda name, preview: view.print_message(
+                    f"« {self._TOOL_LABELS.get(name, name)}: {preview}"
+                ),
                 on_answer=show_partial,
                 on_done=lambda: show_partial("\n"),
                 on_error=lambda e: view.print_message_error(f"RAG v2 agent error: {e}"),

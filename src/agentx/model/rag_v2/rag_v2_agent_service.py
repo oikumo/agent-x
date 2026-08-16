@@ -3,7 +3,7 @@
 Parallel to ``CodingAgentService`` (feature_025); wires ``create_deep_agent``
 with the retrieve-offload-delegate RAG pattern (D5 lock):
 
-  * ``rag_search`` ``@tool`` writes chunks to the backend filesystem;
+  * ``search_documents`` ``@tool`` writes chunks to the backend filesystem;
   * the ``chunk-analyst`` subagent reads/greps/summarizes individual files in
     parallel via ``task()``;
   * the orchestrator synthesizes a citation-bearing final answer.
@@ -14,7 +14,7 @@ Same streaming API surface as ``CodingAgentService`` (``stream_agent`` /
 
 Guarded-import + fallback pattern mirrors ``coding_agent_service.py:39-50``:
 if ``import deepagents`` raises, v2 degrades to bare ``create_agent`` (no
-middleware, no subagents; ``rag_search`` still works, parallel
+middleware, no subagents; ``search_documents`` still works, parallel
 ``chunk-analyst`` does not). Same guard surface; no behavior drift.
 """
 
@@ -53,8 +53,8 @@ except ImportError:  # pragma: no cover
 
 DEFAULT_RAG_V2_SYSTEM_PROMPT = (
     "You are a retrieval-augmented assistant that helps users find and reason "
-    "about documents in their repositories. Use the rag_search tool to retrieve "
-    "matching chunks from the active repository, then dispatch the "
+    "about documents in their repositories. Use the search_documents tool to "
+    "retrieve matching chunks from the active repository, then dispatch the "
     "chunk-analyst subagent via task({subagentType: 'chunk-analyst', "
     "description: ...}) to summarize individual files in parallel. "
     "Synthesize a final answer with citations to the source chunks. "
@@ -110,8 +110,8 @@ class RagV2AgentService:
         )
         self._system_prompt: str = system_prompt or (
             DEFAULT_RAG_V2_SYSTEM_PROMPT
-            + f"\nThe active repository is bound server-side; rag_search and "
-              f"rag_ingest_status need no path argument — never invent one. "
+            + f"\nThe active repository is bound server-side; search_documents "
+              f"and ingestion_status need no path argument — never invent one. "
               f"(Repository: {repository_path})"
         )
         self._checkpointer = InMemorySaver()
@@ -276,6 +276,25 @@ def _dispatch_stream_delta(
     for msg in messages:
         kind = getattr(msg, "type", None) or (msg.get("type") if isinstance(msg, dict) else None)
         content = getattr(msg, "content", None) or (msg.get("content") if isinstance(msg, dict) else None)
+        tool_calls = getattr(msg, "tool_calls", None) or (
+            msg.get("tool_calls") if isinstance(msg, dict) else None
+        )
+        # feature_029: surface tool activity — retrieval must be VISIBLE in
+        # the console (the old wiring dropped these events entirely).
+        if kind == "ai" and tool_calls and on_tool_call is not None:
+            for call in tool_calls:
+                name = call.get("name") if isinstance(call, dict) else getattr(call, "name", None)
+                args = call.get("args") if isinstance(call, dict) else getattr(call, "args", None)
+                if name:
+                    on_tool_call(str(name), str(args)[:120])
+        if kind == "tool" and on_tool_result is not None:
+            name = (
+                getattr(msg, "name", None)
+                or (msg.get("name") if isinstance(msg, dict) else None)
+                or "tool"
+            )
+            # Tool content carries full chunk text — truncate the preview.
+            on_tool_result(str(name), str(content)[:120])
         if kind == "ai" and content and on_answer is not None:
             on_answer(content)
         elif kind in ("reasoning", "thinking") and content and on_reasoning is not None:

@@ -707,9 +707,24 @@ class IRagV2View(ABC):
         """Display the menu options."""
         pass
 
+    @abstractmethod
+    def capture_repository_name(self) -> str:
+        """Prompt for a new repository name (console capture)."""
+        pass
+
+    @abstractmethod
+    def get_selected_repository_id(self) -> str | None:
+        """Prompt for a repository id to switch to (console capture)."""
+        pass
+
 
 class IRagV2ViewPartner(ABC):
-    """Abstract partner for the RAG v2 view (implemented by RagV2MainController)."""
+    """Abstract partner for the RAG v2 view (implemented by RagV2MainController).
+
+    feature_029: ``show_chat`` removed (the `[3] chat` menu entry was a fake
+    mode — chat is the REPL's bare-text default); the slash-command
+    operations are declared here (ABC honesty).
+    """
 
     @abstractmethod
     def select_repository(self) -> None:
@@ -717,13 +732,41 @@ class IRagV2ViewPartner(ABC):
         pass
 
     @abstractmethod
-    def create_repository(self) -> None:
-        """Create a new repository."""
+    def create_repository(self) -> object:
+        """Create a new repository (prompt flow); returns it when created."""
         pass
 
     @abstractmethod
-    def show_chat(self) -> None:
-        """Show the chat session."""
+    def list_repositories(self) -> None:
+        """``/repos`` — list on-disk repositories, mark active (feature_029)."""
+        pass
+
+    @abstractmethod
+    def use_repository(self, repo_id: str | None) -> None:
+        """``/use [id]`` — activate a repository; bare falls back to the
+        interactive picker (feature_029)."""
+        pass
+
+    @abstractmethod
+    def create_repository_named(self, name: str | None) -> object:
+        """``/create [name]`` — direct create; bare falls back to the prompt
+        flow (feature_029)."""
+        pass
+
+    @abstractmethod
+    def ingest(self, kind: str | None, target: str | None) -> None:
+        """``/ingest <web|pdf|md> <target>`` — direct ingestion on the active
+        repository (feature_029)."""
+        pass
+
+    @abstractmethod
+    def show_status(self) -> None:
+        """``/status`` — active repo + RAG state + thread id (feature_029)."""
+        pass
+
+    @abstractmethod
+    def reset_chat(self) -> None:
+        """``/reset`` — start a new conversation thread (feature_029)."""
         pass
 
     @abstractmethod

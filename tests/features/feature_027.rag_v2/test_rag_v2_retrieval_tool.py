@@ -1,11 +1,14 @@
-"""RED tests for feature_027.rag_v2 — the retrieve-offload rag_search @tool.
+"""RED tests for feature_027.rag_v2 — the retrieve-offload search_documents @tool.
+
+(feature_029 rename: shipped as ``rag_search``, renamed to
+``search_documents`` — clean cut, same D5 semantics.)
 
 Asserts the retrieve-offload-delegate D5 pattern (design_001):
 
-  * ``rag_search(...)`` uploads retrieved chunks to the agent backend via
+  * ``search_documents(...)`` uploads retrieved chunks to the agent backend via
     ``backend.upload_files(...)`` (the "offload" step — gives the chunk-analyst
     subagent a deterministic chunk_{i}.txt path to read).
-  * The returned ``RagSearchResult`` carries citation metadata (``hits[i]``
+  * The returned ``SearchDocumentsResult`` carries citation metadata (``hits[i]``
     populate ``source_path`` + ``page``/``line`` — the "pointer-and-preview"
     result the orchestrator passes to the synthesizer).
   * The ``CHUNK_ANALYST`` SubAgent dict spec has the required fields
@@ -31,17 +34,17 @@ def _load_symbol(module_path: str, name: str) -> Any:
     return getattr(module, name)
 
 
-# ── rag_search @tool ─────────────────────────────────────────────────────────
+# ── search_documents @tool ───────────────────────────────────────────────────
 
 
 class TestRagSearchTool(TestCase):
-    """The rag_search retrieve-offload @tool."""
+    """The search_documents retrieve-offload @tool."""
 
     def test_rag_search_uploads_chunks_to_backend(self) -> None:
-        """rag_search writes retrieved chunks via backend.upload_files()."""
+        """search_documents writes retrieved chunks via backend.upload_files()."""
         # Import the tool module's impl so we can exercise the offload call.
         impl = _load_symbol(
-            "agentx.model.rag_v2.rag_v2_tools", "_rag_search_impl"
+            "agentx.model.rag_v2.rag_v2_tools", "_search_documents_impl"
         )
         # Build a fake backend that records upload_files calls.
         uploads: list[Any] = []
@@ -67,7 +70,7 @@ class TestRagSearchTool(TestCase):
             _retriever=lambda query, k: hits,  # type: ignore[call-arg]
         )
         assert uploads, (
-            "rag_search must call backend.upload_files() with the retrieved chunks "
+            "search_documents must call backend.upload_files() with the retrieved chunks "
             "(retrieve-offload-delegate D5 — offload step)"
         )
         # The uploaded chunk filenames must be deterministic (chunk_0.txt, chunk_1.txt, …)
@@ -80,12 +83,12 @@ class TestRagSearchTool(TestCase):
         assert getattr(result, "chunks_uploaded", 0) == 2
 
     def test_rag_search_returns_pointer_result_with_citation_metadata(self) -> None:
-        """RagSearchResult.hits[i] carries source_path + page/line citation."""
+        """SearchDocumentsResult.hits[i] carries source_path + page/line citation."""
         impl = _load_symbol(
-            "agentx.model.rag_v2.rag_v2_tools", "_rag_search_impl"
+            "agentx.model.rag_v2.rag_v2_tools", "_search_documents_impl"
         )
         result_cls = _load_symbol(
-            "agentx.model.rag_v2.rag_v2_tools", "RagSearchResult"
+            "agentx.model.rag_v2.rag_v2_tools", "SearchDocumentsResult"
         )
         hit_cls = _load_symbol(
             "agentx.model.rag_v2.rag_v2_tools", "RagSearchHit"
@@ -107,7 +110,7 @@ class TestRagSearchTool(TestCase):
             backend=_FakeBackend(),
             _retriever=lambda query, k: hits_in,  # type: ignore[call-arg]
         )
-        assert isinstance(result, result_cls), "rag_search returns a RagSearchResult"
+        assert isinstance(result, result_cls), "search_documents returns a SearchDocumentsResult"
         assert len(result.hits) == 2
         # Each hit is a RagSearchHit with citation metadata populated.
         md_hit = result.hits[0]

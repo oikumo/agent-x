@@ -1,14 +1,20 @@
-"""RagV2 tools — the retrieve-offload ``@tool`` surface (feature_027).
+"""RagV2 tools — the retrieve-offload ``@tool`` surface (feature_027;
+renamed in feature_029).
 
 Mirrors ``coding_tools.py:18`` ``@tool`` pattern (feature_025):
-  * ``rag_search`` — similarity search → ``backend.upload_files()`` chunk
-    files (the "offload" step — gives the chunk-analyst subagent deterministic
-    ``chunk_{i}.txt`` paths to read).
-  * ``rag_ingest_status`` — read-only probe of the active repository's state.
+  * ``search_documents`` — similarity search → ``backend.upload_files()``
+    chunk files (the "offload" step — gives the chunk-analyst subagent
+    deterministic ``chunk_{i}.txt`` paths to read).
+  * ``ingestion_status`` — read-only probe of the active repository's state.
+
+feature_029 rename (user-directed): the feature_027 tool names were
+LLM-facing jargon leaking into the console UX — the new names read plainly
+in prompts, traces, and the streamed ``» search:`` activity lines. Clean
+cut, no aliases (old names recorded in the feature_029 design doc).
 
 The ``@tool`` docstring is the tool description the model sees — keep it
-concise (REFACTOR phase may slim further). Dataclass return types carry the
-citation metadata the orchestrator threads to the synthesizer.
+concise. Dataclass return types carry the citation metadata the orchestrator
+threads to the synthesizer.
 """
 
 from __future__ import annotations
@@ -36,8 +42,8 @@ class RagSearchHit:
 
 
 @dataclass
-class RagSearchResult:
-    """Result of the rag_search tool (see module header for the offload note)."""
+class SearchDocumentsResult:
+    """Result of the search_documents tool (see module header for the offload note)."""
 
     hits: List[RagSearchHit]
     chunks_uploaded: int             # how many chunk files landed in backend
@@ -45,11 +51,11 @@ class RagSearchResult:
     error: Optional[str] = None
 
 
-# ── rag_search ────────────────────────────────────────────────────────────────
+# ── search_documents ──────────────────────────────────────────────────────────
 
 
 @tool
-def rag_search(query: str, repository_path: str, k: int = 5) -> RagSearchResult:
+def search_documents(query: str, repository_path: str, k: int = 5) -> SearchDocumentsResult:
     """Search the active RAG repository for chunks matching the query.
 
     Writes retrieved chunks to the agent backend filesystem via
@@ -62,10 +68,10 @@ def rag_search(query: str, repository_path: str, k: int = 5) -> RagSearchResult:
         repository_path: The active repository's working directory (G5 switch swaps this).
         k: Top-k chunks to retrieve (default 5).
     """
-    return _rag_search_impl(query, repository_path, k)
+    return _search_documents_impl(query, repository_path, k)
 
 
-def _rag_search_impl(
+def _search_documents_impl(
     query: str,
     repository_path: str,
     k: int = 5,
@@ -73,13 +79,13 @@ def _rag_search_impl(
     backend: Any | None = None,
     _retriever: Callable[[str, int], Any] | None = None,
     **_unused: Any,
-) -> RagSearchResult:
+) -> SearchDocumentsResult:
     """Thin impl wrapper — similarity search + backend.upload_files().
 
     The ``backend`` + ``_retriever`` kwargs are dependency-injection seams:
-    the ``@tool``-wrapped ``rag_search`` calls this without them (production
-    builds the real backend/retriever); tests inject fakes to assert the
-    offload step + citation metadata without a live ChromaDB store.
+    the ``@tool``-wrapped ``search_documents`` calls this without them
+    (production builds the real backend/retriever); tests inject fakes to
+    assert the offload step + citation metadata without a live ChromaDB store.
 
     The retriever yields tuples:
         (chunk_id, content, score, source_path, page, line)
@@ -97,7 +103,7 @@ def _rag_search_impl(
     try:
         rows = list(_retriever(query, k))
     except Exception as exc:  # pragma: no cover — defensive; retriever contract
-        return RagSearchResult(hits=[], chunks_uploaded=0, error=str(exc))
+        return SearchDocumentsResult(hits=[], chunks_uploaded=0, error=str(exc))
 
     hits: List[RagSearchHit] = []
     files: list[tuple[str, bytes]] = []
@@ -135,7 +141,7 @@ def _rag_search_impl(
         uploaded = backend.upload_files(files)
         chunks_uploaded = len(uploaded) if isinstance(uploaded, (list, tuple)) else len(files)
 
-    return RagSearchResult(
+    return SearchDocumentsResult(
         hits=hits,
         chunks_uploaded=chunks_uploaded,
         truncated=False,
@@ -143,11 +149,11 @@ def _rag_search_impl(
     )
 
 
-# ── rag_ingest_status ─────────────────────────────────────────────────────────
+# ── ingestion_status ──────────────────────────────────────────────────────────
 
 
 @tool
-def rag_ingest_status(repository_path: str) -> dict:
+def ingestion_status(repository_path: str) -> dict:
     """Probe the active repository's ingestion state (read-only).
 
     Returns a dict with database_exists / documents_exist / ingested_url
@@ -155,10 +161,10 @@ def rag_ingest_status(repository_path: str) -> dict:
     ``get_ingested_url`` (rag.py:69-92) but as a @tool the deepagents stack
     can invoke.
     """
-    return _rag_ingest_status_impl(repository_path)
+    return _ingestion_status_impl(repository_path)
 
 
-def _rag_ingest_status_impl(repository_path: str) -> dict:
+def _ingestion_status_impl(repository_path: str) -> dict:
     from agentx.model.rag_v2.rag_v2 import RagV2
 
     rag = RagV2(working_directory=repository_path)
@@ -169,7 +175,7 @@ def _rag_ingest_status_impl(repository_path: str) -> dict:
     }
 
 
-RAG_V2_TOOLS = [rag_search, rag_ingest_status]
+RAG_V2_TOOLS = [search_documents, ingestion_status]
 
 
 # ── Repository-bound tool factory ─────────────────────────────────────────────
@@ -188,15 +194,14 @@ def build_rag_v2_tools(repository_path: str) -> List[BaseTool]:
     """Build the v2 tool surface bound to one repository's working directory.
 
     The returned tools close over ``repository_path``; their schemas expose
-    only ``query``/``k`` (rag_search) and no args (rag_ingest_status). The
-    tool NAMES stay ``rag_search``/``rag_ingest_status`` so prompts + traces
-    are stable. ``RagV2AgentService`` uses this factory for its default tools;
-    the module-level ``RAG_V2_TOOLS`` (unbound) stays for tests + direct impl
+    only ``query``/``k`` (search_documents) and no args (ingestion_status).
+    ``RagV2AgentService`` uses this factory for its default tools; the
+    module-level ``RAG_V2_TOOLS`` (unbound) stays for tests + direct impl
     injection.
     """
 
-    @tool("rag_search")
-    def rag_search_bound(query: str, k: int = 5) -> RagSearchResult:
+    @tool("search_documents")
+    def search_documents_bound(query: str, k: int = 5) -> SearchDocumentsResult:
         """Search the active RAG repository for chunks matching the query.
 
         Writes retrieved chunks to the agent backend filesystem via
@@ -209,15 +214,15 @@ def build_rag_v2_tools(repository_path: str) -> List[BaseTool]:
             query: The similarity-search query string.
             k: Top-k chunks to retrieve (default 5).
         """
-        return _rag_search_impl(query, repository_path, k)
+        return _search_documents_impl(query, repository_path, k)
 
-    @tool("rag_ingest_status")
-    def rag_ingest_status_bound() -> dict:
+    @tool("ingestion_status")
+    def ingestion_status_bound() -> dict:
         """Probe the active repository's ingestion state (read-only).
 
         Returns a dict with database_exists / documents_exist / ingested_url
         fields. The probed repository is fixed server-side (the active one).
         """
-        return _rag_ingest_status_impl(repository_path)
+        return _ingestion_status_impl(repository_path)
 
-    return [rag_search_bound, rag_ingest_status_bound]
+    return [search_documents_bound, ingestion_status_bound]
