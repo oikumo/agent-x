@@ -31,7 +31,7 @@ from langchain_core.tools import BaseTool
 from langgraph.checkpoint.memory import InMemorySaver
 
 from agentx.model.ai.service import AIService
-from agentx.model.rag_v2.rag_v2_tools import RAG_V2_TOOLS
+from agentx.model.rag_v2.rag_v2_tools import build_rag_v2_tools
 from agentx.model.rag_v2.rag_v2_subagents import CHUNK_ANALYST
 
 logger = logging.getLogger(__name__)
@@ -99,8 +99,21 @@ class RagV2AgentService:
 
         self._llm = llm
         self._repository_path = repository_path
-        self._tools: List[BaseTool] = list(tools) if tools is not None else list(RAG_V2_TOOLS)
-        self._system_prompt: str = system_prompt or DEFAULT_RAG_V2_SYSTEM_PROMPT
+        # feature_027 fix: bind the default tools to THIS repository. The old
+        # module-level RAG_V2_TOOLS take repository_path as a model-supplied
+        # argument — the LLM does not know the real path and hallucinates one
+        # (observed '/home/user/...' → PermissionError inside RagV2Database).
+        # build_rag_v2_tools closes over the path so the tool schemas expose
+        # no repository_path at all.
+        self._tools: List[BaseTool] = (
+            list(tools) if tools is not None else build_rag_v2_tools(repository_path)
+        )
+        self._system_prompt: str = system_prompt or (
+            DEFAULT_RAG_V2_SYSTEM_PROMPT
+            + f"\nThe active repository is bound server-side; rag_search and "
+              f"rag_ingest_status need no path argument — never invent one. "
+              f"(Repository: {repository_path})"
+        )
         self._checkpointer = InMemorySaver()
         self._thread_id: str = str(uuid.uuid4())
         self._cancel_event = threading.Event()
@@ -206,18 +219,25 @@ class RagV2AgentService:
         try:
             config = {"configurable": {"thread_id": self._thread_id}}
             inputs = {"messages": [{"role": "user", "content": message}]}
-            for event, chunk in self._agent.stream(  # type: ignore[union-attr]
+            # LangGraph single-mode streams yield bare {node_name: update}
+            # dicts — the (mode, chunk) tuple form only appears when passing a
+            # LIST of stream modes. Unpacking `for event, chunk in ...` here
+            # crashed every turn with "not enough values to unpack".
+            for chunk in self._agent.stream(  # type: ignore[union-attr]
                 inputs, config=config, stream_mode="updates"
             ):
                 if self._cancel_event.is_set():
                     break
-                _dispatch_stream_delta(
-                    event, chunk,
-                    on_reasoning=on_reasoning,
-                    on_tool_call=on_tool_call,
-                    on_tool_result=on_tool_result,
-                    on_answer=on_answer,
-                )
+                if not isinstance(chunk, dict):
+                    continue
+                for event, update in chunk.items():
+                    _dispatch_stream_delta(
+                        event, update,
+                        on_reasoning=on_reasoning,
+                        on_tool_call=on_tool_call,
+                        on_tool_result=on_tool_result,
+                        on_answer=on_answer,
+                    )
         except Exception as exc:  # pragma: no cover — surface to UI, don't crash
             if on_error is not None:
                 on_error(str(exc))

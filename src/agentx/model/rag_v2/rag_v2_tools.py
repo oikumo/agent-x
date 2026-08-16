@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, List, Optional
 
 from langchain.tools import tool
+from langchain_core.tools import BaseTool
 
 
 # ── Result types ───────────────────────────────────────────────────────────────
@@ -169,3 +170,54 @@ def _rag_ingest_status_impl(repository_path: str) -> dict:
 
 
 RAG_V2_TOOLS = [rag_search, rag_ingest_status]
+
+
+# ── Repository-bound tool factory ─────────────────────────────────────────────
+#
+# feature_027 fix: the module-level tools take ``repository_path`` as a
+# MODEL-SUPPLIED argument. The orchestrator LLM does not know the real path
+# (it is never told), so it invents one (observed: ``/home/user/...``) and the
+# tool then crashes inside ``RagV2Database`` mkdir with PermissionError — or
+# worse, silently reads/writes an arbitrary path the model chose. The path is
+# a SERVER-SIDE binding (G5: the service is rebuilt on repository switch), so
+# the bound variants below expose NO ``repository_path`` parameter at all —
+# the model cannot hallucinate what it cannot supply.
+
+
+def build_rag_v2_tools(repository_path: str) -> List[BaseTool]:
+    """Build the v2 tool surface bound to one repository's working directory.
+
+    The returned tools close over ``repository_path``; their schemas expose
+    only ``query``/``k`` (rag_search) and no args (rag_ingest_status). The
+    tool NAMES stay ``rag_search``/``rag_ingest_status`` so prompts + traces
+    are stable. ``RagV2AgentService`` uses this factory for its default tools;
+    the module-level ``RAG_V2_TOOLS`` (unbound) stays for tests + direct impl
+    injection.
+    """
+
+    @tool("rag_search")
+    def rag_search_bound(query: str, k: int = 5) -> RagSearchResult:
+        """Search the active RAG repository for chunks matching the query.
+
+        Writes retrieved chunks to the agent backend filesystem via
+        ``backend.upload_files()`` so the chunk-analyst subagent can read/grep
+        them in parallel. Returns a pointer-and-preview result; the full
+        chunks live in the backend (retrieve-offload-delegate pattern, D5).
+        The searched repository is fixed server-side (the active one).
+
+        Args:
+            query: The similarity-search query string.
+            k: Top-k chunks to retrieve (default 5).
+        """
+        return _rag_search_impl(query, repository_path, k)
+
+    @tool("rag_ingest_status")
+    def rag_ingest_status_bound() -> dict:
+        """Probe the active repository's ingestion state (read-only).
+
+        Returns a dict with database_exists / documents_exist / ingested_url
+        fields. The probed repository is fixed server-side (the active one).
+        """
+        return _rag_ingest_status_impl(repository_path)
+
+    return [rag_search_bound, rag_ingest_status_bound]

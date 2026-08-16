@@ -12,6 +12,7 @@ console contract, NOT net-new.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 
 from agentx.model.session.session_manager import SessionManager
@@ -42,6 +43,9 @@ class RagV2MainController(IRagV2ViewPartner):
         self._view: IRagV2View | None = view
         # The DeepAgents-backed agent service (built lazily on first chat).
         self._agent_service = None
+        # Console chat worker (feature_024 parity with ReactController): the
+        # view REPL calls send_message() then joins this thread.
+        self._worker_thread: threading.Thread | None = None
 
     # --- view wiring (feature_024 bug-pin: set_view, NOT .view =) ------------
 
@@ -73,6 +77,8 @@ class RagV2MainController(IRagV2ViewPartner):
         if repo is not None:
             self.current_repository = repo
             self.repositories[repo.id] = repo
+            # Repo swap invalidates the agent service (bound to the old path).
+            self._agent_service = None
             if self.view is not None:
                 self.view.print_message(f"Selected repository: {repo.id}")
         else:
@@ -95,6 +101,8 @@ class RagV2MainController(IRagV2ViewPartner):
         if repo is not None:
             self.current_repository = repo
             self.repositories[repo.id] = repo
+            # Repo swap invalidates the agent service (bound to the old path).
+            self._agent_service = None
             self.view.print_message(f"Repository '{repo.id}' created successfully!")
             return repo
         self.view.print_message_error("Failed to create repository.")
@@ -124,20 +132,112 @@ class RagV2MainController(IRagV2ViewPartner):
         repo_id = self.view.get_selected_repository_id() if hasattr(self.view, "get_selected_repository_id") else None
         if repo_id and repo_id in self.repositories:
             self.current_repository = self.repositories[repo_id]
+            # Repo swap invalidates the agent service (bound to the old path).
+            self._agent_service = None
             self.view.print_message(f"Switched to repository: {repo_id}")
         else:
             self.view.print_message_error(f"Unknown repository: {repo_id}")
 
     def show_chat(self) -> None:
-        """Wire the DeepAgents RAG orchestrator + stream a turn."""
+        """Menu [3]: prime the DeepAgents orchestrator for the active repo.
+
+        The console REPL itself is the chat loop (any non-menu input goes to
+        ``send_message``); this menu action just pre-builds the service so a
+        misconfiguration surfaces immediately, not on the first question.
+        """
         if self.current_repository is None:
+            if self._view is not None:
+                self._view.print_message_error(
+                    "No repository selected — create [2] or select [1] one first."
+                )
             return
-        if self._agent_service is None:
+        if self._ensure_agent_service() and self._view is not None:
+            self._view.print_message("Chat ready — type your question (q to leave).")
+
+    # --- Console chat (feature_024 parity with ReactController.send_message) --
+
+    def send_message(self, user_message: str) -> bool:
+        """Send a user question to the RAG v2 agent (console REPL contract).
+
+        Mirrors ``ReactController.send_message``: rejects with False ONLY when
+        the agent is busy (the view then shows "Agent is busy"). Every other
+        path is handled inline (error via the view) and returns True. The turn
+        runs on ``self._worker_thread``; the view's ``_wait_for_agent`` joins
+        it (console mode has no app.call_from_thread — callbacks fire on the
+        worker thread and print directly).
+        """
+        if not user_message or not user_message.strip():
+            return True
+        if self.current_repository is None:
+            if self._view is not None:
+                self._view.print_message_error(
+                    "No repository selected — create [2] or select [1] one first."
+                )
+            return True
+        if not self._ensure_agent_service():
+            return True
+        if self._agent_service is not None and self._agent_service.is_running:
+            return False
+        thread = threading.Thread(
+            target=self._run_agent,
+            args=(user_message,),
+            daemon=True,
+            name="AgentX-RagV2-Worker",
+        )
+        self._worker_thread = thread
+        thread.start()
+        return True
+
+    def _ensure_agent_service(self) -> bool:
+        """Lazily build the ``RagV2AgentService`` for the active repository.
+
+        Returns False (after surfacing an error via the view) when no
+        repository is active or the service cannot be built (e.g. no LLM
+        configured) — the REPL must survive both.
+        """
+        if self._agent_service is not None:
+            return True
+        if self.current_repository is None:
+            return False
+        try:
             from agentx.model.rag_v2.rag_v2_agent_service import RagV2AgentService
 
             self._agent_service = RagV2AgentService(
                 repository_path=self.current_repository.path
             )
+            return True
+        except Exception as exc:
+            if self._view is not None:
+                self._view.print_message_error(
+                    f"Failed to start the RAG v2 agent: {exc}"
+                )
+            return False
+
+    def _run_agent(self, user_message: str) -> None:
+        """Worker-thread body: stream one agent turn to the console view.
+
+        Console parity: no Textual app marshalling — the view callbacks print
+        directly (same as the ``ReactController._run_agent`` no-app fallback).
+        Answer deltas stream via ``show_partial_message`` (no per-delta
+        newline); ``on_done`` terminates the answer line.
+        """
+        view = self._view
+        service = self._agent_service
+        if view is None or service is None:
+            return
+        # IRagV2View declares only the menu surface; the streaming sink lives
+        # on the console view (RagV2View.show_partial_message). Duck-type it
+        # like this controller's other console-only captures.
+        show_partial = getattr(view, "show_partial_message", lambda _t: None)
+        try:
+            service.stream_agent(
+                user_message,
+                on_answer=show_partial,
+                on_done=lambda: show_partial("\n"),
+                on_error=lambda e: view.print_message_error(f"RAG v2 agent error: {e}"),
+            )
+        except Exception as exc:
+            view.print_message_error(f"RAG v2 agent error: {exc}")
 
     def show_web_ingestion(self) -> None:
         if self.current_repository is None:

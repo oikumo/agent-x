@@ -20,6 +20,18 @@ class RagV2View(IRagV2View):
 
     _EXIT_TOKENS = frozenset({"q", "quit", "exit"})
 
+    # Menu keys route to the controller's partner actions (v1 parity); any
+    # other input is a chat question for the active repository.
+    _MENU_ACTIONS = {
+        "1": "select_repository",
+        "2": "create_repository",
+        "3": "show_chat",
+        "4": "show_web_ingestion",
+        "5": "show_pdf_ingestion",
+        "6": "show_md_ingestion",
+        "s": "switch_repository",
+    }
+
     def __init__(self, controller: Any) -> None:
         self.controller = controller
         self.console = UIConsole("(rag-v2)")
@@ -28,6 +40,7 @@ class RagV2View(IRagV2View):
 
     def show(self) -> None:
         self.console.info("Starting RAG v2 session (q/quit/exit to return):")
+        self.show_menu()
         while True:
             user_input = self.console.capture_input()
             # None = Ctrl+C / Ctrl+D (interrupt) → exit to the agentx main menu.
@@ -36,8 +49,17 @@ class RagV2View(IRagV2View):
             # Bare Enter (empty string) → re-prompt, do NOT exit (feature_024 fix).
             if user_input.strip() == "":
                 continue
-            if user_input.strip().lower() in self._EXIT_TOKENS:
+            token = user_input.strip().lower()
+            if token in self._EXIT_TOKENS:
                 return
+            # Menu keys drive repository management / ingestion sub-screens.
+            action = self._MENU_ACTIONS.get(token)
+            if action is not None:
+                handler = getattr(self.controller, action, None)
+                if callable(handler):
+                    handler()
+                self.show_menu()
+                continue
             # Drive the agent's retrieval+synthesis turn.
             if not self.controller.send_message(user_input):
                 self.console.error("Agent is busy; please wait.")
@@ -58,6 +80,7 @@ class RagV2View(IRagV2View):
             "[3] chat  [4] web ingestion  [5] pdf ingestion  "
             "[6] md ingestion  [s] switch repository  [q] quit"
         )
+        self.console.info("Type anything else to ask the active repository.")
 
     # --- Console-parity streaming (feature_024 pattern) ---------------------
 
