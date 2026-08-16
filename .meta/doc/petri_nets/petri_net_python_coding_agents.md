@@ -4,12 +4,38 @@
 
 This document gives a coding agent enough information to implement a practical Petri-net library in Python.
 
-The library should have **two clearly separated layers**:
+The library has **two clearly separated layers**:
 
 1. **Execution/model layer** — places, transitions, arcs, markings, enabledness, and firing.
 2. **Analysis layer** — reachability, deadlocks, boundedness, invariants, transition liveness, and related structural/state-space analysis.
 
 Correctness and explicit semantics are more important than optimization in the first version. The analysis API should operate on the model layer without coupling it to a UI, database, or visualization framework.
+
+---
+
+## 📋 v1 Definition-of-Done Checklist
+
+> *Every analysis item below must be complete and tested before v2 (coverability, siphons/traps, reporting/export) is attempted.*
+
+- [ ] §3–§10: Model layer (places, transitions, arcs, markings, enabledness, firing)
+- [ ] BFS-based analyses: reachability, reachability graph, firing sequences, deadlocks, bounds
+- [ ] Exact P/T-invariant algebra (§18–§19) — place invariants and transition invariants
+- [ ] Every analysis returns completeness-explicit results (§27): `value` can be `True`, `False`, or `None` (unknown if truncated)
+- [ ] `max_states` limit with `complete=False` + `reason` when state space exceeds limit
+- [ ] Canonical immutable markings as search keys (tuples, not dicts; sorted place order)
+- [ ] `place_index` precomputed for efficient incidence-matrix lookups
+- [ ] `fire_marking()` as pure transformation; `fire()` as mutable convenience only
+- [ ] `TransitionNotEnabledError` raised if firing disabled transition
+- [ ] Deterministic transition order: `for t in sorted(transitions)`
+- [ ] Deadlocks/bounds/liveness report `complete` flag + `explored_states` + `reason`
+- [ ] Place invariants: rational basis normalized to coprime integers (sympy or exact-rational fallback)
+- [ ] Transition invariants: nullspace of incidence matrix
+- [ ] `is_live()` and `transition_liveness()` operate on complete reachability graph
+- [ ] Analysis does not mutate the live net
+- [ ] Tests use small nets with known properties (see Appendix: Example Nets)
+- [ ] **v1 boundary**: no `remove_place`/`remove_transition`; construct new `PetriNet` for structural changes
+
+Everything in v1 must be complete and tested before v2 is attempted. Coverability in particular is the most subtle algorithm in this document and must not be rushed.
 
 ---
 
@@ -660,6 +686,21 @@ current_marking()
 reset()
 ```
 
+### Marking tuple canonical ordering
+
+Markings are represented as **canonical immutable tuples**. The place order is stable (sorted) and must be consistent everywhere:
+
+```python
+# Place order: ("a", "b", "c")  — determined by sorted(self.places)
+marking = (2, 0, 1)  # a=2, b=0, c=1
+
+# Always construct via place_order, never dict iteration order
+tuple(self.place_order)  # e.g. ("a", "b", "c")
+place_index = {p: i for i, p in enumerate(self.place_order)}
+```
+
+This distinction is critical for analysis: graph/search keys must be canonical tuples, not dictionaries whose iteration order is arbitrary.
+
 The analysis layer should not directly mutate `net.marking` while exploring a state space.
 
 ---
@@ -1279,7 +1320,7 @@ from sympy import Matrix
 def incidence_matrix_sympy(net: PetriNet) -> Matrix:
     places = net.place_order
     transitions = net.transition_order
-    p_index = {p: i for i, p in enumerate(places)}
+    p_index = {p: i for i, p in enumerate(places)}  # precomputed index map
 
     data = [
         [
@@ -1290,10 +1331,28 @@ def incidence_matrix_sympy(net: PetriNet) -> Matrix:
     ]
     return Matrix(data)
 
-
 def place_invariants(net: PetriNet):
+    from math import gcd, lcm
+
     c = incidence_matrix_sympy(net)
-    return c.T.nullspace()
+    basis = c.T.nullspace()
+    # Normalize rational basis to coprime integer vectors
+    invariants = []
+    for vec in basis:
+        # sympy nullspace returns Rational vectors; simplify each
+        from sympy import cancel
+        simplified = [cancel(v) for v in vec]
+        # Convert to integers by clearing denominators via LCM
+        denoms = [v.denominator for v in simplified if v.denominator != 1 and v.denominator != 0]
+        if denoms:
+            l = lcm(denoms)
+            int_vec = tuple(int(v * l) for v in simplified)
+        else:
+            int_vec = tuple(int(v) for v in simplified)
+        # Divide by GCD to make coprime
+        g = abs(gcd(*int_vec)) if int_vec else 1
+        invariants.append(tuple(v // g for v in int_vec))
+    return invariants
 ```
 
 This returns a rational basis. Normalize vectors before exposing them as user-facing integer invariants. v1 scope: expose the exact rational basis normalized to coprime integers. Computing *minimal non-negative* invariants is research-level work and is out of scope for the first version; tests should assert conservation properties (e.g. "p1 + p2 = constant") rather than a canonical minimal vector.
@@ -1596,6 +1655,8 @@ time_limit: float | None = None
 
 A coding agent should not introduce a hidden hard-coded limit that can silently produce incorrect conclusions. **v1 scope:** implement `max_states` only; `max_depth` and `time_limit` are reserved for later versions. Do not invent partial semantics for them in v1.
 
+⚠️ **v1 `max_states` warning:** On even modest nets, the state space can grow exponentially. A `max_states=100` limit on a net with 2+ concurrent transitions may truncate after exploring only a fraction of reachable markings. Always verify `result.complete` and, if `False`, consider increasing the limit or switching to coverability analysis (§17) for unbounded properties.
+
 When a limit is hit:
 
 1. stop cleanly
@@ -1634,7 +1695,54 @@ This makes tests and generated reports reproducible.
 
 ## 30. Testing the Analysis Layer
 
-The test suite should include small nets with known properties.
+### Appendix: Consolidated Example Nets
+
+The test suite should use these small nets with known properties (referenced throughout §30). They are defined here once to ensure consistency:
+
+```python
+# Example nets — defined as (places, initial_marking, description)
+# Place order is always sorted alphabetically for tuple markings
+
+CONSERVATION_NET = {
+    "places": ["p1", "p2"],
+    "initial_marking": (1, 1),  # p1+p2 = 2 invariant
+    "transitions": ["t1", "t2"],
+    "description": "p1 --t1--> p2 --t2--> p1 (p1+p2 constant)"
+}
+
+CYCLE_NET = {
+    "places": ["p1", "p2"],
+    "initial_marking": (1, 0),  # token cycles p1→p2→p1
+    "transitions": ["t1", "t2"],
+    "description": "p1 --t1--> p2 --t2--> p1 (live, bounded)"
+}
+
+UNBOUNDED_NET = {
+    "places": ["p"],
+    "initial_marking": (1,),
+    "transitions": ["t"],
+    "description": "p --t--> p with output weight 2 (unbounded: each firing adds 1 token)"
+}
+
+DEADLOCK_NET = {
+    "places": ["p"],
+    "initial_marking": (0,),
+    "transitions": ["t"],
+    "description": "p=0 → t (consuming transition; immediate deadlock)"
+}
+
+# Convenience: build a PetriNet from the dict above
+def make_net(defn):
+    net = PetriNet()
+    net.add_place(defn["places"][0], tokens=defn["initial_marking"][0])
+    for p in defn["places"][1:]:
+        net.add_place(p, tokens=defn["initial_marking"][defn["places"].index(p)])
+    for T in defn["transitions"]:
+        net.add_transition(T)
+    return net
+```
+
+Now the test suite can reference `CONSERVATION_NET`, `CYCLE_NET`, etc., instead of redefining nets inline.
 
 ### Reachability
 
