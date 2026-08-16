@@ -201,10 +201,27 @@ export function createPhaseTools(env: EnforcerEnv) {
       }
 
       const tddMode = args.tdd === true || tddAutoOn(tt, args.phase || "")
+      // R4 (feature_028, D5): at TDD Programming entry, snapshot the suite's
+      // failing node IDs onto the phase record — cmd_done distinguishes DRIFT
+      // (failing here) from REGRESSION (passing here, failing at done).
+      // Fail-open: a capture error stores no field → cmd_done keeps the
+      // legacy full-suite semantics (no protection regression).
+      let baseline: string[] | undefined
+      if (tddMode && (args.phase || "") === "Programming") {
+        try {
+          const res = await $`uv run scripts/omt/tdd_check.py baseline`
+            .cwd(directory).quiet().nothrow()
+          const data = JSON.parse(res.stdout.toString() || "{}")
+          if (Array.isArray(data.baseline_failures)) baseline = data.baseline_failures
+        } catch (e: any) {
+          safeLog("warn", `baseline capture failed: ${e?.message || e}`)
+        }
+      }
       writeLedger({
         kind: "phase", session, task_type: tt, phase: args.phase || "",
         scope: args.scope || "", feature: args.feature || "", design_doc: args.design_doc || "",
         tdd_mode: tddMode,
+        ...(baseline !== undefined ? { baseline_failures: baseline } : {}),
       })
       const lines = [
         "📋 OMT++ PROCESS CHECK (recorded)",
@@ -212,6 +229,10 @@ export function createPhaseTools(env: EnforcerEnv) {
         `- Phase: ${args.phase || "(unspecified)"}`,
         `- Scope: ${args.scope || "(none)"}`,
       ]
+      if (baseline !== undefined) {
+        lines.push(`- Baseline: ${baseline.length} pre-existing suite failure(s) snapshotted ` +
+          "(R4 regression guard — cmd_done blocks only NEW failures vs this baseline)")
+      }
       if (ARTIFACT_REQUIRED.has(tt)) {
         const found = resolveArtifact(env, { design_doc: args.design_doc, feature: args.feature })
         lines.push(found

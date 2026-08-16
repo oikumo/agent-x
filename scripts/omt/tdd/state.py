@@ -178,12 +178,35 @@ def get_tdd_mode(session: str) -> bool:
     return bool(phase_recs[-1].get("tdd_mode", False))
 
 
+def _active_feature(session: str) -> str | None:
+    """Active feature for a session = the feature on its latest phase record
+    (P1-1/R3). None when the session has no phase record or the phase carries
+    no feature ('' → legacy session scope)."""
+    records = get_session_records(session)
+    phase_recs = [r for r in records if r.get("kind") == "phase"]
+    if not phase_recs:
+        return None
+    return phase_recs[-1].get("feature") or None
+
+
+def _tdd_records(session: str) -> list[dict]:
+    """Feature-scoped TDD records (P1-1/R3): the cycle belongs to the FEATURE,
+    not the session — a resumed session must see the prior session's red/green
+    records (eval §3.1). Precedent: get_tdd_cycles (feature-scoped, below).
+    Empty feature → legacy session scope."""
+    feature = _active_feature(session)
+    if feature:
+        return [r for r in read_ledger()
+                if r.get("kind") in ("tdd", "tdd_testlist") and r.get("feature") == feature]
+    records = get_session_records(session)
+    return [r for r in records if r.get("kind") in ("tdd", "tdd_testlist")]
+
+
 def get_tdd_state(session: str) -> str:
     """Current TDD state: testlist/red/green/refactor/done/none."""
     if not get_tdd_mode(session):
         return "none"
-    records = get_session_records(session)
-    tdd_recs = [r for r in records if r.get("kind") in ("tdd", "tdd_testlist")]
+    tdd_recs = _tdd_records(session)
     if not tdd_recs:
         return "testlist"  # TDD active but no cycle started
     latest = tdd_recs[-1]
@@ -193,8 +216,7 @@ def get_tdd_state(session: str) -> str:
 
 
 def get_current_test_node(session: str) -> str | None:
-    records = get_session_records(session)
-    tdd_recs = [r for r in records if r.get("kind") == "tdd"]
+    tdd_recs = [r for r in _tdd_records(session) if r.get("kind") == "tdd"]
     if not tdd_recs:
         return None
     return tdd_recs[-1].get("test_node")
@@ -227,6 +249,40 @@ def load_snapshot(src_file: Path) -> dict | None:
         return json.loads(p.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
+
+
+def load_feature_baseline(feature: str, src_file: Path) -> dict | None:
+    """P1-3 (feature_028, R5): the feature-baseline snapshot for (feature,
+    src_file); None when never captured (legacy feature → validate-exit keeps
+    the full-file coverage scan — D5: no protection regression)."""
+    p = SNAPSHOT_DIR / "feature_baseline" / feature / f"{src_file.stem}.json"
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def snapshot_feature_baseline(feature: str, src_file: Path) -> dict | None:
+    """P1-3 (feature_028, R5): capture the feature-baseline tier — the
+    pre-feature public-method inventory for src_file, diffed against at
+    validate-exit so coverage scopes to methods ADDED by THIS feature.
+    First-write-wins per (feature, file): the baseline is the inventory BEFORE
+    the feature's first touch (cmd_start captures it at first RED). None when
+    src_file does not exist (true-RED new file → no baseline → diff_snapshots
+    treats every method as feature-added)."""
+    p = SNAPSHOT_DIR / "feature_baseline" / feature / f"{src_file.stem}.json"
+    existing = load_feature_baseline(feature, src_file)
+    if existing is not None:
+        return existing
+    if not src_file.exists():
+        return None
+    p.parent.mkdir(parents=True, exist_ok=True)
+    baseline = {"file": str(src_file),
+                "methods": extract_public_methods(src_file), "ts": _now_iso()}
+    p.write_text(json.dumps(baseline, indent=2), encoding="utf-8")
+    return baseline
 
 
 def diff_snapshots(before: dict | None, after: dict | None) -> list[dict]:

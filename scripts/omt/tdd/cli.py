@@ -13,6 +13,8 @@ Subcommands:
     green           TDD Green: verify test passes
     refactor        TDD Refactor: verify tests stay green
     done            TDD Done: full checklist verification
+    baseline        R4 (feature_028): failing node IDs of the current suite
+                    (phase_gate.ts stores them on the Programming phase record)
     gate            Check if a file edit is allowed (two-hats principle)
     after-edit      Post-edit advisory / revert check
     status          Current TDD state + cycle history
@@ -48,8 +50,10 @@ from .state import (
     get_tdd_cycles,
     get_tdd_mode,
     get_tdd_state,
+    read_ledger,
     run_full_suite,
     run_pytest,
+    snapshot_feature_baseline,
     snapshot_source,
     suite_failures,
     write_ledger,
@@ -86,6 +90,16 @@ def cmd_start(args) -> dict:
         targets = [args.target_src]
     elif test_path.exists():
         targets = infer_target_src(test_path)
+
+    # P1-3 (feature_028, R5): capture the feature-baseline snapshot tier at
+    # RED declaration (first-write-wins) — validate-exit diffs coverage
+    # against it. Pre-first-src-edit by construction (two-hats blocks src/
+    # until the green hat).
+    if args.feature:
+        for t in targets:
+            src_path = _resolve_src_path(t)
+            if src_path.exists():
+                snapshot_feature_baseline(args.feature, src_path)
 
     # Run pytest
     exit_code, _stdout, stderr = run_pytest(test_node, timeout=30)
@@ -230,17 +244,53 @@ def cycles_refactor_recorded(cycles: list[dict]) -> bool:
                for c in latest_by_node.values())
 
 
+def _feature_baseline_failures(feature: str) -> list[str] | None:
+    """R4 (feature_028): the failing-node snapshot captured at
+    omt_phase{phase:Programming} entry (stored on the phase record by
+    phase_gate.ts). None → cmd_done keeps the legacy full-suite semantics
+    (D5: no protection regression)."""
+    phase_recs = [r for r in read_ledger()
+                  if r.get("kind") == "phase" and r.get("feature") == feature]
+    for r in reversed(phase_recs):
+        if "baseline_failures" in r:
+            return r.get("baseline_failures") or []
+    return None
+
+
+def cmd_baseline(args) -> dict:
+    """R4 (feature_028): the failing node IDs of the current full suite —
+    phase_gate.ts calls this at omt_phase{phase:Programming} entry and stores
+    the list on the phase record (raw IDs; cmd_done subtracts
+    KNOWN_SUITE_FAILURES at classification time)."""
+    del args  # no per-feature inputs: the baseline is the raw suite snapshot
+    exit_code, stdout, _stderr = run_full_suite(timeout=120)
+    return {"ok": True, "exit_code": exit_code,
+            "baseline_failures": suite_failures(stdout)}
+
+
 def cmd_done(args) -> dict:
     exit_code, stdout, stderr = run_full_suite(timeout=120)
     failures = suite_failures(stdout)
-    unexpected = [f for f in failures if f not in KNOWN_SUITE_FAILURES]
     allowlisted = [f for f in failures if f in KNOWN_SUITE_FAILURES]
     # R4 (audit F6/F7): the suite counts as clean when every failure is a
     # known, pre-existing one (feature_018 react_screen trio + the
     # window-flaky gate probe that reads the real 8 h ledger). A failure
     # OUTSIDE the allowlist — or a non-test failure (collection error,
     # timeout: no FAILED lines to parse) — still blocks.
-    suite_clean = exit_code == 0 or (bool(failures) and not unexpected)
+    # P1-2 (feature_028, R4/D5): split suite_passes into the feature's OWN
+    # suite + repo hygiene. Hygiene distinguishes DRIFT (failing at the
+    # feature baseline — a repo-level triage note) from REGRESSION (passing
+    # at baseline, failing now — blocks). No baseline on the phase record →
+    # legacy semantics: every non-allowlisted failure is a regression.
+    baseline = _feature_baseline_failures(args.feature)
+    current = set(failures) - KNOWN_SUITE_FAILURES
+    if baseline is None:
+        regressions = sorted(current)
+        drift: list[str] = []
+    else:
+        regressions = sorted(current - set(baseline))
+        drift = sorted(current & set(baseline))
+    suite_clean = exit_code == 0 or (bool(failures) and not regressions)
 
     cycles = get_tdd_cycles(args.feature)
     refactor_recorded = cycles_refactor_recorded(cycles)
@@ -258,8 +308,18 @@ def cmd_done(args) -> dict:
                 if len(node.name.split("_")) < 3:
                     naming_ok = False
 
+    # P1-2: the feature's OWN suite must be green (vacuously true when the
+    # feature has no test dir — repo hygiene carries the load, same as the
+    # pre-split gate).
+    if test_files:
+        f_exit, _f_stdout, _f_stderr = run_pytest(str(test_dir), timeout=120)
+        feature_clean = f_exit == 0
+    else:
+        feature_clean = True
     checklist = {
-        "suite_passes": suite_clean,
+        "suite_passes": suite_clean and feature_clean,
+        "feature_suite_passes": feature_clean,
+        "repo_hygiene_passes": suite_clean,
         "refactor_recorded": refactor_recorded,
         "naming_ok": naming_ok,
     }
@@ -269,7 +329,7 @@ def cmd_done(args) -> dict:
         "feature": args.feature, "checklist": checklist,
     })
 
-    all_ok = suite_clean and refactor_recorded and naming_ok
+    all_ok = suite_clean and feature_clean and refactor_recorded and naming_ok
 
     # Clean up TDD snapshots for this feature's source files
     if all_ok:
@@ -290,16 +350,32 @@ def cmd_done(args) -> dict:
     if all_ok:
         note = (f"  ({len(allowlisted)} known pre-existing failure(s) tolerated — "
                 f"KNOWN_SUITE_FAILURES in scripts/omt/tdd/state.py)\n") if allowlisted else ""
+        drift_note = ""
+        if drift:
+            drift_note = (f"  ⚠️ repo drift tolerated (not blocking): {len(drift)} "
+                          "pre-existing failure(s) at the feature baseline — "
+                          "repo-level triage note:\n")
+            drift_note += "".join(f"     - {f}\n" for f in drift[:10])
         return {
             "ok": True, "checklist": checklist, "coverage_gaps": [],
             "allowlisted_failures": allowlisted,
-            "message": "✅ DONE — all checklist items verified.\n" + note +
+            "drift_failures": drift,
+            "message": "✅ DONE — all checklist items verified.\n" + note + drift_note +
                        "  Phase exit approved. Call omt_complete to advance to Testing.",
         }
     lines = ["⛔ DONE checklist incomplete:"]
+    if not feature_clean:
+        lines.append("  ❌ Feature suite has failures "
+                     f"(tests/features/{args.feature})")
     if not suite_clean:
-        lines.append(f"  ❌ Full suite has failures (exit {exit_code})")
-        for f in unexpected[:10]:
+        lines.append(f"  ❌ Repo hygiene: {len(regressions)} regression(s) vs "
+                     f"the feature baseline (suite exit {exit_code})")
+        for f in regressions[:10]:
+            lines.append(f"     - {f}")
+    if drift:
+        lines.append(f"  ⚠️ repo drift tolerated (not blocking): {len(drift)} "
+                     "pre-existing failure(s) at the feature baseline")
+        for f in drift[:10]:
             lines.append(f"     - {f}")
     if not refactor_recorded:
         lines.append("  ❌ Refactor not recorded for some cycles")
@@ -356,6 +432,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--feature", required=True)
     p.add_argument("--session", default="")
 
+    p = sub.add_parser("baseline")
+
     p = sub.add_parser("gate")
     p.add_argument("--path", required=True)
     p.add_argument("--session", default="")
@@ -377,7 +455,7 @@ def main(argv: list[str] | None = None) -> int:
         "testlist": cmd_testlist, "start": cmd_start, "green": cmd_green,
         "refactor": cmd_refactor, "done": cmd_done, "gate": cmd_gate,
         "after-edit": cmd_after_edit, "status": cmd_status,
-        "validate-exit": cmd_validate_exit,
+        "validate-exit": cmd_validate_exit, "baseline": cmd_baseline,
     }
     handler = commands.get(args.command)
     if not handler:

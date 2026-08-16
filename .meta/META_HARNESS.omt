@@ -261,7 +261,7 @@
 @tool omt_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_NAV" : Harness doc nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).
 @tool omt_think perm=allow args="op,path?,thought?,line?,after?,symbol?,category?,query?,top?" tags="CMD_THINK" : TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?).
 @tool omt_kb_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_KB_NAV" : App Knowledge Base nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).
-@tool omt_q perm=allow args="op,feature?,session?,path?,tool?,as_of?" tags="CMD_Q" : TA: Interrogative layer — read-only. op=state(feature?,session?,as_of?) | plan(path,tool?,session?,as_of?) | drift(as_of?). Returns JSON envelope with as_of_commit=HEAD-sha.
+@tool omt_q perm=allow args="op,feature?,session?,path?,tool?,as_of?,verbose?" tags="CMD_Q" : TA: Interrogative layer — read-only. op=state(feature?,session?,as_of?,verbose?) | plan(path,tool?,session?,as_of?) | drift(as_of?). state default ≤2KB summary; verbose:true = full dump. Returns JSON envelope with as_of_commit=HEAD-sha.
 
 # ============================================================
 # FLOW — QUICK_ workflows (start_*/tdd_* derived from @fsm/@phase/@hat — hand copies = duplicate-id error)

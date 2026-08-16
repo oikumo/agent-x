@@ -364,7 +364,7 @@ class TestOpStateDecreeHealth:
              "session": "s"},
         ])
         out = _q_probe(
-            json.dumps({"op": "state",
+            json.dumps({"op": "state", "verbose": True,
                         "feature": "feature_024.tui_framework"}),
             session="ses_u8", use_real_ir=True, tmp_path=tmp_path)
         assert out["op"] == "state"
@@ -552,7 +552,7 @@ class TestOpStateConsultDedup:
              "feature": "feature_026.omt_q_interrogative_first_ops"},
         ])
         out = _q_probe(
-            json.dumps({"op": "state",
+            json.dumps({"op": "state", "verbose": True,
                         "feature": "feature_026.omt_q_interrogative_first_ops"}),
             session="ses_u13", use_real_ir=True, tmp_path=tmp_path)
         assert out["op"] == "state"

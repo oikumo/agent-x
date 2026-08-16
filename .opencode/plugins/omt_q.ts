@@ -216,6 +216,50 @@ function foldDecreeHealth(records: any[], feature?: string): {
   return { slug_variants, empty_slug_records, invalid_phase_records, phase_cycle_count }
 }
 
+// T1 (feature_028, user-approved 2026-08-16): op=state default = summary
+// projection (counts + top-N, truncated payloads) — the full dump measured
+// 24–36KB/call in opencode.db (44KB live: risky_thoughts 31.6KB,
+// recent_consults 5.9KB, decree_health 5.2KB); the agent asking "state" needs
+// phase/tdd_position/stranded_red (~500B). verbose:true bypasses the
+// projection and restores the byte-identical pre-T1 full dump.
+const _trunc = (s: string, n: number) =>
+  (s.length <= n ? s : s.slice(0, n - 1) + "…")
+
+function summarizeDecreeHealth(h: {
+  slug_variants: string[]
+  empty_slug_records: { ts: string; scope: string }[]
+  invalid_phase_records: { ts: string; phase: string }[]
+  phase_cycle_count: number
+}) {
+  return {
+    slug_variants_count: h.slug_variants.length,
+    slug_variants_sample: h.slug_variants.slice(0, 3),
+    empty_slug_count: h.empty_slug_records.length,
+    empty_slug_sample: h.empty_slug_records.slice(0, 3)
+      .map((r) => ({ ts: r.ts, scope: _trunc(r.scope, 80) })),
+    invalid_phase_count: h.invalid_phase_records.length,
+    phase_cycle_count: h.phase_cycle_count,
+  }
+}
+
+function summarizeThoughts(thoughts: any[]) {
+  return {
+    count: thoughts.length,
+    top: thoughts.slice(0, 3).map((t) => ({
+      path: String(t?.path ?? ""), line: Number(t?.line ?? 0),
+      thought: _trunc(String(t?.thought ?? ""), 120),
+    })),
+  }
+}
+
+function summarizeConsults(consults: { files: string[]; ts: string; session: string }[]) {
+  const latest = consults.reduce((m, r) => Math.max(m, tsOf(r)), 0)
+  return {
+    count: consults.length,
+    latest_ts: latest > 0 ? new Date(latest).toISOString() : "",
+  }
+}
+
 // U9 skip_reason_tally: top-3 reason STEMS + counts. live_smoke_count is a
 // named SEPARATE field — count of skip records whose reason contains "live
 // smoke" stem (case-insensitive), scoped to nav-or-all.
@@ -456,9 +500,11 @@ function createQTools() {
       feature: tool.schema.string().optional(),
       session: tool.schema.string().optional(),
       as_of: tool.schema.string().optional(),
+      verbose: tool.schema.boolean().optional(),
     },
     async execute(args, context) {
       const start = Date.now()
+      const verbose = args?.verbose === true
       const feature = args?.feature
       const session = args?.session
       const as_of_commit = headSha()
@@ -525,13 +571,15 @@ function createQTools() {
           {
             as_of_commit,
             feature, session, phase, tdd_position,
-            stranded_red, closed_via_skip, decree_health,
+            stranded_red, closed_via_skip,
+            decree_health: verbose ? decree_health : summarizeDecreeHealth(decree_health),
             skip_reason_tally, live_smoke_count,
             known_suite_failures: ksf.nodeIds,
             known_suite_failures_parse_failed: ksf.parse_failed,
-            recent_consults, consult_needed,
+            recent_consults: verbose ? recent_consults : summarizeConsults(recent_consults),
+            consult_needed,
             last_activity_ts: tsMax > 0 ? new Date(tsMax).toISOString() : "",
-            risky_thoughts,
+            risky_thoughts: verbose ? risky_thoughts : summarizeThoughts(risky_thoughts),
           },
           { feature, session },
         )
@@ -624,7 +672,7 @@ function createQTools() {
   const omt_q = tool({
     description: irToolDescription(
       "omt_q",
-      "TA: Interrogative layer — read-only. op=state(feature?,session?,as_of?) | plan(path,tool?,session?,as_of?) | drift(as_of?). Returns JSON envelope with as_of_commit=HEAD-sha.",
+      "TA: Interrogative layer — read-only. op=state(feature?,session?,as_of?,verbose?) | plan(path,tool?,session?,as_of?) | drift(as_of?). state default ≤2KB summary; verbose:true = full dump. Returns JSON envelope with as_of_commit=HEAD-sha.",
     ),
     // NOTE: the literal "TA:" appears in the description above — that's
     // intentional: omt_q is in @var.harness_paths (so editing this file trips
@@ -638,6 +686,8 @@ function createQTools() {
       path: tool.schema.string().optional(),
       tool: tool.schema.string().optional(),
       as_of: tool.schema.string().optional(),
+      verbose: tool.schema.boolean().optional()
+        .describe("state: restore the full dump (default = ≤2KB summary)"),
     },
     async execute(args, context) {
       switch (args?.op ?? "") {

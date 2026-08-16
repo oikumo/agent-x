@@ -12,6 +12,7 @@ import json
 import time
 
 from .ast_checks import (
+    extract_public_methods,
     extract_test_references,
     find_untested_methods,
     infer_target_src,
@@ -26,6 +27,7 @@ from .state import (
     get_current_test_node,
     get_tdd_cycles,
     get_tdd_state,
+    load_feature_baseline,
     load_snapshot,
     read_ledger,
     run_pytest,
@@ -98,7 +100,16 @@ def cmd_gate(args) -> dict:
     if not allowed:
         hat = {"red": "test", "green": "code", "refactor": "refactor",
                "testlist": "planning", "done": "complete"}.get(state, "")
-        which = "Only tests/ edits allowed." if hat == "test" else "Only src/ edits allowed."
+        # P3-8 (feature_028, R6): branch on the IR-derived allow-set, NOT the
+        # state name — a both-blocked state (any hat with allow="") says
+        # "nothing editable", whatever the hat is called.
+        if not rules["src"] and not rules["tests"]:
+            which = ("nothing editable — declare omt_tdd{op:red} at a failing "
+                     "test to enter the test hat.")
+        elif rules["tests"]:
+            which = "Only tests/ edits allowed."
+        else:
+            which = "Only src/ edits allowed."
         return {
             "allowed": False,
             "reason": f"⛔ TDD two-hats: wearing the {hat} hat. {which} "
@@ -194,7 +205,19 @@ def cmd_validate_exit(args) -> dict:
         if src_path.exists():
             untested = find_untested_methods(src_path, test_files)
             if untested:
-                coverage_gaps.append({"file": target, "untested": untested})
+                # P1-3 (feature_028, R5): scope the gap to methods ADDED by
+                # THIS feature's diff — diff against the feature-baseline
+                # snapshot (captured at first RED). No baseline (legacy
+                # feature) → every current method counts as added → the
+                # legacy full-file scan applies unchanged (D5).
+                baseline = load_feature_baseline(feature, src_path)
+                added = diff_snapshots(
+                    baseline, {"methods": extract_public_methods(src_path)})
+                added_keys = {(m["class"], m["method"]) for m in added}
+                scoped = [m for m in untested
+                          if (m["class"], m["method"]) in added_keys]
+                if scoped:
+                    coverage_gaps.append({"file": target, "untested": scoped})
 
     all_ok = len(dangling) == 0 and len(coverage_gaps) == 0
     summary = {
