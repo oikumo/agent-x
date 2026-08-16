@@ -13,6 +13,17 @@ Correctness and explicit semantics are more important than optimization in the f
 
 ---
 
+## Scope and Build Order (v1 vs v2)
+
+This document describes a complete toolkit, but the **first version should be built in two stages**:
+
+- **v1 (core — the feasible first deliverable):** the model layer (§3–§10) and the BFS-based analyses — reachability, reachability graph, firing sequences, deadlocks, bounds — plus exact P/T-invariant algebra (§18–§19). Every analysis returns completeness-explicit results (§27–§28). v1 corresponds to Definition-of-Done items 1–17 and 19 (§40).
+- **v2 (advanced — follow-up):** coverability trees (§17), siphons/traps (§25), home markings (§22), and reporting/export (§36 advanced). v2 corresponds to DoD item 18 and the advanced checklist.
+
+Everything in v1 must be complete and tested before v2 is attempted. Coverability in particular is the most subtle algorithm in this document and must not be rushed.
+
+---
+
 ## 1. Petri-Net Foundations
 
 A **Petri net** is a formal model for systems in which **state, resources, events, and concurrency** interact. Unlike a conventional flowchart, a Petri net does not describe only one execution path. It describes a set of possible state changes and makes concurrency and synchronization explicit.
@@ -174,6 +185,8 @@ class Place:
 
 For the first implementation, a place name is sufficient. Future metadata such as labels, capacities, colors, or visualization coordinates should not be required by the core semantics.
 
+The reference engine (§10) treats **names (strings) as the canonical identity** of places and transitions. The dataclasses above are optional metadata carriers for future extensions; they are not required by the engine.
+
 ### 3.1 What a token means
 
 The meaning of a token is domain-specific.
@@ -209,6 +222,8 @@ class Transition:
 ```
 
 A transition has no tokens of its own. Its behavior is completely determined by its input and output arcs in a basic P/T net.
+
+As with places, the engine identifies transitions by name (string); the dataclass is optional metadata.
 
 ### 4.1 Transition enabling
 
@@ -530,7 +545,7 @@ They are still distinct transitions. Analysis results should preserve their name
 
 ---
 
-## 9. Petri-Net Semantics in One Example
+### 8.5 Petri-Net Semantics in One Example
 
 The following small net demonstrates the core semantics:
 
@@ -595,7 +610,7 @@ M0 --start--> M1 --finish--> M2
 
 The analyzer should represent these markings explicitly and use the transition labels to describe the state changes.
 
-### 9.1 Why this example matters
+#### 8.5.1 Why this example matters
 
 This example captures the fundamental cycle of every P/T Petri-net implementation:
 
@@ -710,10 +725,18 @@ class PetriNet:
 
     def add_input(self, place: str, transition: str, weight: int = 1) -> None:
         self._validate_arc(place, transition, weight)
+        if place in self.inputs[transition]:
+            raise InvalidModelError(
+                f"Input arc already exists: {place} -> {transition}"
+            )
         self.inputs[transition][place] = weight
 
     def add_output(self, transition: str, place: str, weight: int = 1) -> None:
         self._validate_arc(place, transition, weight)
+        if place in self.outputs[transition]:
+            raise InvalidModelError(
+                f"Output arc already exists: {transition} -> {place}"
+            )
         self.outputs[transition][place] = weight
 
     def _validate_arc(self, place: str, transition: str, weight: int) -> None:
@@ -799,7 +822,7 @@ class PetriNet:
 
 ---
 
-# 11. Petri-Net Analysis Layer
+## 11. Petri-Net Analysis Layer
 
 The analysis layer should answer questions about the behavior and structure of the net without requiring the caller to run a simulation manually.
 
@@ -827,9 +850,9 @@ Recommended first-class analysis operations:
 ```python
 reachable_markings()
 reachability_graph()
+firing_sequence_to()
 deadlocks()
-is_bounded()
-bound()
+bounds()
 place_invariants()
 transition_invariants()
 transition_liveness()
@@ -1012,29 +1035,47 @@ def firing_sequence_to(
 
 This gives a shortest firing sequence under BFS edge count.
 
+If `target` is not in `result.markings` and `result.complete` is `False`, the returned `None` means "no sequence found in the explored prefix" — the target may still be reachable beyond the search limit. Only a complete result turns `None` into a proof of unreachability.
+
 ---
 
 ## 15. Deadlock Analysis
 
 A **deadlock marking** is a reachable marking where no transition is enabled.
 
-Implementation:
+Because exploration can be truncated, deadlocks must not be returned as a bare list — that would violate the completeness rule of §27. The result carries the `complete` flag, and the markings are sorted for determinism (§29):
 
 ```python
+@dataclass(frozen=True)
+class DeadlockResult:
+    deadlocks: tuple[tuple[int, ...], ...]
+    complete: bool
+    explored_states: int
+    reason: str | None = None
+
+
 def deadlocks(
     net: PetriNet,
     max_states: int | None = None,
-) -> list[tuple[int, ...]]:
+) -> DeadlockResult:
     result = reachable_markings(net, max_states=max_states)
 
-    return [
+    found = sorted(
         marking
         for marking in result.markings
         if not net.enabled_transitions_at(marking)
-    ]
+    )
+
+    return DeadlockResult(
+        deadlocks=tuple(found),
+        complete=result.complete,
+        explored_states=result.explored_states,
+        reason=None if result.complete else
+            "State-space exploration was truncated; listed deadlocks are only those among explored states.",
+    )
 ```
 
-Important limitation: if exploration is incomplete because of a state limit, the returned deadlocks are only deadlocks among the explored states. The API should expose the `complete` flag instead of pretending the result is exhaustive.
+Important limitation: if exploration is incomplete because of a state limit, the returned deadlocks are only deadlocks among the explored states. The `complete` flag makes that explicit instead of pretending the result is exhaustive.
 
 ---
 
@@ -1140,6 +1181,7 @@ Recommended API:
 @dataclass(frozen=True)
 class CoverabilityResult:
     nodes: tuple[tuple[int | None, ...], ...]
+    edges: tuple[tuple[int, int], ...]  # parent-index -> child-index
     complete: bool
     unbounded_places: frozenset[str]
 
@@ -1147,6 +1189,10 @@ class CoverabilityResult:
 def coverability_tree(net: PetriNet) -> CoverabilityResult:
     ...
 ```
+
+The result must include the tree edges (or parent pointers): a set of nodes without their ancestor relations cannot be interpreted as a coverability tree.
+
+**Scope note:** coverability is **v2** work (see "Scope and Build Order"). It is the most subtle algorithm in this document; do not attempt it until the v1 BFS-based analyses are complete and tested.
 
 Minimum correctness tests should include:
 
@@ -1216,7 +1262,7 @@ For production code, avoid repeated `places.index()` calls by precomputing an in
 
 A numerical null-space calculation can find candidate vectors, but Petri-net invariants are normally interpreted over integers.
 
-For a research-grade implementation, use exact rational/integer linear algebra rather than floating-point rank/null-space results.
+For a research-grade implementation, use exact rational/integer linear algebra rather than floating-point rank/null-space results. If the project prefers zero added dependencies, a small exact-rational Gaussian-elimination nullspace (~40 lines) is sufficient for v1; do not use numpy floating-point rank/null-space either way.
 
 Recommended dependency:
 
@@ -1245,12 +1291,12 @@ def incidence_matrix_sympy(net: PetriNet) -> Matrix:
     return Matrix(data)
 
 
-def p_invariant_basis(net: PetriNet):
+def place_invariants(net: PetriNet):
     c = incidence_matrix_sympy(net)
     return c.T.nullspace()
 ```
 
-This returns a rational basis. Normalize vectors before exposing them as user-facing integer invariants.
+This returns a rational basis. Normalize vectors before exposing them as user-facing integer invariants. v1 scope: expose the exact rational basis normalized to coprime integers. Computing *minimal non-negative* invariants is research-level work and is out of scope for the first version; tests should assert conservation properties (e.g. "p1 + p2 = constant") rather than a canonical minimal vector.
 
 ---
 
@@ -1267,7 +1313,7 @@ It represents a multiset of transition firings that returns the marking to its o
 Use:
 
 ```python
-def t_invariant_basis(net: PetriNet):
+def transition_invariants(net: PetriNet):
     c = incidence_matrix_sympy(net)
     return c.nullspace()
 ```
@@ -1300,7 +1346,7 @@ A more efficient implementation can reverse the graph and perform one multi-sour
 ### Example implementation
 
 ```python
-def transition_is_live(
+def transition_liveness(
     net: PetriNet,
     transition: str,
     graph: ReachabilityGraph,
@@ -1349,7 +1395,7 @@ To determine whether the whole net is live over a finite complete reachability g
 ```python
 def is_live(net: PetriNet, graph: ReachabilityGraph) -> bool | None:
     for transition in net.transition_order:
-        result = transition_is_live(net, transition, graph)
+        result = transition_liveness(net, transition, graph)
         if result is not True:
             return result
     return True
@@ -1548,7 +1594,7 @@ max_depth: int | None = None
 time_limit: float | None = None
 ```
 
-A coding agent should not introduce a hidden hard-coded limit that can silently produce incorrect conclusions.
+A coding agent should not introduce a hidden hard-coded limit that can silently produce incorrect conclusions. **v1 scope:** implement `max_states` only; `max_depth` and `time_limit` are reserved for later versions. Do not invent partial semantics for them in v1.
 
 When a limit is hit:
 
@@ -1618,7 +1664,8 @@ def test_deadlock_is_detected():
 
     result = deadlocks(net)
 
-    assert result == [(0,)]
+    assert result.deadlocks == ((0,),)
+    assert result.complete is True
 ```
 
 ### Boundedness
@@ -1700,7 +1747,7 @@ A net with a transition that can only fire once and then becomes permanently dis
 
 ---
 
-## 31. Complete Analysis Module Skeleton
+## 31. Partial Analysis Module Skeleton (BFS Core)
 
 A practical first version can look like:
 
@@ -1738,6 +1785,14 @@ class BoundResult:
     bounded: bool | None
     bounds: dict[str, int]
     complete: bool
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
+class DeadlockResult:
+    deadlocks: tuple[Marking, ...]
+    complete: bool
+    explored_states: int
     reason: str | None = None
 
 
@@ -1782,13 +1837,20 @@ class PetriNetAnalyzer:
             explored_states=len(visited),
         )
 
-    def deadlocks(self, max_states: int | None = None) -> list[Marking]:
+    def deadlocks(self, max_states: int | None = None) -> DeadlockResult:
         result = self.reachable_markings(max_states)
-        return [
+        found = sorted(
             marking
             for marking in result.markings
             if not self.net.enabled_transitions_at(marking)
-        ]
+        )
+        return DeadlockResult(
+            deadlocks=tuple(found),
+            complete=result.complete,
+            explored_states=result.explored_states,
+            reason=None if result.complete else
+                "State-space exploration was truncated.",
+        )
 
     def bounds(self, max_states: int | None = None) -> BoundResult:
         result = self.reachable_markings(max_states)
@@ -1809,7 +1871,7 @@ class PetriNetAnalyzer:
         )
 ```
 
-Add graph, SCC, invariant, liveness, and coverability functions to this module as they mature.
+Add graph, SCC, liveness, and invariant functions to this module as they mature (v1); coverability is v2 (see "Scope and Build Order").
 
 ---
 
@@ -1854,6 +1916,8 @@ Important optimizations:
 7. Cache enabled-transition checks when useful.
 8. Keep deterministic transition order.
 
+The reference engine in §10 favors clarity and rebuilds indexes per call; apply the precomputations above only when profiling shows they matter, and keep the same observable semantics.
+
 For larger nets, consider optimized matrix/vector operations, sparse matrices, partial-order reduction, symmetry reduction, or symbolic state-space methods. These should be later optimizations, not requirements for the first implementation.
 
 ---
@@ -1871,6 +1935,7 @@ The agent should follow these rules:
 - Use exact integer arithmetic for incidence matrices and invariants.
 - Do not silently impose state limits.
 - Do not mutate the live marking from analysis code.
+- v1 models are **build-once**: construct a net, analyze it, and if the modeled system's structure must change, construct a new `PetriNet`. `remove_place`/`remove_transition` are out of scope for v1.
 - Make tests deterministic by sorting places and transitions.
 
 ---
@@ -1895,6 +1960,8 @@ petri_net/
 
 For a tiny project, `analysis.py` can initially contain the graph helpers too. Split modules when complexity increases.
 
+The library is **build-once** in v1: consumers that need structural adaptation (e.g. `feature_001` rebuilding its net when `USER_OBJECTIVES.md` changes CRC) construct a fresh `PetriNet`; no `remove_*` API is provided in v1 (§34).
+
 ---
 
 ## 36. Analysis Tools — Minimum Feature Set
@@ -1914,10 +1981,10 @@ The **minimum analysis toolkit** should include:
 - [ ] T-invariant calculation.
 - [ ] Transition liveness analysis on finite complete reachability graphs.
 - [ ] Strongly connected component analysis.
+
+Advanced optional tools (v2 and later):
+
 - [ ] Coverability-tree analysis for unbounded nets.
-
-Advanced optional tools:
-
 - [ ] Home-marking analysis.
 - [ ] Siphon analysis.
 - [ ] Trap analysis.
@@ -1972,7 +2039,7 @@ Expected markings:
 Deadlocks:
 
 ```python
-assert analyzer.deadlocks() == []
+assert analyzer.deadlocks().deadlocks == ()
 ```
 
 Bounds:
@@ -2002,36 +2069,15 @@ This single example is useful as an integration test for multiple analysis tools
 
 ## 38. Important Semantic Edge Cases
 
-### Self-loop
-
-A transition may consume and produce tokens from the same place:
-
-```python
-net.add_input("counter", "process", 1)
-net.add_output("process", "counter", 1)
-```
-
-The token count remains unchanged.
-
-### No input places
-
-A transition with no input arcs is always enabled.
-
-### No output places
-
-A transition with no output arcs consumes its inputs and produces nothing.
+Most structural edge cases are already specified in §8 (self-loops, no-input transitions, no-output transitions, parallel transitions) and §3.2 (zero-token places). This section adds the API-level policies:
 
 ### Multiple arcs to the same endpoint
 
 The internal representation should merge duplicate logical arcs by summing or replacing according to a clearly documented rule. The simplest API should reject duplicates to avoid ambiguity.
 
-### Parallel transitions
-
-Two transitions may have identical input/output structure but different names. They remain distinct transitions and should produce separate labeled edges in the reachability graph.
-
 ### Zero-token places
 
-A place can legally hold zero tokens.
+A place can legally hold zero tokens (see §3.2).
 
 ### Empty net
 
@@ -2086,8 +2132,10 @@ The analysis implementation is complete when:
 15. T-invariants can be calculated using exact arithmetic.
 16. Transition liveness can be checked on finite complete graphs.
 17. SCC analysis is available.
-18. Coverability analysis exists for unbounded nets.
+18. Coverability analysis exists for unbounded nets. **(v2 — see "Scope and Build Order"; not required for v1 sign-off.)**
 19. Tests cover both positive results and cases where the analyzer must return "unknown."
+
+**v1 sign-off requires items 1–17 and 19. Item 18 (coverability) is v2.**
 
 ---
 
