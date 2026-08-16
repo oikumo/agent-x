@@ -63,7 +63,7 @@ class TestRagV2StateHygiene(TestCase):
             return_value=MagicMock(
                 database_exists=MagicMock(return_value=True),
                 documents_exist=MagicMock(return_value=True),
-                vector_db_path="/tmp/rag_v2_repo_x/chroma",
+                vector_db_path="/tmp/rag_v2_repo_x/chroma_db",
                 documents_path="/tmp/rag_v2_repo_x/docs",
                 get_ingested_url=MagicMock(return_value="https://example.com/doc"),
             )

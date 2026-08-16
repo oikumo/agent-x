@@ -20,7 +20,12 @@ class RagV2:
     def __init__(self, working_directory: str) -> None:
         self._working_directory = Path(working_directory)
         # v1 layout: vector_db_path + documents_path under the working dir.
-        self.vector_db_path: str = str(self._working_directory / "chroma")
+        # bug_fix 2026-08-16: `chroma_db`, NOT `chroma` — operation_spec_001
+        # (feature_027) pins `AIService.rag_chromadb(f"{repository_path}/chroma_db")`
+        # for BOTH retrieval and ingestion (mirrors v1 `rag.py:28`). The drift to
+        # `chroma` created a SECOND, empty Chroma store per repository (observed:
+        # `<repo>/chroma` skeleton next to the real `<repo>/chroma_db`).
+        self.vector_db_path: str = str(self._working_directory / "chroma_db")
         self.documents_path: str = str(self._working_directory / "documents")
         self._db = RagV2Database(str(self._working_directory / "rag_v2.db"))
 

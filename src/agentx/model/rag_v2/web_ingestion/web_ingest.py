@@ -66,12 +66,25 @@ def _persist(
         for c in chunks
     ]
     if store is None:
-        from agentx.model.rag_v2.rag_v2 import RagV2
+        # bug_fix 2026-08-16: the production path MUST build the real Chroma
+        # vector store — the old `RagV2(...)` aggregate has no add_texts/add/
+        # upsert, so the hasattr chain below silently dropped every chunk
+        # (observed: ingestion reported "N chunks" but nothing was searchable).
+        # operation_spec_001 pins the v1-shared store at `<repo>/chroma_db`.
+        from agentx.model.ai.service import AIService
 
-        store = RagV2(working_directory=repository_path)
+        store = AIService().rag_chromadb(directory=f"{repository_path}/chroma_db")
     if hasattr(store, "add_texts"):
         store.add_texts(texts=texts, metadatas=metadatas)
     elif hasattr(store, "add"):
         store.add(texts, metadatas)
     elif hasattr(store, "upsert"):
         store.upsert(texts, metadatas)
+    # Journal record — operation_spec_001: "The loader writes an ingestion
+    # record to the SQLite journal" (web was the only loader missing it).
+    try:
+        from agentx.model.rag_v2.rag_v2 import RagV2
+
+        RagV2(repository_path).record_ingestion(url=source, kind=kind)
+    except Exception:
+        pass

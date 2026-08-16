@@ -55,3 +55,7 @@
 - [x] **feature_023.test_refactor_live_only** — consolidated suite: Node-runner fixtures removed; source-pins + live-opencode-binary tests kept (13 verification points); 68 static + e2e ✓.
 - [x] **Evaluate META HARNESS DSL + verify implementation (fix if needed)** <!-- id:T-024 prio:high agent:true --> — DONE (2026-07-26): VERIFIED GREEN (harnessc 0 errors, live bun probe, jsonc splice); 4 fixes implemented (gate-order pin, IR-driven doc_paths, .omt-sourced numeric constants, harnessc @version robustness). Details: git log.
 - [x] **feature_023.deep_harness_tests** <!-- id:T-023d prio:high agent:true --> — BUG-B live test redesigned (git-dirty-first); suite 105/105 ✓; dist/ deleted (proven unused); TA index reconciled.
+
+## 2026-08-16 rotation (ingestion bug_fix completion round)
+
+- [x] **feature_025.coding_context_window_optimization** — DONE (2026-08-08): `CodingAgentService` swapped from bare `create_agent` to deepagents full stack (`create_deep_agent` + Filesystem/Summarization/Memory/Skills middleware + `compact_conversation` tool; legacy fallback kept). `deepagents>=0.7` dep; 8/8 new + 143/143 regression + suite 1196 passed (3 known react_screen). Test report @ `6.testing/features/feature_025.coding_context_window_optimization/test_report.md`.

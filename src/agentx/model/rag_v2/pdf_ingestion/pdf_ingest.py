@@ -54,10 +54,12 @@ def _persist(
         for c in chunks
     ]
     if store is None:
-        from agentx.model.rag_v2.rag_v2 import RagV2
+        # bug_fix 2026-08-16: build the REAL Chroma store — the old RagV2
+        # aggregate has no add_texts/add/upsert, so ingestion silently
+        # dropped every chunk. operation_spec_001 pins `<repo>/chroma_db`.
+        from agentx.model.ai.service import AIService
 
-        rag = RagV2(working_directory=repository_path)
-        store = rag
+        store = AIService().rag_chromadb(directory=f"{repository_path}/chroma_db")
     if hasattr(store, "add_texts"):
         store.add_texts(texts=texts, metadatas=metadatas)
     elif hasattr(store, "add"):

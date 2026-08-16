@@ -23,7 +23,9 @@ def build_retriever(repository_path: str) -> Retriever:
 
         # AIService builds the v2 ChromaDB store; the embedding model is the
         # active LLM's embeddings. Lazy import keeps the @tool import light.
-        rag = AIService().rag_chromadb(directory=f"{repository_path}/chroma")
+        # bug_fix 2026-08-16: `chroma_db`, NOT `chroma` — operation_spec_001
+        # pins the v1-shared store path (one Chroma per repository).
+        rag = AIService().rag_chromadb(directory=f"{repository_path}/chroma_db")
         docs = rag.similarity_search(query, k=k)
         rows: List[Tuple[Any, ...]] = []
         for d in docs:
