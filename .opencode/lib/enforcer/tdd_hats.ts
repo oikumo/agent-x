@@ -41,7 +41,11 @@ export function createTddTools(env: EnforcerEnv) {
       for (const k of ["behaviors", "feature", "test_node", "target_src"]) {
         const v = args?.[k]
         if (v !== undefined && v !== null && v !== "")
-          flags.push(`--${k.replace(/_/g, "-")}`, String(v))
+          // Array guard: SDK coerces JSON-array strings fed to a tool.schema.string() arg
+          // into actual JS arrays; String(v) collapses to "a,b" and tdd/cli.py json.loads
+          // then fails. Re-serialize arrays back to valid JSON. (feature_027 iter-j fix)
+          flags.push(`--${k.replace(/_/g, "-")}`, Array.isArray(v) ? JSON.stringify(v) : String(v))
+// TA: gotcha: GOTCHA: opencode SDK coerces a JSON-array-looking string passed to a tool.schema.string() arg into an actual JS array (feature_027 iter-j diagnosis, 2026-08-15). String(v) on line 44 then collapses the brackets — "["a","b"]" becomes "a,b" — and tdd/cli.py:64 json.loads("a,b") throws "Expecting value: line 1 column 1 (char 0)". Fix APPLIED 2026-08-15: `Array.isArray(v) ? JSON.stringify(v) : String(v)` guard before pushing the flag. Same coercion risk for any tool.schema.string() arg receiving bracketed JSON content (test_node, target_src, feature, behaviors). Verified: manual `uv run scripts/omt/tdd_check.py testlist --behaviors '["x"]'` succeeds; harness path now mirrors it.
       }
       flags.push("--session", session)
       try {

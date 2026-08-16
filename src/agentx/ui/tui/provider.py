@@ -13,6 +13,7 @@ from agentx.ui.providers import ProviderRegistry
 
 if TYPE_CHECKING:
     from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner, IModelsViewPartner, IReactViewPartner, ICodingViewPartner, IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
+    from agentx.ui.interfaces import IRagV2View, IRagV2CreateRepositoryView, IRagV2RepositorySelectionView, IRagV2WebIngestionView, IRagV2PdfIngestionView, IRagV2MdIngestionView
 
 
 class TUIProvider(IUIProvider):
@@ -123,6 +124,25 @@ class TUIProvider(IUIProvider):
         """
         from agentx.ui.tui.adapters.fast_agent_adapter import TUIFastAgentAdapter
         return TUIFastAgentAdapter(controller)
+
+    # --- RAG v2 (feature_027) — console-only; TUI refuses to host v2 ---
+    def create_rag_v2_view(self, controller) -> "IRagV2View":
+        raise NotImplementedError("RAG v2 is console-only; use the console provider.")
+
+    def create_rag_v2_create_repository_view(self, controller) -> "IRagV2CreateRepositoryView":
+        raise NotImplementedError("RAG v2 is console-only; use the console provider.")
+
+    def create_rag_v2_repository_selection_view(self, controller) -> "IRagV2RepositorySelectionView":
+        raise NotImplementedError("RAG v2 is console-only; use the console provider.")
+
+    def create_rag_v2_web_ingestion_view(self, controller) -> "IRagV2WebIngestionView":
+        raise NotImplementedError("RAG v2 is console-only; use the console provider.")
+
+    def create_rag_v2_pdf_ingestion_view(self, controller) -> "IRagV2PdfIngestionView":
+        raise NotImplementedError("RAG v2 is console-only; use the console provider.")
+
+    def create_rag_v2_md_ingestion_view(self, controller) -> "IRagV2MdIngestionView":
+        raise NotImplementedError("RAG v2 is console-only; use the console provider.")
 
     def initialize(self) -> None:
         """Initialize Textual framework."""

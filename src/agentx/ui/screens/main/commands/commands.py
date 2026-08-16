@@ -63,6 +63,29 @@ class RagShowCommand(Command):
         if self.controller._rag_view is not None:
             self.controller._rag_view.show()
 
+
+class RagV2ShowCommand(Command):
+    """Console RAG v2 entry command (feature_027).
+
+    Repoints the console ``rag`` key to the v2 surface: calls
+    ``controller.show_rag_v2()`` (which wires the v2 controller + view via
+    ``set_view()``) then ``controller._rag_v2_view.show()`` to enter the REPL.
+    v1's ``RagShowCommand`` stays for the TUI path (feature_024 parity wiring).
+    """
+
+    def __init__(self, key: str, controller: MainController):
+        super().__init__(key, description="Open RAG v2")
+        self.controller = controller
+
+    def run(self, arguments: list[str]):
+        if len(arguments) != 0:
+            self.controller.print_warring_message("invalid command")
+            return
+
+        self.controller.show_rag_v2()
+        if self.controller._rag_v2_view is not None:
+            self.controller._rag_v2_view.show()
+
 class SumCommand(Command):
     def __init__(self, key: str, controller: MainController):
         super().__init__(key, description="Add two integers: sum <a> <b>")

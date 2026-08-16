@@ -12,6 +12,7 @@ from agentx.ui.interfaces import IMainView, IChatView, IRagView, IUIProvider, IM
 
 if TYPE_CHECKING:
     from agentx.ui.interfaces import IMainViewPartner, IRagViewPartner, IChatViewPartner, IModelsViewPartner, IReactViewPartner, ICodingViewPartner, IConsoleAgentViewPartner, IConsoleFastAgentViewPartner
+    from agentx.ui.interfaces import IRagV2View, IRagV2ViewPartner, IRagV2CreateRepositoryView, IRagV2RepositorySelectionView, IRagV2WebIngestionView, IRagV2PdfIngestionView, IRagV2MdIngestionView
 
 
 class ProviderRegistry:
@@ -185,6 +186,48 @@ class ConsoleProvider(IUIProvider):
         """
         from agentx.ui.screens.fast_agent.fast_agent_view import ConsoleFastAgentView
         return ConsoleFastAgentView(controller)  # type: ignore
+
+    # --- RAG v2 (feature_027) — console-only sibling factories ---
+
+    def create_rag_v2_view(self, controller: "IRagV2ViewPartner") -> "IRagV2View":
+        """Create the console RAG v2 outer view."""
+        from agentx.ui.screens.rag_v2.rag_v2_view import RagV2View
+        return RagV2View(controller)  # type: ignore
+
+    def create_rag_v2_create_repository_view(self, controller):
+        """Create the console RAG v2 create-repository sub-screen view."""
+        from agentx.ui.screens.rag_v2.rag_v2_create_repository_view import (
+            RagV2CreateRepositoryView,
+        )
+        return RagV2CreateRepositoryView(controller)
+
+    def create_rag_v2_repository_selection_view(self, controller):
+        """Create the console RAG v2 repository-selection sub-screen view."""
+        from agentx.ui.screens.rag_v2.rag_v2_repository_selection_view import (
+            RagV2RepositorySelectionView,
+        )
+        return RagV2RepositorySelectionView(controller)
+
+    def create_rag_v2_web_ingestion_view(self, controller):
+        """Create the console RAG v2 web-ingestion sub-screen view."""
+        from agentx.ui.screens.rag_v2.rag_v2_web_ingestion_view import (
+            RagV2WebIngestionView,
+        )
+        return RagV2WebIngestionView(controller)
+
+    def create_rag_v2_pdf_ingestion_view(self, controller):
+        """Create the console RAG v2 PDF-ingestion sub-screen view."""
+        from agentx.ui.screens.rag_v2.rag_v2_pdf_ingestion_view import (
+            RagV2PdfIngestionView,
+        )
+        return RagV2PdfIngestionView(controller)
+
+    def create_rag_v2_md_ingestion_view(self, controller):
+        """Create the console RAG v2 MD-ingestion sub-screen view."""
+        from agentx.ui.screens.rag_v2.rag_v2_md_ingestion_view import (
+            RagV2MdIngestionView,
+        )
+        return RagV2MdIngestionView(controller)
 
     def initialize(self) -> None:
         """Initialize console UI (no-op)."""

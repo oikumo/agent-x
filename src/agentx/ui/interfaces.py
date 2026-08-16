@@ -155,6 +155,37 @@ class IUIProvider(ABC):
         """
         pass
 
+    # --- RAG v2 (feature_027) — console-only sibling factories ---
+
+    @abstractmethod
+    def create_rag_v2_view(self, controller: "IRagV2ViewPartner") -> "IRagV2View":
+        """Create the console RAG v2 outer view implementation."""
+        pass
+
+    @abstractmethod
+    def create_rag_v2_create_repository_view(self, controller) -> "IRagV2CreateRepositoryView":
+        """Create the console RAG v2 create-repository sub-screen view."""
+        pass
+
+    @abstractmethod
+    def create_rag_v2_repository_selection_view(self, controller) -> "IRagV2RepositorySelectionView":
+        """Create the console RAG v2 repository-selection sub-screen view."""
+        pass
+
+    @abstractmethod
+    def create_rag_v2_web_ingestion_view(self, controller) -> "IRagV2WebIngestionView":
+        """Create the console RAG v2 web-ingestion sub-screen view."""
+        pass
+
+    @abstractmethod
+    def create_rag_v2_pdf_ingestion_view(self, controller) -> "IRagV2PdfIngestionView":
+        """Create the console RAG v2 PDF-ingestion sub-screen view."""
+        pass
+
+    @abstractmethod
+    def create_rag_v2_md_ingestion_view(self, controller) -> "IRagV2MdIngestionView":
+        """Create the console RAG v2 MD-ingestion sub-screen view."""
+        pass
     @abstractmethod
     def create_chat_view(self, controller: "IChatViewPartner") -> IChatView:
         """Create chat view implementation.
@@ -640,4 +671,197 @@ class IConsoleFastAgentViewPartner(ABC):
     @abstractmethod
     def start_new_conversation(self) -> None:
         """Start a new conversation (reset thread)."""
+        pass
+
+
+# ── RAG v2 (feature_027) — console-only; v1 IRagView/IRagViewPartner locked ──
+# v2 is a console sibling of v1. The outer ABC pair + 3 inner ABC pairs (G6(a)
+# narrow closure); PDF/MD ingestion views are G4-new ABC pairs. v1's ABCs are
+# NOT touched (D3 defer — v1 stays for the TUI path).
+
+class IRagV2View(ABC):
+    """Abstract interface for the console RAG v2 outer view."""
+
+    @abstractmethod
+    def show(self) -> None:
+        """Display the RAG v2 console screen."""
+        pass
+
+    @abstractmethod
+    def print_message(self, message: str) -> None:
+        """Show an info message."""
+        pass
+
+    @abstractmethod
+    def print_message_error(self, message: str) -> None:
+        """Show an error message."""
+        pass
+
+    @abstractmethod
+    def show_repository_state(self, state: object) -> None:
+        """Display repository information."""
+        pass
+
+    @abstractmethod
+    def show_menu(self) -> None:
+        """Display the menu options."""
+        pass
+
+
+class IRagV2ViewPartner(ABC):
+    """Abstract partner for the RAG v2 view (implemented by RagV2MainController)."""
+
+    @abstractmethod
+    def select_repository(self) -> None:
+        """Select a repository."""
+        pass
+
+    @abstractmethod
+    def create_repository(self) -> None:
+        """Create a new repository."""
+        pass
+
+    @abstractmethod
+    def show_chat(self) -> None:
+        """Show the chat session."""
+        pass
+
+    @abstractmethod
+    def show_web_ingestion(self) -> None:
+        """Show the web-ingestion sub-screen."""
+        pass
+
+    @abstractmethod
+    def show_pdf_ingestion(self) -> None:
+        """Show the PDF-ingestion sub-screen (G4)."""
+        pass
+
+    @abstractmethod
+    def show_md_ingestion(self) -> None:
+        """Show the MD-ingestion sub-screen (G4)."""
+        pass
+
+    @abstractmethod
+    def switch_repository(self) -> None:
+        """Switch the active repository (G5)."""
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close the view."""
+        pass
+
+    @abstractmethod
+    def get_rag_state(self) -> object:
+        """Get the RAG repository state."""
+        pass
+
+
+# --- RAG v2 inner ABC pairs (G6(a) narrow closure) ---------------------------
+
+class IRagV2CreateRepositoryView(ABC):
+    """Abstract interface for the RAG v2 create-repository sub-screen."""
+
+    @abstractmethod
+    def show(self) -> None:
+        pass
+
+    @abstractmethod
+    def show_error(self, message: str) -> None:
+        pass
+
+    @abstractmethod
+    def show_success(self, repo_id: str, repo_path: str) -> None:
+        pass
+
+
+class IRagV2CreateRepositoryViewPartner(ABC):
+    """Abstract partner for the RAG v2 create-repository view."""
+
+    @abstractmethod
+    def on_name_entered(self, name: str) -> bool:
+        pass
+
+    @abstractmethod
+    def get_prompt(self) -> str:
+        pass
+
+
+class IRagV2RepositorySelectionView(ABC):
+    """Abstract interface for the RAG v2 repository-selection sub-screen."""
+
+    @abstractmethod
+    def show(self) -> None:
+        pass
+
+    @abstractmethod
+    def get_selected_index(self) -> int:
+        pass
+
+
+class IRagV2RepositorySelectionViewPartner(ABC):
+    """Abstract partner for the RAG v2 repository-selection view."""
+
+    @abstractmethod
+    def get_repositories(self) -> "list[str] | None":
+        pass
+
+
+class IRagV2WebIngestionView(ABC):
+    """Abstract interface for the RAG v2 web-ingestion sub-screen (G4)."""
+
+    @abstractmethod
+    def show(self) -> None:
+        pass
+
+    @abstractmethod
+    def show_error(self, message: str) -> None:
+        pass
+
+
+class IRagV2WebIngestionViewPartner(ABC):
+    """Abstract partner for the RAG v2 web-ingestion view."""
+
+    @abstractmethod
+    def ingest_url(self, url: str) -> int:
+        pass
+
+
+class IRagV2PdfIngestionView(ABC):
+    """Abstract interface for the RAG v2 PDF-ingestion sub-screen (G4 new)."""
+
+    @abstractmethod
+    def show(self) -> None:
+        pass
+
+    @abstractmethod
+    def show_error(self, message: str) -> None:
+        pass
+
+
+class IRagV2PdfIngestionViewPartner(ABC):
+    """Abstract partner for the RAG v2 PDF-ingestion view."""
+
+    @abstractmethod
+    def ingest_path(self, pdf_path: str) -> int:
+        pass
+
+
+class IRagV2MdIngestionView(ABC):
+    """Abstract interface for the RAG v2 MD-ingestion sub-screen (G4 new)."""
+
+    @abstractmethod
+    def show(self) -> None:
+        pass
+
+    @abstractmethod
+    def show_error(self, message: str) -> None:
+        pass
+
+
+class IRagV2MdIngestionViewPartner(ABC):
+    """Abstract partner for the RAG v2 MD-ingestion view."""
+
+    @abstractmethod
+    def ingest_path(self, md_path: str) -> int:
         pass

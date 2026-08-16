@@ -22,6 +22,7 @@ import json
 import re
 import shutil
 import subprocess
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -538,7 +539,13 @@ class TestOpStateConsultDedup:
     @pytest.mark.skipif(not OMT_Q_PLUGIN.exists(), reason="omt_q.ts not implemented yet (RED)")
     def test_u13_op_state_consult_dedup(self, tmp_path):
         _copy_real_ir(tmp_path)
-        fresh_ts = "2026-08-09T18:00:00Z"  # within 8h of "now" (today is 2026-08-09)
+        # Dynamic timestamp: 1h before "now", always within the 8h
+        # UNLOCK_WINDOW_MS consult-de-dup window. A hardcoded date (2026-08-09)
+        # drifts stale past 8h of the real today → recent_consults becomes empty
+        # and the U13 pin false-fails. Use now-1h so the test is date-stable.
+        fresh_ts = (
+            datetime.now(timezone.utc) - timedelta(hours=1)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
         _write_ledger(tmp_path, [
             {"ts": fresh_ts, "kind": "think_consult", "session": "s",
              "files": ["src/x.py", "src/y.py"], "category": "gotcha",

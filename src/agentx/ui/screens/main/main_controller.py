@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from agentx.ui.screens.chat.chat_controller import ChatController
 from agentx.ui.screens.main.commands.commands import SumCommand, QuitCommand, ClearCommand, HelpCommand, \
-    AIChat, HistoryCommand, NewSessionCommand, LSCommand, RagShowCommand, VersionCommand, \
+    AIChat, HistoryCommand, NewSessionCommand, LSCommand, RagShowCommand, RagV2ShowCommand, VersionCommand, \
     ReactCommand, CodingCommand, ModelsCommand, AgentCommand, FastAgentCommand
 from agentx.ui.screens.main.commands.commands_base import Command
 from agentx.ui.screens.main.commands.commands_parser import CommandParser
@@ -34,6 +34,10 @@ if TYPE_CHECKING:
         ICodingViewPartner,
         IModelsViewPartner,
     )
+    # RAG v2 (feature_027)
+    from agentx.ui.interfaces import IRagV2View
+    from agentx.ui.screens.rag_v2.rag_v2_controller import RagV2MainController
+    from agentx.ui.providers import ConsoleProvider
 
 
 class MainController(IMainViewPartner):
@@ -48,6 +52,10 @@ class MainController(IMainViewPartner):
         self._chat_view: IChatView | None = None
         self._rag_controller: RagController | None = None
         self._rag_view: IRagView | None = None
+        # RAG v2 (feature_027) — console-only sibling of v1. v1's _rag_* stay
+        # for the TUI path; the console `rag` command repoints to v2 below.
+        self._rag_v2_controller: "RagV2MainController | None" = None
+        self._rag_v2_view: "IRagV2View | None" = None
         self._agent_controller: AgentController | None = None
         self._fast_agent_controller: AgentController | None = None
         self._models_controller: "ModelsController | None" = None
@@ -70,7 +78,21 @@ class MainController(IMainViewPartner):
         self.add_command(AIChat("chat", self))
         self.add_command(NewSessionCommand("new", self))
         self.add_command(LSCommand("ls", self))
-        self.add_command(RagShowCommand("rag", self))
+        # feature_027: console `rag` repoints to v2 (console-only); the TUI path
+        # keeps v1's RagShowCommand. When a console provider (ConsoleProvider)
+        # supplied v2, RagV2ShowCommand routes `rag` → show_rag_v2; otherwise
+        # register v1's RagShowCommand for the TUI path. v2 is console-only.
+        # Lazy runtime import (circular-safe): ConsoleProvider is only in
+        # TYPE_CHECKING above, so `isinstance` needs the real class at runtime.
+        # Importing inside load_commands avoids an unbound name (NameError) while
+        # keeping the top-level import cycle-free (pause_2026-08-15_l §Fix 2,
+        # option A — distinguishes the real ConsoleProvider from a TUIProvider/
+        # mock by class identity, which a hasattr capability check could NOT).
+        from agentx.ui.providers import ConsoleProvider
+        if isinstance(self._provider, ConsoleProvider):
+            self.add_command(RagV2ShowCommand("rag", self))
+        else:
+            self.add_command(RagShowCommand("rag", self))
         self.add_command(VersionCommand("version", self))
         # Console parity commands (feature_024)
         self.add_command(ReactCommand("react", self))
@@ -116,6 +138,32 @@ class MainController(IMainViewPartner):
     def get_rag_controller(self) -> tuple[RagController | None, IRagView | None]:
         """Get the RAG controller and view for screen connection."""
         return self._rag_controller, self._rag_view
+
+    def show_rag_v2(self):
+        # TA: gotcha: FIX (feature_024, Constraint d): show_rag_v2 wires the v2
+        # controller via set_view(view) rather than the legacy direct-attribute
+        # assignment (the OLD pattern, which v1's show_rag at line 106 still
+        # uses) — that left _view=None so streaming callbacks silently no-op.
+        # v2 mirrors the FIXED show_react/show_coding pattern (lines 251/273),
+        # NOT v1's buggy show_rag.
+        # C5: reuse an already-wired controller (no fresh rag on every open).
+        # NOTE: show_rag_v2 must NOT call view.show() — the TUI path uses it as
+        # a setup callback then pushes a screen; the console (no-TUI) path
+        # relies on RagV2ShowCommand calling view.show() afterwards (feature_024
+        # parity). v2 is console-only.
+        if self._rag_v2_controller is not None:
+            return
+        from agentx.ui.screens.rag_v2.rag_v2_controller import RagV2MainController
+        rag_v2_controller = RagV2MainController()
+        if self._provider is not None:
+            rag_v2_view = self._provider.create_rag_v2_view(rag_v2_controller)
+            rag_v2_controller.set_view(rag_v2_view)   # set_view (Constraint d), NOT the legacy dot-view assignment
+            self._rag_v2_view = rag_v2_view
+        self._rag_v2_controller = rag_v2_controller
+
+    def get_rag_v2_controller(self) -> tuple["RagV2MainController | None", "IRagV2View | None"]:
+        """Get the RAG v2 controller and view for screen connection."""
+        return self._rag_v2_controller, self._rag_v2_view
 
     def show_agent(self) -> None:
         """Create and wire an Agent + AgentController for the TUI agent screen.
