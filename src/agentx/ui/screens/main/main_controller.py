@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from typing import TYPE_CHECKING, cast
 
 from agentx.ui.screens.chat.chat_controller import ChatController
@@ -333,7 +332,12 @@ class MainController(IMainViewPartner):
         self.view.show()
 
     def get_commands(self) -> list[Command]:
-        return copy.deepcopy(list(self.commands.values()))
+        # NOTE: shallow copy only — deepcopy would recurse into every Command's
+        # ``controller`` back-reference and copy the whole MainController graph
+        # (views, providers, and live rag_v2 worker threads), which crashes with
+        # ``TypeError: cannot pickle '_thread.lock' object``. Callers only read
+        # ``key``/``description`` (HelpCommand), so a shallow list copy is enough.
+        return list(self.commands.values())
 
     def add_command(self, command: Command):
         self.commands[command.key] = command

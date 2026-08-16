@@ -8,6 +8,7 @@ Follows OMT++ §11:
 
 from __future__ import annotations
 
+import threading
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -135,3 +136,55 @@ class TestMainControllerShowFastAgent(TestCase):
         self.controller.show_fast_agent()
         assert self.controller._fast_agent_controller is not None
         assert self.controller._fast_agent_view is self.mock_fast_agent_view
+
+
+class TestMainControllerHelpAfterRagV2Chat(TestCase):
+    """Regression (bug_fix.help_command_deepcopy_thread).
+
+    ``get_commands()`` used to deepcopy every Command; each Command holds a
+    back-reference to the MainController, whose graph contains the RAG v2
+    worker thread once a chat has run. ``copy.deepcopy`` on a started
+    ``threading.Thread`` raises ``TypeError: cannot pickle '_thread.lock'
+    object`` — so the console ``help`` command crashed after any RAG v2 chat.
+    """
+
+    def setUp(self) -> None:
+        self.mock_provider = MagicMock(spec=IUIProvider)
+        self.mock_provider.create_rag_v2_view.return_value = MagicMock()
+        self.controller = MainController(provider=self.mock_provider)
+
+    def test_get_commands_survives_rag_v2_worker_thread(self) -> None:
+        """get_commands() must not crash when the RAG v2 worker thread exists."""
+        self.controller.show_rag_v2()
+        rag_v2 = self.controller._rag_v2_controller
+        assert rag_v2 is not None
+        thread = threading.Thread(
+            target=lambda: None,
+            daemon=True,
+            name="AgentX-RagV2-Worker",
+        )
+        thread.start()
+        rag_v2._worker_thread = thread
+        try:
+            commands = self.controller.get_commands()
+        finally:
+            thread.join(timeout=5)
+        assert "help" in [command.key for command in commands]
+
+    def test_help_command_run_survives_rag_v2_worker_thread(self) -> None:
+        """The console ``help`` command works after a RAG v2 chat (no pickle crash)."""
+        self.controller.show_rag_v2()
+        rag_v2 = self.controller._rag_v2_controller
+        assert rag_v2 is not None
+        thread = threading.Thread(
+            target=lambda: None,
+            daemon=True,
+            name="AgentX-RagV2-Worker",
+        )
+        thread.start()
+        rag_v2._worker_thread = thread
+        try:
+            help_command = self.controller.commands["help"]
+            help_command.run([])
+        finally:
+            thread.join(timeout=5)
