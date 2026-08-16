@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-08-16 (iter 4 — post-ship review: all gates re-verified live; PROJECT.md status sync)
+
+### Done
+
+- **Independent review of feature_028 against PROJECT.md v1.2 — implementation complete, zero failures.** Re-ran every gate live: 217/217 `tests/scripts/omt/`; full suite **1277/1277, 0 failures** (the 2 KNOWN_SUITE_FAILURES tolerated at ship time pass in-process); `harnessc check` 0 errors (247 records); e2e receipt fresh (17:32, HEAD = feature_028 WIP commit); live `omt_q{op:state}` = compact T1 summary (2,706B, counts+samples as designed); `omt_q{op:drift}` → `drift_records: []`. All 5 R9 rounds' code anchors verified in-tree (state.py `_active_feature`/baseline tier; gates.py coverage-on-diff + HAT_RULES "nothing editable"; cli.py `feature_suite_passes`/`repo_hygiene_passes`/`cmd_baseline`; phase_gate.ts `baseline_failures` capture; omt_q.ts `verbose` projection).
+- **Found ONE gap: stale PROJECT.md status — fixed in place.** §Status checkboxes + header + §Out-of-scope reminders still read "scaffolding/phase pending, deferred" although Phase-A shipped 2026-08-16. Updated: Phase-A marked DONE-as-feature_028 with test-report pointer + post-ship verification line; Phase-B/C remain pending (separate features per the v1.2 surface). No code changes; no harness rebuild needed (`.projects/` is non-gated, not harness source).
+
+### Locked decisions (do not re-litigate without new evidence)
+
+- (unchanged) D1–D9 hold; Phase-B/C deferral is user-approved (v1.2) — they are planned features, not gaps.
+
+### In progress / Blocked
+
+- _(nothing)_
+
+### Next
+
+- **Phase-B** (P2-4 `omt_tdd{op:sync}` · P2-5 structural-pin GOTCHA_ · P2-6 date lint · P2-7 skip-scope alignment · **T2 nav-answer caps**) — scaffold as its own feature when the user calls it.
+- **Phase-C** (P3-9 g.kb per-file Read-recency · P3-10 artifact scaffolds · P3-11 LSP allowlist · P3-12 receipt auto-refresh · **T3 resume digest**, design-needed) — after Phase-B.
+
+### Notes / context
+
+- Accepted limitations confirmed working-as-designed (test report §Known limitations): added-only coverage-on-diff (modified needs body-hash, R5 deferral); live op=state 2,706B vs ~2KB target (delta = actionable per-session scalars, kept by design; ≤2048B pinned hermetically); feature_028's own validate-exit full-scan (legacy strict path, safe).
+- Evaluation candidates remain logged, not fixed (out of v1.2 surface): skip-shadows-phase mute of the TDD deferral; testlist bootstrap friction (zero edits allowed → first RED needs `omt_skip{tests}`).
+
+---
+
 ## 2026-08-16 (iter 3 — Phase-A BUILD COMPLETE: 10/10 behaviors GREEN, done gate ✅)
 
 ### Done

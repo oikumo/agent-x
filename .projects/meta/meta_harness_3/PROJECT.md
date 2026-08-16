@@ -1,6 +1,6 @@
 # PROJECT: meta_harness_3 — Feature-Scoped Lifecycle Gating (v3)
 
-> Status: **v1.2 (2026-08-16)** — v1.0 created the project home from the real-session evaluation `.sandbox/session_2026-08-15_feature_027_completion.md` (a ~90-minute end-to-end OMT++ run that drove feature_027.rag_v2 from "~80% GREEN, 6 failing tests" to `omt_tdd{op:done}` + `omt_complete{Done}`, 31/31 v2 tests green). v1.0 locks the headline principle — **feature-scoped gating beats repo-scoped gating** — and maps the evaluation's 12 friction items + 12 prioritized improvements (§5 table) onto a Phase-A/B/C build surface, each item grounded against the *current* working tree (verified 2026-08-16: `gates.py`, `state.py`, `phase_gate.ts` line anchors below). **v1.2 (2026-08-16): unified re-scope approved by the user** — the project now carries TWO axes: the v3 feature-scoped-gating friction surface (12 items, thesis unchanged) + a measured token-efficiency axis (T1–T4) grounded in opencode.db (1009 agentx sessions, 2026-04-19→2026-08-16: 494M input / 1.07B cache-read tokens, 68.8MB tool-result bytes). Placement: T1 `omt_q{op:state}` summary projection → Phase-A, T2 nav-answer caps → Phase-B, T3 duplicate-read mitigation → Phase-C, T4 schema-budget zero-sum → Decisions (D9). Evidence + per-item measurements in §Token evidence (v1.2). Feature-dir scaffolding and phase declaration remain deferred (§Status).
+> Status: **v1.2 (2026-08-16)** — v1.0 created the project home from the real-session evaluation `.sandbox/session_2026-08-15_feature_027_completion.md` (a ~90-minute end-to-end OMT++ run that drove feature_027.rag_v2 from "~80% GREEN, 6 failing tests" to `omt_tdd{op:done}` + `omt_complete{Done}`, 31/31 v2 tests green). v1.0 locks the headline principle — **feature-scoped gating beats repo-scoped gating** — and maps the evaluation's 12 friction items + 12 prioritized improvements (§5 table) onto a Phase-A/B/C build surface, each item grounded against the *current* working tree (verified 2026-08-16: `gates.py`, `state.py`, `phase_gate.ts` line anchors below). **v1.2 (2026-08-16): unified re-scope approved by the user** — the project now carries TWO axes: the v3 feature-scoped-gating friction surface (12 items, thesis unchanged) + a measured token-efficiency axis (T1–T4) grounded in opencode.db (1009 agentx sessions, 2026-04-19→2026-08-16: 494M input / 1.07B cache-read tokens, 68.8MB tool-result bytes). Placement: T1 `omt_q{op:state}` summary projection → Phase-A, T2 nav-answer caps → Phase-B, T3 duplicate-read mitigation → Phase-C, T4 schema-budget zero-sum → Decisions (D9). Evidence + per-item measurements in §Token evidence (v1.2). **Phase-A SHIPPED as `feature_028.feature_scoped_gating` (DONE 2026-08-16, test report @ `6.testing/features/feature_028.feature_scoped_gating/test_report.md`); Phase-B/C remain pending as separate features (§Status).**
 >
 > Project home convention: `PROJECT.md` (canonical) + `CURRENT_STATE.md` (session log + resume point), per `.meta/META_HARNESS.omt:184`/`:208`. Non-gated (`.projects/` not in `harness_paths`) — the edits that created this file required no `omt_phase`.
 
@@ -59,7 +59,7 @@ v3's job is to implement that table against the current working tree. The build 
 
 - **Not a rewrite of v1/v2 mechanics.** The 9 gates + enforcer + TDD engine + IR compiler + `omt_q` interrogative layer stay. v3 changes *scope semantics* of existing gates (`suite_passes` → feature-scoped, coverage → diff-scoped) and adds *ops/conventions* (`omt_tdd{op:sync}`, structural-pin gotcha, date lint) — no gate is removed, no substrate is replaced.
 - **Not a fix to the agent's misuse patterns.** The evaluation's LOCAL items that were the agent's own fault (e.g., not calling `omt_kb_nav` proactively before reading a file) are addressed only where a harness-side change removes the *recurrence* (P3 g.kb recent-read), not by re-architecting.
-- **Not the feature_001/002 pending work.** Those remain scope-unset in WORK.md; v3 is a meta-harness project, home-owned in `.projects/meta/meta_harness_3/`, with feature-dir scaffolding deferred (see §Status).
+- **Not the feature_001/002 pending work.** Those remain scope-unset in WORK.md; v3 is a meta-harness project, home-owned in `.projects/meta/meta_harness_3/`, with Phase-A already shipped as feature_028 (see §Status).
 - **Not a documentation exercise.** Every P1/P2 item is tied to a verified code anchor + a testable verification shape (see §Scope → Success criteria). The doc is the plan; the gates are the deliverable.
 
 ---
@@ -199,18 +199,19 @@ T3. **Duplicate-read mitigation (v1.2 token item; design-needed).** Measured: th
 - [x] Improvement surface locked — P1/P2/P3 table (12 items) with verified anchors (v1.0)
 - [x] **Plan review v1.1 — pre-build verification against the working tree** (2026-08-16): 11 findings (R1–R11) — 2 anchor corrections (P1-2 cmd_done vs cmd_validate_exit; P3-9 recent_consults is think-substrate not KB/Read), 1 reframe (P1-1 → feature-scoped TDD state derivation), 1 safety-critical gap (P1-2 `baseline_failures` regression guard, D5), 2 correctness gaps (P1-3 added-vs-modified + feature-baseline snapshot tier; P3-8 HAT_RULES robustness), 1 fold (P3-8 → Phase-A gates.py round), 2 location notes (P2-4 cli.py), sequencing (R9 receipt-round order) + verification sharpening (R10/R11 hermetic fixtures). Inline corrections applied to §Purpose table + §Scope; audit trail in §Plan review. See §Iteration log iter v1.1.
 - [x] **Token deep analysis + unified re-scope (v1.2)** (2026-08-16): opencode.db evidence (1009 sessions; 494M input tokens; 68.8MB tool-result bytes), 4 token findings (T1–T4), user-approved placement (T1→Phase-A as 5th R9 round, T2→Phase-B, T3→Phase-C, T4→D9 policy) + user-approved T1 shape (summary default + `verbose:true`). See §Token evidence (v1.2) + iter v1.2.
-- [ ] Feature dir scaffolded — pending (next free slot **feature_028**; `uv run scripts/omt/new_feature.py "<name>" --type <task_type>`, deferred until this project definition is approved)
-- [ ] Phase declared — pending (the first `omt_phase` decree, deferred until the feature dir exists and the Phase-A scope is locked)
-- [ ] Phase-A build (P1 ×3 + folded P3-8) — pending (feature_028 Programming, TDD; receipt-round order per R9: state.py → gates.py(+P3-8) → cli.py → phase_gate.ts; D5 regression golden mandatory per R4)
-- [ ] Phase-B build (P2 ×4) — pending
-- [ ] Phase-C build (P3 ×4 — P3-8 folded to A) — pending
+- [x] Feature dir scaffolded — **feature_028.feature_scoped_gating** (2026-08-16; TDD refactor, `omt_phase` declared)
+- [x] Phase declared — `omt_phase` Programming/TDD for feature_028 (2026-08-16)
+- [x] **Phase-A build (P1 ×3 + folded P3-8 + T1) — DONE 2026-08-16** (feature_028, 5 R9 receipt rounds: state.py P1-1 → gates.py P1-3+P3-8 → cli.py P1-2+R4 → phase_gate.ts R4 capture → omt_q.ts T1). 10/10 testlist behaviors GREEN; `omt_tdd{op:done}` ✅; D5 regression golden shipped per R4. Test report @ `6.testing/features/feature_028.feature_scoped_gating/test_report.md`
+- [x] **Phase-A post-ship verification (2026-08-16, independent review)** — 217/217 `tests/scripts/omt/`; full suite 1277/1277 (0 failures; the 2 KNOWN_SUITE_FAILURES tolerated at ship time pass in-process); `harnessc check` 0 errors (247 records); live `omt_q{op:state}` = compact T1 summary (2,706B); `omt_q{op:drift}` → `drift_records: []`
+- [ ] Phase-B build (P2 ×4 + T2) — pending (separate feature per the v1.2 surface; not scaffolded)
+- [ ] Phase-C build (P3 ×4 — P3-8 folded to A + T3) — pending (separate feature per the v1.2 surface; not scaffolded)
 
 ---
 
 ## Out-of-scope reminders (deferred, not done by this document)
 
-- Feature-dir scaffolding — `.meta/software_development_process/<phase>/features/feature_028.*/` is **not** created by this document; creation awaits project-definition approval.
-- Phase declaration — no `omt_phase` is invoked by this document; the first decree awaits the feature dir.
+- Feature-dir scaffolding — not created by this document (awaited project-definition approval at writing time); **since completed: feature_028.feature_scoped_gating, 2026-08-16**.
+- Phase declaration — no `omt_phase` was invoked by this document; **the first decree was declared post-approval (feature_028 Programming/TDD, 2026-08-16)**.
 - `src/` edits — none; this document is project-home markdown only.
 - Any design/analysis/test artifacts — owned by the feature_028 phases, not by this project home.
 
