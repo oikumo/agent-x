@@ -680,13 +680,12 @@ is_enabled(transition)        # optional convenience: is_enabled_at(current_mark
 is_enabled_at(marking, transition)
 fire(transition)
 fire_marking(marking, transition)
-enabled_transitions()         # optional convenience: enabled_transitions_at(current_marking())
 enabled_transitions_at(marking)
 current_marking()
 reset()
 ```
 
-The two convenience wrappers are optional: a minimal v1 may omit them and call the `_at` variants with `current_marking()` directly (see also the §10 engine, which defines only the `_at` variants plus `is_enabled`/`enabled_transitions` as thin delegations).
+The convenience wrappers `is_enabled()` and `enabled_transitions()` are **not included in the canonical v1 engine** (§10). Callers use the `_at` variants with `current_marking()` directly. This keeps the model layer minimal and explicit.
 
 > ⚠️ **API gotcha**: `add_input(place, transition, weight=1)` and `add_output(transition, place, weight=1)` have **swapped argument order** — they follow the arc direction (place→transition for inputs, transition→place for outputs). This is intentional but a frequent source of bugs; call them explicitly by keyword (`place=..., transition=...`) to avoid mistakes.
 
@@ -737,6 +736,14 @@ class TransitionNotEnabledError(PetriNetError):
     pass
 
 
+class DuplicatePlaceError(InvalidModelError):
+    pass
+
+
+class DuplicateArcError(InvalidModelError):
+    pass
+
+
 @dataclass
 class PetriNet:
     places: set[str] = field(default_factory=set)
@@ -752,7 +759,7 @@ class PetriNet:
         if not isinstance(tokens, int) or isinstance(tokens, bool) or tokens < 0:
             raise ValueError("Token count must be a non-negative integer")
         if name in self.places:
-            raise ValueError(f"Place already exists: {name}")
+            raise DuplicatePlaceError(f"Place already exists: {name}")
 
         self.places.add(name)
         self.marking[name] = tokens
@@ -771,7 +778,7 @@ class PetriNet:
     def add_input(self, place: str, transition: str, weight: int = 1) -> None:
         self._validate_arc(place, transition, weight)
         if place in self.inputs[transition]:
-            raise InvalidModelError(
+            raise DuplicateArcError(
                 f"Input arc already exists: {place} -> {transition}"
             )
         self.inputs[transition][place] = weight
@@ -779,7 +786,7 @@ class PetriNet:
     def add_output(self, transition: str, place: str, weight: int = 1) -> None:
         self._validate_arc(place, transition, weight)
         if place in self.outputs[transition]:
-            raise InvalidModelError(
+            raise DuplicateArcError(
                 f"Output arc already exists: {transition} -> {place}"
             )
         self.outputs[transition][place] = weight
@@ -826,18 +833,12 @@ class PetriNet:
             for place, weight in self.inputs[transition].items()
         )
 
-    def is_enabled(self, transition: str) -> bool:
-        return self.is_enabled_at(self.current_marking(), transition)
-
     def enabled_transitions_at(self, marking: tuple[int, ...]) -> list[str]:
         return [
             t
             for t in self.transition_order
             if self.is_enabled_at(marking, t)
         ]
-
-    def enabled_transitions(self) -> list[str]:
-        return self.enabled_transitions_at(self.current_marking())
 
     def fire_marking(
         self,
@@ -941,50 +942,11 @@ class ReachabilityResult:
     explored_states: int
 ```
 
-### Implementation
+### Canonical implementation
 
-```python
-from collections import deque
+The canonical implementation is the `PetriNetAnalyzer.reachable_markings` method in **§31** (the full `analysis.py` listing). The standalone function form shown in earlier drafts is retained here only for semantic clarity; the analyzer method is the authoritative API.
 
-
-def reachable_markings(
-    net: PetriNet,
-    max_states: int | None = None,
-) -> ReachabilityResult:
-    initial = net.initial_marking_tuple()
-    queue = deque([initial])
-    visited = {initial}
-    predecessors = {initial: (None, None)}
-    complete = True
-
-    while queue:
-        marking = queue.popleft()
-
-        for transition in net.enabled_transitions_at(marking):
-            successor = net.fire_marking(marking, transition)
-
-            if successor in visited:
-                continue
-
-            if max_states is not None and len(visited) >= max_states:
-                complete = False
-                queue.clear()
-                break
-
-            visited.add(successor)
-            predecessors[successor] = (marking, transition)
-            queue.append(successor)
-
-        if not complete:
-            break
-
-    return ReachabilityResult(
-        markings=frozenset(visited),
-        predecessors=predecessors,
-        complete=complete,
-        explored_states=len(visited),
-    )
-```
+The BFS explores from the initial marking, using a `deque` for the frontier and a `set` for visited states. For each dequeued marking, every enabled transition is fired to produce a successor. Successors not yet visited are enqueued and recorded in the predecessor map. A `max_states` limit truncates exploration cleanly: when hit, `complete=False` is set, the queue is cleared, and the loop exits. The `explored_states` count equals the number of distinct markings discovered (including the initial).
 
 The caller must not assume that `complete=True` is possible for every Petri net. An unbounded net can have infinitely many reachable markings.
 
@@ -1054,11 +1016,15 @@ def reachability_graph(
 
 A reachability graph is the central structure from which several analyses can be derived. When truncated, outgoing edges of explored states are still recorded, so `edges` may reference target states that are not in `states`; consumers must check `complete` before drawing conclusions (§28).
 
+### Canonical implementation
+
+The canonical implementation is `PetriNetAnalyzer.reachability_graph` in **§31**. The standalone function form is retained here for semantic clarity only. The BFS structure is identical to reachability analysis, but instead of a predecessor map it records all outgoing edges per state (including edges to targets that were discovered but not enqueued when truncated). This makes the graph a richer artifact from which deadlocks, bounds, and firing sequences can be derived without re-exploring.
+
 ---
 
 ## 14. Recovering a Firing Sequence
 
-Given the predecessor map from BFS, implement:
+Given the predecessor map from a `ReachabilityResult` (or the graph's predecessor information), the shortest firing sequence to a target marking is recovered by walking backwards:
 
 ```python
 def firing_sequence_to(
@@ -1083,7 +1049,7 @@ def firing_sequence_to(
     return transitions
 ```
 
-This gives a shortest firing sequence under BFS edge count.
+This gives a shortest firing sequence under BFS edge count. The canonical implementation is a method on `PetriNetAnalyzer` in **§31**.
 
 If `target` is not in `result.markings` and `result.complete` is `False`, the returned `None` means "no sequence found in the explored prefix" — the target may still be reachable beyond the search limit. Only a complete result turns `None` into a proof of unreachability.
 
@@ -1102,28 +1068,11 @@ class DeadlockResult:
     complete: bool
     explored_states: int
     reason: str | None = None
-
-
-def deadlocks(
-    net: PetriNet,
-    max_states: int | None = None,
-) -> DeadlockResult:
-    result = reachable_markings(net, max_states=max_states)
-
-    found = sorted(
-        marking
-        for marking in result.markings
-        if not net.enabled_transitions_at(marking)
-    )
-
-    return DeadlockResult(
-        deadlocks=tuple(found),
-        complete=result.complete,
-        explored_states=result.explored_states,
-        reason=None if result.complete else
-            "State-space exploration was truncated; listed deadlocks are only those among explored states.",
-    )
 ```
+
+### Canonical implementation
+
+The canonical implementation is `PetriNetAnalyzer.deadlocks` in **§31**. It reuses the reachability exploration (via the shared internal `_explore` method in the full `analysis.py`) and filters for markings with no enabled transitions. The `complete` flag and `reason` are propagated from the exploration result.
 
 Important limitation: if exploration is incomplete because of a state limit, the returned deadlocks are only deadlocks among the explored states. The `complete` flag makes that explicit instead of pretending the result is exhaustive.
 
@@ -1139,7 +1088,7 @@ For a finite reachability graph, boundedness is easy to determine:
 2. Compute the maximum token count observed in each place.
 3. If exploration completes, those maxima are valid bounds.
 
-Implementation:
+### Data structure
 
 ```python
 @dataclass(frozen=True)
@@ -1148,34 +1097,11 @@ class BoundResult:
     bounds: dict[str, int]
     complete: bool
     reason: str | None = None
-
-
-def bounds(
-    net: PetriNet,
-    max_states: int | None = None,
-) -> BoundResult:
-    result = reachable_markings(net, max_states=max_states)
-    place_order = net.place_order
-
-    maxima = {place: 0 for place in place_order}
-    for marking in result.markings:
-        for i, place in enumerate(place_order):
-            maxima[place] = max(maxima[place], marking[i])
-
-    if result.complete:
-        return BoundResult(
-            bounded=True,
-            bounds=maxima,
-            complete=True,
-        )
-
-    return BoundResult(
-        bounded=None,
-        bounds=maxima,
-        complete=False,
-        reason="State-space exploration was truncated; boundedness is unknown.",
-    )
 ```
+
+### Canonical implementation
+
+The canonical implementation is `PetriNetAnalyzer.bounds` in **§31**. It reuses the shared exploration and computes per-place maxima over the discovered markings. When the exploration is complete, `bounded=True` and the maxima are proven bounds. When truncated, `bounded=None` with observed maxima and a `reason`.
 
 ### Important
 
@@ -1443,72 +1369,35 @@ Implementation strategy:
 
 A more efficient implementation can reverse the graph and perform one multi-source BFS from all states enabling `t`.
 
-### Example implementation
+### Canonical implementation
 
-```python
-def transition_liveness(
-    net: PetriNet,
-    transition: str,
-    graph: ReachabilityGraph,
-) -> AnalysisResult:
-    """True = t is live (every reachable state can reach a state enabling t);
-    False = disproven; None = unknown because the graph is incomplete."""
-    if not graph.complete:
-        return AnalysisResult(
-            None, False, len(graph.states),
-            "Reachability graph is incomplete; liveness is unknown.",
-        )
-
-    enabling_states = {
-        state
-        for state in graph.states
-        if net.is_enabled_at(state, transition)
-    }
-
-    if not enabling_states:
-        return AnalysisResult(False, True, len(graph.states))
-
-    reverse: dict[tuple[int, ...], list[tuple[int, ...]]] = {
-        state: [] for state in graph.states
-    }
-
-    for source, outgoing in graph.edges.items():
-        for _, target in outgoing:
-            reverse.setdefault(target, []).append(source)
-
-    stack = list(enabling_states)
-    can_reach_enabled = set(enabling_states)
-
-    while stack:
-        current = stack.pop()
-        for predecessor in reverse.get(current, []):
-            if predecessor not in can_reach_enabled:
-                can_reach_enabled.add(predecessor)
-                stack.append(predecessor)
-
-    return AnalysisResult(
-        can_reach_enabled == set(graph.states),
-        True,
-        len(graph.states),
-    )
-```
-
-This is only an exhaustive result when the graph itself is complete.
+The canonical implementation is `PetriNetAnalyzer.transition_liveness` in **§31**. It takes a pre-computed `ReachabilityGraph` (never rebuilding it) and performs a reverse graph search from all states where the transition is enabled. If the graph is incomplete, it returns `AnalysisResult(None, False, ...)` with a reason. If no enabling states exist, it returns `False` (disproven). Otherwise it checks whether all reachable states can reach an enabling state.
 
 ---
 
 ## 21. Global Liveness
 
-To determine whether the whole net is live over a finite complete reachability graph:
+To determine whether the whole net is live over a finite complete reachability graph, every transition must be live:
 
 ```python
 def is_live(net: PetriNet, graph: ReachabilityGraph) -> AnalysisResult:
+    if not graph.complete:
+        return AnalysisResult(
+            None,
+            False,
+            len(graph.states),
+            "Reachability graph is incomplete; global liveness is unknown.",
+        )
     for transition in net.transition_order:
         result = transition_liveness(net, transition, graph)
         if result.value is not True:
             return result
-    return AnalysisResult(True, graph.complete, len(graph.states))
+    return AnalysisResult(True, True, len(graph.states))
 ```
+
+**Note:** The upfront `graph.complete` check handles the vacuous-truth edge case (zero transitions + incomplete graph) by returning `value=None` rather than `True` with `complete=False`, preserving the §27 contract ("True = proven").
+
+The canonical implementation is `PetriNetAnalyzer.is_live` in **§31**.
 
 A `value` of `None` should mean "unknown because analysis was incomplete," not false.
 
@@ -1634,7 +1523,7 @@ Simulation chooses one enabled transition at a time:
 
 ```python
 while True:
-    enabled = net.enabled_transitions()
+    enabled = net.enabled_transitions_at(net.current_marking())
     if not enabled:
         break
 
@@ -1760,27 +1649,25 @@ The test suite should use these small nets with known properties (referenced thr
 # Place order is always sorted alphabetically for tuple markings.
 # "arcs": {transition: {"in": {place: weight}, "out": {place: weight}}}
 
-CONSERVATION_NET = {
+# Two-way cycle: structurally identical net used for multiple properties
+# by varying the initial marking.
+TWO_WAY_CYCLE = {
     "places": ["p1", "p2"],
-    "initial_marking": (1, 1),  # p1+p2 = 2 invariant
     "transitions": ["t1", "t2"],
     "arcs": {
         "t1": {"in": {"p1": 1}, "out": {"p2": 1}},
         "t2": {"in": {"p2": 1}, "out": {"p1": 1}},
     },
-    "description": "p1 --t1--> p2 --t2--> p1 (p1+p2 constant)",
+    "description": "p1 --t1--> p2 --t2--> p1",
 }
 
-CYCLE_NET = {
-    "places": ["p1", "p2"],
-    "initial_marking": (1, 0),  # token cycles p1→p2→p1
-    "transitions": ["t1", "t2"],
-    "arcs": {
-        "t1": {"in": {"p1": 1}, "out": {"p2": 1}},
-        "t2": {"in": {"p2": 1}, "out": {"p1": 1}},
-    },
-    "description": "p1 --t1--> p2 --t2--> p1 (live, bounded)",
-}
+# Initial markings for the two-way cycle:
+# - CONSERVATION: (1, 1) → p1+p2=2 invariant
+# - LIVE_BOUNDED: (1, 0) → token cycles forever, live & bounded
+# - P_INVARIANT: (1, 1) or (1, 0) both show p1+p2 constant
+# - T_INVARIANT: (1, 1) or (1, 0) both show t1+t2 returns to start
+CONSERVATION_M0 = (1, 1)
+LIVE_BOUNDED_M0 = (1, 0)
 
 UNBOUNDED_NET = {
     "places": ["p"],
@@ -1803,9 +1690,10 @@ DEADLOCK_NET = {
 }
 
 # Convenience: build a PetriNet from the dict above (places, arcs included)
-def make_net(defn):
+def make_net(defn, initial_marking=None):
     net = PetriNet()
-    for place, tokens in zip(defn["places"], defn["initial_marking"]):
+    m0 = initial_marking if initial_marking is not None else defn["initial_marking"]
+    for place, tokens in zip(defn["places"], m0):
         net.add_place(place, tokens=tokens)
     for transition in defn["transitions"]:
         net.add_transition(transition)
@@ -1817,7 +1705,7 @@ def make_net(defn):
     return net
 ```
 
-Now the test suite can reference `CONSERVATION_NET`, `CYCLE_NET`, etc., instead of redefining nets inline.
+Now the test suite can reference `TWO_WAY_CYCLE` with `CONSERVATION_M0` or `LIVE_BOUNDED_M0`, `UNBOUNDED_NET`, `DEADLOCK_NET` instead of redefining nets inline.
 
 ### Reachability
 
@@ -1830,7 +1718,8 @@ def test_reachability_finds_successor():
     net.add_input("a", "move")
     net.add_output("move", "b")
 
-    result = reachable_markings(net)
+    analyzer = PetriNetAnalyzer(net)
+    result = analyzer.reachable_markings()
 
     assert len(result.markings) == 2
     assert result.complete is True
@@ -1845,7 +1734,8 @@ def test_deadlock_is_detected():
     net.add_transition("t")
     net.add_input("p", "t")
 
-    result = deadlocks(net)
+    analyzer = PetriNetAnalyzer(net)
+    result = analyzer.deadlocks()
 
     assert result.deadlocks == ((0,),)
     assert result.complete is True
@@ -1863,18 +1753,7 @@ The token simply moves between places.
 
 ### Unboundedness
 
-Construct:
-
-```text
-      +----------+
-      |          |
-      v          |
-[p] --t----------+
-       |
-       +--> [p]
-```
-
-More concretely, use an input of one token and an output of two tokens to demonstrate growth:
+Use an input of one token and an output of two tokens to demonstrate growth:
 
 ```text
 p --1--> t --2--> p
@@ -1930,11 +1809,9 @@ A net with a transition that can only fire once and then becomes permanently dis
 
 ---
 
-## 31. Partial Analysis Module Skeleton (BFS Core)
+## 31. Canonical Analysis Module (v1 Complete)
 
-> **Note:** The method bodies below (`reachable_markings`, `deadlocks`, `bounds`) mirror the standalone implementations in §12, §15, and §16 respectively. They are shown together here as a cohesive `PetriNetAnalyzer` class skeleton for the public API (§32); the algorithmic details are not duplicated in prose.
-
-A practical first version can look like:
+This is the single authoritative `analysis.py` for v1. All standalone function forms in §12–§16 and §20–§21 are retained for semantic clarity only; the methods below are the canonical API.
 
 ```python
 # analysis.py
@@ -1981,82 +1858,344 @@ class DeadlockResult:
     reason: str | None = None
 
 
+@dataclass(frozen=True)
+class AnalysisResult:
+    value: bool | None
+    complete: bool
+    explored_states: int
+    reason: str | None = None
+
+
 class PetriNetAnalyzer:
     def __init__(self, net: PetriNet):
         self.net = net
 
-    def reachable_markings(
+    # --- Shared exploration core ---
+
+    def _explore(
         self,
         max_states: int | None = None,
-    ) -> ReachabilityResult:
+    ) -> tuple[frozenset[Marking], dict[Marking, tuple[Marking | None, str | None]], dict[Marking, list[tuple[str, Marking]]], bool, int]:
+        """
+        Returns (states, predecessors, edges, complete, explored_states).
+        Single BFS that produces both predecessor map (for firing_sequence_to)
+        and edge map (for reachability_graph).
+        """
         initial = self.net.initial_marking_tuple()
         queue = deque([initial])
         visited = {initial}
         predecessors = {initial: (None, None)}
+        edges: dict[Marking, list[tuple[str, Marking]]] = {}
         complete = True
 
         while queue:
             marking = queue.popleft()
+            outgoing = []
+
             for transition in self.net.enabled_transitions_at(marking):
                 successor = self.net.fire_marking(marking, transition)
+                outgoing.append((transition, successor))
 
                 if successor in visited:
                     continue
 
                 if max_states is not None and len(visited) >= max_states:
                     complete = False
-                    queue.clear()
-                    break
+                    continue
 
                 visited.add(successor)
                 predecessors[successor] = (marking, transition)
                 queue.append(successor)
 
+            edges[marking] = outgoing
+
             if not complete:
                 break
 
+        frozen_edges = {state: tuple(out) for state, out in edges.items()}
+        return frozenset(visited), predecessors, frozen_edges, complete, len(visited)
+
+    # --- Public API ---
+
+    def reachable_markings(
+        self,
+        max_states: int | None = None,
+    ) -> ReachabilityResult:
+        states, predecessors, _, complete, explored = self._explore(max_states)
         return ReachabilityResult(
-            markings=frozenset(visited),
+            markings=states,
             predecessors=predecessors,
             complete=complete,
-            explored_states=len(visited),
+            explored_states=explored,
         )
 
+    def reachability_graph(
+        self,
+        max_states: int | None = None,
+    ) -> ReachabilityGraph:
+        states, _, edges, complete, _ = self._explore(max_states)
+        return ReachabilityGraph(
+            states=states,
+            edges=edges,
+            complete=complete,
+        )
+
+    def firing_sequence_to(
+        self,
+        result: ReachabilityResult,
+        target: Marking,
+    ) -> list[str] | None:
+        if target not in result.markings:
+            return None
+
+        transitions: list[str] = []
+        current = target
+
+        while True:
+            previous, transition = result.predecessors[current]
+            if previous is None:
+                break
+            assert transition is not None
+            transitions.append(transition)
+            current = previous
+
+        transitions.reverse()
+        return transitions
+
     def deadlocks(self, max_states: int | None = None) -> DeadlockResult:
-        result = self.reachable_markings(max_states)
+        states, _, _, complete, explored = self._explore(max_states)
+
         found = sorted(
             marking
-            for marking in result.markings
+            for marking in states
             if not self.net.enabled_transitions_at(marking)
         )
+
         return DeadlockResult(
             deadlocks=tuple(found),
-            complete=result.complete,
-            explored_states=result.explored_states,
-            reason=None if result.complete else
-                "State-space exploration was truncated.",
+            complete=complete,
+            explored_states=explored,
+            reason=None if complete else
+                "State-space exploration was truncated; listed deadlocks are only those among explored states.",
         )
 
     def bounds(self, max_states: int | None = None) -> BoundResult:
-        result = self.reachable_markings(max_states)
-        maxima = {place: 0 for place in self.net.place_order}
+        states, _, _, complete, _ = self._explore(max_states)
+        place_order = self.net.place_order
 
-        for marking in result.markings:
-            for i, place in enumerate(self.net.place_order):
+        maxima = {place: 0 for place in place_order}
+        for marking in states:
+            for i, place in enumerate(place_order):
                 maxima[place] = max(maxima[place], marking[i])
 
-        if result.complete:
+        if complete:
             return BoundResult(True, maxima, True)
 
         return BoundResult(
             bounded=None,
             bounds=maxima,
             complete=False,
-            reason="State-space exploration was truncated.",
+            reason="State-space exploration was truncated; boundedness is unknown.",
         )
-```
 
-Add the remaining v1 API as it matures: `reachability_graph` and `firing_sequence_to` per §13–§14, `transition_liveness`/`is_live` per §20–§21 (returning `AnalysisResult`), `place_invariants`/`transition_invariants` per §18–§19, `strongly_connected_components` per §23. Coverability is v2 (see "Scope and Build Order").
+    def incidence_matrix(self) -> list[list[int]]:
+        """C[p][t] = W(t,p) - W(p,t); rows = places, cols = transitions."""
+        places = self.net.place_order
+        transitions = self.net.transition_order
+        return [
+            [self.net.outputs[t].get(p, 0) - self.net.inputs[t].get(p, 0) for t in transitions]
+            for p in places
+        ]
+
+    def place_invariants(self) -> list[tuple[int, ...]]:
+        n_places = len(self.net.places)
+        if n_places == 0:
+            return []
+        n_trans = len(self.net.transitions)
+        c = self.incidence_matrix()
+        ct = [[c[p][t] for p in range(n_places)] for t in range(n_trans)]
+        return [_coprime_int_vector(v) for v in nullspace(ct, n_cols=n_places)]
+
+    def transition_invariants(self) -> list[tuple[int, ...]]:
+        n_trans = len(self.net.transitions)
+        if n_trans == 0:
+            return []
+        return [_coprime_int_vector(v) for v in nullspace(self.incidence_matrix(), n_cols=n_trans)]
+
+    def transition_liveness(
+        self,
+        transition: str,
+        graph: ReachabilityGraph,
+    ) -> AnalysisResult:
+        """True = t is live; False = disproven; None = unknown (incomplete graph)."""
+        if not graph.complete:
+            return AnalysisResult(
+                None, False, len(graph.states),
+                "Reachability graph is incomplete; liveness is unknown.",
+            )
+
+        enabling_states = {
+            state
+            for state in graph.states
+            if self.net.is_enabled_at(state, transition)
+        }
+
+        if not enabling_states:
+            return AnalysisResult(False, True, len(graph.states))
+
+        reverse: dict[Marking, list[Marking]] = {state: [] for state in graph.states}
+
+        for source, outgoing in graph.edges.items():
+            for _, target in outgoing:
+                reverse.setdefault(target, []).append(source)
+
+        stack = list(enabling_states)
+        can_reach_enabled = set(enabling_states)
+
+        while stack:
+            current = stack.pop()
+            for predecessor in reverse.get(current, []):
+                if predecessor not in can_reach_enabled:
+                    can_reach_enabled.add(predecessor)
+                    stack.append(predecessor)
+
+        return AnalysisResult(
+            can_reach_enabled == set(graph.states),
+            True,
+            len(graph.states),
+        )
+
+    def is_live(self, graph: ReachabilityGraph) -> AnalysisResult:
+        if not graph.complete:
+            return AnalysisResult(
+                None,
+                False,
+                len(graph.states),
+                "Reachability graph is incomplete; global liveness is unknown.",
+            )
+        for transition in self.net.transition_order:
+            result = self.transition_liveness(transition, graph)
+            if result.value is not True:
+                return result
+        return AnalysisResult(True, True, len(graph.states))
+
+    def strongly_connected_components(
+        self,
+        graph: ReachabilityGraph,
+    ) -> list[frozenset[Marking]]:
+        """Tarjan's algorithm for SCCs on the reachability graph."""
+        index = 0
+        indices: dict[Marking, int] = {}
+        lowlinks: dict[Marking, int] = {}
+        on_stack: set[Marking] = set()
+        stack: list[Marking] = []
+        sccs: list[frozenset[Marking]] = []
+
+        def strongconnect(v: Marking) -> None:
+            nonlocal index
+            indices[v] = index
+            lowlinks[v] = index
+            index += 1
+            stack.append(v)
+            on_stack.add(v)
+
+            for _, w in graph.edges.get(v, ()):
+                if w not in indices:
+                    strongconnect(w)
+                    lowlinks[v] = min(lowlinks[v], lowlinks[w])
+                elif w in on_stack:
+                    lowlinks[v] = min(lowlinks[v], indices[w])
+
+            if lowlinks[v] == indices[v]:
+                component = set()
+                while True:
+                    w = stack.pop()
+                    on_stack.remove(w)
+                    component.add(w)
+                    if w == v:
+                        break
+                sccs.append(frozenset(component))
+
+        for v in graph.states:
+            if v not in indices:
+                strongconnect(v)
+
+        return sccs
+
+
+# --- Exact rational linear algebra (zero dependencies) ---
+
+from fractions import Fraction
+from math import gcd
+
+
+def nullspace(
+    matrix: list[list[int]],
+    n_cols: int | None = None,
+) -> list[list[Fraction]]:
+    """Exact rational nullspace basis (rows = equations, cols = variables).
+
+    Pass ``n_cols`` when the matrix may have zero rows but a known column
+    count (e.g. a net with places but no transitions). When omitted, the
+    column count is inferred from the first row and defaults to 0 for an
+    empty matrix — which undercounts columns if the matrix genuinely has
+    zero rows and N>0 variables.
+    """
+    rows = [[Fraction(v) for v in row] for row in matrix]
+    if n_cols is None:
+        n_cols = len(rows[0]) if rows else 0
+    n_rows = len(rows)
+    pivots: list[int] = []
+
+    r = 0
+    for c in range(n_cols):
+        pivot = next((i for i in range(r, n_rows) if rows[i][c] != 0), None)
+        if pivot is None:
+            continue
+        rows[r], rows[pivot] = rows[pivot], rows[r]
+        rows[r] = [v / rows[r][c] for v in rows[r]]
+        for i in range(n_rows):
+            if i != r and rows[i][c] != 0:
+                factor = rows[i][c]
+                rows[i] = [a - factor * b for a, b in zip(rows[i], rows[r])]
+        pivots.append(c)
+        r += 1
+        if r == n_rows:
+            break
+
+    pivot_row = {c: i for i, c in enumerate(pivots)}
+    free = [c for c in range(n_cols) if c not in pivots]
+    return [
+        [
+            Fraction(1) if c == f
+            else (-rows[pivot_row[c]][f] if c in pivot_row else Fraction(0))
+            for c in range(n_cols)
+        ]
+        for f in free
+    ]
+
+
+def _coprime_int_vector(vec: list[Fraction]) -> tuple[int, ...]:
+    """Normalize a rational basis vector to a coprime integer tuple.
+
+    Sign is normalized so the first nonzero component is positive, making
+    results deterministic across implementations for testing.
+    """
+    denom = 1
+    for v in vec:
+        denom = denom * v.denominator // gcd(denom, v.denominator)
+    ints = [int(v * denom) for v in vec]
+    g = 0
+    for x in ints:
+        g = gcd(g, abs(x))
+    if g == 0:  # all-zero vector — cannot occur for a basis vector
+        return tuple(ints)
+    result = tuple(x // g for x in ints)
+    first_nonzero = next((x for x in result if x != 0), None)
+    if first_nonzero is not None and first_nonzero < 0:
+        result = tuple(-x for x in result)
+    return result
+```
 
 ---
 
@@ -2099,10 +2238,9 @@ Important optimizations:
 4. Use `deque` for BFS.
 5. Use sets for visited states.
 6. Avoid copying the entire `PetriNet` during exploration.
-7. Cache enabled-transition checks when useful.
-8. Keep deterministic transition order.
+7. Keep deterministic transition order.
 
-The reference engine in §10 favors clarity and rebuilds indexes per call; apply the precomputations above only when profiling shows they matter, and keep the same observable semantics.
+The reference engine in §10 favors clarity and rebuilds indexes per call; the canonical implementation in §31 already uses the precomputed index/weight pairs (via the net's internal structures) for enabledness and firing, avoiding per-call dictionary round-trips. Apply further precomputations only when profiling shows they matter, and keep the same observable semantics.
 
 For larger nets, consider optimized matrix/vector operations, sparse matrices, partial-order reduction, symmetry reduction, or symbolic state-space methods. These should be later optimizations, not requirements for the first implementation.
 
@@ -2264,15 +2402,15 @@ A place can legally hold zero tokens (see §3.2).
 
 ### Empty net
 
-An empty Petri net (no places, no transitions) is **allowed** in v1. Analysis must behave consistently: the initial marking is `()`, there are no enabled transitions, `reachable_markings` returns exactly the empty marking with `complete=True`, `bounds` reports `bounded=True` with empty bounds, `deadlocks` reports the empty marking as a deadlock, and the invariant sets are empty (§18–§19 handle the zero-column case).
+An empty Petri net (no places, no transitions) is **allowed** in v1. Analysis must behave consistently: the initial marking is `()`, there are no enabled transitions, `reachable_markings` returns exactly the empty marking with `complete=True`, `bounds` reports `bounded=True` with empty bounds, `deadlocks` reports the empty marking as a deadlock, and the invariant sets are empty (§18–§19 handle the zero-column case). For liveness: `is_live` returns `AnalysisResult(True, True, 0)` (vacuously true on a complete graph); SCC analysis returns `[frozenset({()})]` (the single state forms its own component).
 
 ### Places but no transitions
 
-A net with places but no transitions is allowed. The incidence matrix has `n_places` rows and 0 columns. `place_invariants` returns the identity basis (each place is independently conserved, since no transition changes the marking). `transition_invariants` returns `[]` (no transitions to fire).
+A net with places but no transitions is allowed. The incidence matrix has `n_places` rows and 0 columns. `place_invariants` returns the identity basis (each place is independently conserved, since no transition changes the marking). `transition_invariants` returns `[]` (no transitions to fire). For liveness: `is_live` returns `AnalysisResult(True, True, 1)` (vacuously true); SCC analysis returns the single state as its own component.
 
 ### Transitions but no places
 
-A net with transitions but no places is allowed. The incidence matrix has 0 rows and `n_transitions` columns. `place_invariants` returns `[]` (no places to constrain). `transition_invariants` returns the identity basis (any firing-count vector trivially satisfies the state equation, since there are no places to track).
+A net with transitions but no places is allowed. The incidence matrix has 0 rows and `n_transitions` columns. `place_invariants` returns `[]` (no places to constrain). `transition_invariants` returns the identity basis (any firing-count vector trivially satisfies the state equation, since there are no places to track). All transitions are always enabled (no input places). For liveness: if the graph is complete (single state `()`), `is_live` returns `True` — every transition is live because it is enabled in the only reachable state.
 
 ---
 
