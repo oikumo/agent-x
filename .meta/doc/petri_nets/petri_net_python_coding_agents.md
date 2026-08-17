@@ -587,17 +587,6 @@ They are still distinct transitions. Analysis results should preserve their name
 The following small net demonstrates the core semantics:
 
 ```text
-             --1--> (start) --1-->
-            /                       \
-[Waiting]                         [Running]
-    |                                |
-    |                                |
-    +---------- 1 token -------------+
-```
-
-A clearer operational example is:
-
-```text
 [Waiting: 1] --1--> (start) --1--> [Running: 0]
 ```
 
@@ -698,6 +687,8 @@ reset()
 ```
 
 The two convenience wrappers are optional: a minimal v1 may omit them and call the `_at` variants with `current_marking()` directly (see also the §10 engine, which defines only the `_at` variants plus `is_enabled`/`enabled_transitions` as thin delegations).
+
+> ⚠️ **API gotcha**: `add_input(place, transition, weight=1)` and `add_output(transition, place, weight=1)` have **swapped argument order** — they follow the arc direction (place→transition for inputs, transition→place for outputs). This is intentional but a frequent source of bugs; call them explicitly by keyword (`place=..., transition=...`) to avoid mistakes.
 
 ### Marking tuple canonical ordering
 
@@ -822,6 +813,8 @@ class PetriNet:
     def marking_to_dict(self, marking: tuple[int, ...]) -> dict[str, int]:
         if len(marking) != len(self.place_order):
             raise ValueError("Marking length does not match place count")
+        if any(tokens < 0 for tokens in marking):
+            raise ValueError("Marking contains a negative token count")
         return dict(zip(self.place_order, marking))
 
     def is_enabled_at(self, marking: tuple[int, ...], transition: str) -> bool:
@@ -888,12 +881,11 @@ petri_net/
 ├── model.py
 ├── analysis.py
 ├── errors.py
-├── coverability.py   # v2 — v1 ships a stub raising NotImplementedError
-├── simulator.py      # v2 — not part of v1
+├── coverability.py   # v1 stub (raises NotImplementedError); full impl is v2 (§17)
 └── tests/
 ```
 
-v1 ships only `__init__.py`, `model.py`, `analysis.py`, `errors.py` plus tests; `coverability.py` is a stub and `simulator.py` is v2 (see §35).
+v1 ships only `__init__.py`, `model.py`, `analysis.py`, `errors.py` plus tests; `coverability.py` is a stub. `simulator.py` (§26) and `graph.py` are **not** v1 modules — they are deferred to v2 / later (see §35).
 
 The main analysis object can be:
 
@@ -1319,10 +1311,22 @@ from fractions import Fraction
 from math import gcd
 
 
-def nullspace(matrix: list[list[int]]) -> list[list[Fraction]]:
-    """Exact rational nullspace basis (rows = equations, cols = variables)."""
+def nullspace(
+    matrix: list[list[int]],
+    n_cols: int | None = None,
+) -> list[list[Fraction]]:
+    """Exact rational nullspace basis (rows = equations, cols = variables).
+
+    Pass ``n_cols`` when the matrix may have zero rows but a known column
+    count (e.g. a net with places but no transitions).  When omitted, the
+    column count is inferred from the first row and defaults to 0 for an
+    empty matrix — which undercounts columns if the matrix genuinely has
+    zero rows and N>0 variables.
+    """
     rows = [[Fraction(v) for v in row] for row in matrix]
-    n_rows, n_cols = len(rows), len(rows[0]) if rows else 0
+    if n_cols is None:
+        n_cols = len(rows[0]) if rows else 0
+    n_rows = len(rows)
     pivots: list[int] = []  # pivot column of each pivot row
 
     r = 0
@@ -1354,7 +1358,11 @@ def nullspace(matrix: list[list[int]]) -> list[list[Fraction]]:
 
 
 def _coprime_int_vector(vec: list[Fraction]) -> tuple[int, ...]:
-    """Normalize a rational basis vector to a coprime integer tuple."""
+    """Normalize a rational basis vector to a coprime integer tuple.
+
+    Sign is normalized so the first nonzero component is positive, making
+    results deterministic across implementations for testing.
+    """
     denom = 1
     for v in vec:
         denom = denom * v.denominator // gcd(denom, v.denominator)
@@ -1364,18 +1372,24 @@ def _coprime_int_vector(vec: list[Fraction]) -> tuple[int, ...]:
         g = gcd(g, abs(x))
     if g == 0:  # all-zero vector — cannot occur for a basis vector
         return tuple(ints)
-    return tuple(x // g for x in ints)
+    result = tuple(x // g for x in ints)
+    first_nonzero = next((x for x in result if x != 0), None)
+    if first_nonzero is not None and first_nonzero < 0:
+        result = tuple(-x for x in result)
+    return result
 ```
 
 Place invariants are the nullspace of the transposed incidence matrix, `C^T x = 0`:
 
 ```python
 def place_invariants(net: PetriNet) -> list[tuple[int, ...]]:
+    n_places = len(net.places)
+    if n_places == 0:
+        return []  # no places -> 0-dimensional invariant space
+    n_trans = len(net.transitions)
     c = incidence_matrix(net)
-    if not c:  # no places -> no invariants (empty net, §38)
-        return []
-    ct = [[c[p][t] for p in range(len(c))] for t in range(len(c[0]))]
-    return [_coprime_int_vector(v) for v in nullspace(ct)]
+    ct = [[c[p][t] for p in range(n_places)] for t in range(n_trans)]
+    return [_coprime_int_vector(v) for v in nullspace(ct, n_cols=n_places)]
 ```
 
 If the project allows dependencies, `sympy.Matrix(...).nullspace()` yields the same rational basis with less code; it is an acceptable shortcut, not a v1 requirement. Either way, normalize vectors to coprime integers before exposing them as user-facing invariants.
@@ -1398,7 +1412,10 @@ Use the same exact-nullspace routine on the incidence matrix itself:
 
 ```python
 def transition_invariants(net: PetriNet) -> list[tuple[int, ...]]:
-    return [_coprime_int_vector(v) for v in nullspace(incidence_matrix(net))]
+    n_trans = len(net.transitions)
+    if n_trans == 0:
+        return []  # no transitions -> 0-dimensional invariant space
+    return [_coprime_int_vector(v) for v in nullspace(incidence_matrix(net), n_cols=n_trans)]
 ```
 
 Again, this is a structural property. The existence of a non-negative T-invariant does not automatically mean that every marking can execute the corresponding firing sequence.
@@ -1915,6 +1932,8 @@ A net with a transition that can only fire once and then becomes permanently dis
 
 ## 31. Partial Analysis Module Skeleton (BFS Core)
 
+> **Note:** The method bodies below (`reachable_markings`, `deadlocks`, `bounds`) mirror the standalone implementations in §12, §15, and §16 respectively. They are shown together here as a cohesive `PetriNetAnalyzer` class skeleton for the public API (§32); the algorithmic details are not duplicated in prose.
+
 A practical first version can look like:
 
 ```python
@@ -2112,20 +2131,17 @@ The agent should follow these rules:
 ```text
 petri_net/
 ├── __init__.py
-├── model.py          # PetriNet + firing semantics (plain string names; Place/Transition dataclasses optional)
+├── model.py          # PetriNet + firing semantics (plain string names)
 ├── analysis.py       # reachability, deadlocks, bounds, liveness, invariants, SCC (v1)
-├── coverability.py   # v2 — v1 ships a stub raising NotImplementedError
-├── graph.py          # optional — v1 keeps generic graph helpers in analysis.py
-├── simulator.py      # v2 — not part of v1
+├── coverability.py   # v1 stub (raises NotImplementedError); Karp–Miller is v2
 ├── errors.py         # custom exceptions
 └── tests/
     ├── test_model.py
     ├── test_analysis.py
-    ├── test_coverability.py
-    └── test_graph.py
+    └── test_coverability.py
 ```
 
-For a tiny project, `analysis.py` can initially contain the graph helpers too. Split modules when complexity increases. **v1 default:** no `graph.py`, no `simulator.py` — SCC and graph helpers live in `analysis.py` until complexity justifies splitting.
+For a tiny project, `analysis.py` can initially contain the graph helpers too. Split modules when complexity increases. **v1 default:** no `graph.py`, no `simulator.py`, no `test_graph.py` — SCC and graph helpers live in `analysis.py` until complexity justifies splitting; `simulator.py` (§26) is v2.
 
 The library is **build-once** in v1: consumers that need structural adaptation (e.g. `feature_001` rebuilding its net when `USER_OBJECTIVES.md` changes CRC) construct a fresh `PetriNet`; no `remove_*` API is provided in v1 (§34).
 
@@ -2249,6 +2265,14 @@ A place can legally hold zero tokens (see §3.2).
 ### Empty net
 
 An empty Petri net (no places, no transitions) is **allowed** in v1. Analysis must behave consistently: the initial marking is `()`, there are no enabled transitions, `reachable_markings` returns exactly the empty marking with `complete=True`, `bounds` reports `bounded=True` with empty bounds, `deadlocks` reports the empty marking as a deadlock, and the invariant sets are empty (§18–§19 handle the zero-column case).
+
+### Places but no transitions
+
+A net with places but no transitions is allowed. The incidence matrix has `n_places` rows and 0 columns. `place_invariants` returns the identity basis (each place is independently conserved, since no transition changes the marking). `transition_invariants` returns `[]` (no transitions to fire).
+
+### Transitions but no places
+
+A net with transitions but no places is allowed. The incidence matrix has 0 rows and `n_transitions` columns. `place_invariants` returns `[]` (no places to constrain). `transition_invariants` returns the identity basis (any firing-count vector trivially satisfies the state equation, since there are no places to track).
 
 ---
 
