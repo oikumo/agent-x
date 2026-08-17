@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-08-16 (iter 3 — requirement-doc feasibility review; no feature work)
+
+### Done
+
+- **Reviewed `.meta/doc/petri_nets/petri_net_python_coding_agents.md`** for feasibility & simplicity per user request ("improve the project itself, do not implement anything more") and improved the doc directly. Highlights: §30 example nets now buildable (explicit arcs), §18/§19 pure-Python exact-nullspace reference implementation (D4 fully specified), §20–§22 liveness/home return `AnalysisResult` (doc §27 rule restored), §32 liveness signatures pinned, §28 `max_states` semantics pinned, empty-net policy decided (§38), v1/v2 section map added, module layouts aligned to v1. Full list in PROJECT.md iter 3.
+- **PROJECT.md updated**: D5 clarified (liveness returns `AnalysisResult`, not bare bool), in-scope item 2 wording, iter-3 log entry.
+- **No implementation, no feature scaffolding, no `src/` edits** — per standing user constraint.
+
+### In progress / Blocked
+
+- _(nothing — still awaiting user approval of scope & decisions)_
+
+### Next
+
+- **User approval of scope & decisions (D1–D9)** — unchanged; the anchor doc is now internally consistent with the locked project decisions (D4/D5/D7/D8/D9).
+
+---
+
 ## 2026-08-16 (iter 0 — project home created; no feature work)
 
 ### Done

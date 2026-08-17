@@ -35,8 +35,6 @@ Correctness and explicit semantics are more important than optimization in the f
 - [ ] Tests use small nets with known properties (see Appendix: Example Nets)
 - [ ] **v1 boundary**: no `remove_place`/`remove_transition`; construct new `PetriNet` for structural changes
 
-Everything in v1 must be complete and tested before v2 is attempted. Coverability in particular is the most subtle algorithm in this document and must not be rushed.
-
 ---
 
 ## Scope and Build Order (v1 vs v2)
@@ -47,6 +45,19 @@ This document describes a complete toolkit, but the **first version should be bu
 - **v2 (advanced — follow-up):** coverability trees (§17), siphons/traps (§25), home markings (§22), and reporting/export (§36 advanced). v2 corresponds to DoD item 18 and the advanced checklist.
 
 Everything in v1 must be complete and tested before v2 is attempted. Coverability in particular is the most subtle algorithm in this document and must not be rushed.
+
+### v1 vs v2 section map (quick reference)
+
+| v1 (this deliverable) | v2 (later) |
+|---|---|
+| §3–§10 model layer · §8 edge cases | §17 coverability (Karp–Miller) |
+| §12–§14 reachability, reachability graph, firing sequences | §22 home markings |
+| §15 deadlocks · §16 bounds | §25 siphons/traps |
+| §18 P-invariants · §19 T-invariants (exact rational) | §26 simulator policies |
+| §20–§21 transition liveness, `is_live` (finite complete graphs) | §36 advanced optional tools (DOT/JSON export, …) |
+| §23 SCC · §24 structural helpers | §28 `max_depth`/`time_limit` |
+| §27–§28 result design, `max_states` limit | §40 DoD item 18 |
+| §36 minimum toolkit (v1 items) · §40 DoD items 1–17, 19 | — |
 
 ---
 
@@ -211,7 +222,7 @@ class Place:
 
 For the first implementation, a place name is sufficient. Future metadata such as labels, capacities, colors, or visualization coordinates should not be required by the core semantics.
 
-The reference engine (§10) treats **names (strings) as the canonical identity** of places and transitions. The dataclasses above are optional metadata carriers for future extensions; they are not required by the engine.
+The reference engine (§10) treats **names (strings) as the canonical identity** of places and transitions. The dataclasses above are optional metadata carriers for future extensions; they are not required by the engine. **v1 simplification:** omit the `Place`/`Transition` dataclasses entirely; the engine uses plain string names everywhere.
 
 ### 3.1 What a token means
 
@@ -249,7 +260,7 @@ class Transition:
 
 A transition has no tokens of its own. Its behavior is completely determined by its input and output arcs in a basic P/T net.
 
-As with places, the engine identifies transitions by name (string); the dataclass is optional metadata.
+As with places, the engine identifies transitions by name (string); the dataclass is optional metadata. **(v1: omit the dataclass; use plain string names.)**
 
 ### 4.1 Transition enabling
 
@@ -676,15 +687,17 @@ add_place(name, tokens=0)
 add_transition(name)
 add_input(place, transition, weight=1)
 add_output(transition, place, weight=1)
-is_enabled(transition)
+is_enabled(transition)        # optional convenience: is_enabled_at(current_marking(), transition)
 is_enabled_at(marking, transition)
 fire(transition)
 fire_marking(marking, transition)
-enabled_transitions()
+enabled_transitions()         # optional convenience: enabled_transitions_at(current_marking())
 enabled_transitions_at(marking)
 current_marking()
 reset()
 ```
+
+The two convenience wrappers are optional: a minimal v1 may omit them and call the `_at` variants with `current_marking()` directly (see also the §10 engine, which defines only the `_at` variants plus `is_enabled`/`enabled_transitions` as thin delegations).
 
 ### Marking tuple canonical ordering
 
@@ -871,12 +884,16 @@ Recommended module:
 
 ```text
 petri_net/
+├── __init__.py
 ├── model.py
 ├── analysis.py
-├── simulator.py
 ├── errors.py
+├── coverability.py   # v2 — v1 ships a stub raising NotImplementedError
+├── simulator.py      # v2 — not part of v1
 └── tests/
 ```
+
+v1 ships only `__init__.py`, `model.py`, `analysis.py`, `errors.py` plus tests; `coverability.py` is a stub and `simulator.py` is v2 (see §35).
 
 The main analysis object can be:
 
@@ -898,7 +915,7 @@ place_invariants()
 transition_invariants()
 transition_liveness()
 is_live()
-is_home_marking()
+is_home_marking()  # v2 (§22)
 ```
 
 For potentially infinite state spaces, every exploration API must expose a limit such as `max_states` or `max_depth` and report whether exploration completed.
@@ -1043,7 +1060,7 @@ def reachability_graph(
     )
 ```
 
-A reachability graph is the central structure from which several analyses can be derived.
+A reachability graph is the central structure from which several analyses can be derived. When truncated, outgoing edges of explored states are still recorded, so `edges` may reference target states that are not in `states`; consumers must check `complete` before drawing conclusions (§28).
 
 ---
 
@@ -1176,7 +1193,7 @@ For serious unboundedness detection, implement a separate **coverability/tree an
 
 ---
 
-## 17. Coverability and Karp–Miller-Style Analysis
+## 17. Coverability and Karp–Miller-Style Analysis (v2)
 
 For an unbounded Petri net, the reachability graph may be infinite. A practical analyzer should therefore support **coverability analysis**.
 
@@ -1277,85 +1294,93 @@ For each place `p` and transition `t`:
 C[p,t] = output_weight(t,p) - input_weight(p,t)
 ```
 
-In Python, construct:
+Exact integer construction (no numpy — invariants must stay exact):
 
 ```python
-def incidence_matrix(net: PetriNet):
-    import numpy as np
-
-    places = net.place_order
-    transitions = net.transition_order
-
-    matrix = np.zeros((len(places), len(transitions)), dtype=int)
-
-    for j, transition in enumerate(transitions):
-        for place in places:
-            produced = net.outputs[transition].get(place, 0)
-            consumed = net.inputs[transition].get(place, 0)
-            matrix[places.index(place), j] = produced - consumed
-
-    return matrix
-```
-
-For production code, avoid repeated `places.index()` calls by precomputing an index map.
-
-### Solving the invariant equation
-
-A numerical null-space calculation can find candidate vectors, but Petri-net invariants are normally interpreted over integers.
-
-For a research-grade implementation, use exact rational/integer linear algebra rather than floating-point rank/null-space results. If the project prefers zero added dependencies, a small exact-rational Gaussian-elimination nullspace (~40 lines) is sufficient for v1; do not use numpy floating-point rank/null-space either way.
-
-Recommended dependency:
-
-```text
-sympy
-```
-
-Example starting point:
-
-```python
-from sympy import Matrix
-
-
-def incidence_matrix_sympy(net: PetriNet) -> Matrix:
+def incidence_matrix(net: PetriNet) -> list[list[int]]:
+    """C[p][t] = W(t,p) - W(p,t); rows = places, cols = transitions."""
     places = net.place_order
     transitions = net.transition_order
     p_index = {p: i for i, p in enumerate(places)}  # precomputed index map
-
-    data = [
-        [
-            net.outputs[t].get(p, 0) - net.inputs[t].get(p, 0)
-            for t in transitions
-        ]
+    return [
+        [net.outputs[t].get(p, 0) - net.inputs[t].get(p, 0) for t in transitions]
         for p in places
     ]
-    return Matrix(data)
-
-def place_invariants(net: PetriNet):
-    from math import gcd, lcm
-
-    c = incidence_matrix_sympy(net)
-    basis = c.T.nullspace()
-    # Normalize rational basis to coprime integer vectors
-    invariants = []
-    for vec in basis:
-        # sympy nullspace returns Rational vectors; simplify each
-        from sympy import cancel
-        simplified = [cancel(v) for v in vec]
-        # Convert to integers by clearing denominators via LCM
-        denoms = [v.denominator for v in simplified if v.denominator != 1 and v.denominator != 0]
-        if denoms:
-            l = lcm(denoms)
-            int_vec = tuple(int(v * l) for v in simplified)
-        else:
-            int_vec = tuple(int(v) for v in simplified)
-        # Divide by GCD to make coprime
-        g = abs(gcd(*int_vec)) if int_vec else 1
-        invariants.append(tuple(v // g for v in int_vec))
-    return invariants
 ```
 
-This returns a rational basis. Normalize vectors before exposing them as user-facing integer invariants. v1 scope: expose the exact rational basis normalized to coprime integers. Computing *minimal non-negative* invariants is research-level work and is out of scope for the first version; tests should assert conservation properties (e.g. "p1 + p2 = constant") rather than a canonical minimal vector.
+### Solving the invariant equation
+
+Petri-net invariants are integer vectors, so solve with exact rational/integer linear algebra — never floating-point rank/null-space (numpy `null_space`, `matrix_rank`, etc. are disallowed for this step).
+
+v1 reference implementation (zero dependencies): Gauss–Jordan elimination over `fractions.Fraction`, then normalization to coprime integers:
+
+```python
+from fractions import Fraction
+from math import gcd
+
+
+def nullspace(matrix: list[list[int]]) -> list[list[Fraction]]:
+    """Exact rational nullspace basis (rows = equations, cols = variables)."""
+    rows = [[Fraction(v) for v in row] for row in matrix]
+    n_rows, n_cols = len(rows), len(rows[0]) if rows else 0
+    pivots: list[int] = []  # pivot column of each pivot row
+
+    r = 0
+    for c in range(n_cols):
+        pivot = next((i for i in range(r, n_rows) if rows[i][c] != 0), None)
+        if pivot is None:
+            continue
+        rows[r], rows[pivot] = rows[pivot], rows[r]
+        rows[r] = [v / rows[r][c] for v in rows[r]]
+        for i in range(n_rows):
+            if i != r and rows[i][c] != 0:
+                factor = rows[i][c]
+                rows[i] = [a - factor * b for a, b in zip(rows[i], rows[r])]
+        pivots.append(c)
+        r += 1
+        if r == n_rows:
+            break
+
+    pivot_row = {c: i for i, c in enumerate(pivots)}
+    free = [c for c in range(n_cols) if c not in pivots]
+    return [
+        [
+            Fraction(1) if c == f
+            else (-rows[pivot_row[c]][f] if c in pivot_row else Fraction(0))
+            for c in range(n_cols)
+        ]
+        for f in free
+    ]
+
+
+def _coprime_int_vector(vec: list[Fraction]) -> tuple[int, ...]:
+    """Normalize a rational basis vector to a coprime integer tuple."""
+    denom = 1
+    for v in vec:
+        denom = denom * v.denominator // gcd(denom, v.denominator)
+    ints = [int(v * denom) for v in vec]
+    g = 0
+    for x in ints:
+        g = gcd(g, abs(x))
+    if g == 0:  # all-zero vector — cannot occur for a basis vector
+        return tuple(ints)
+    return tuple(x // g for x in ints)
+```
+
+Place invariants are the nullspace of the transposed incidence matrix, `C^T x = 0`:
+
+```python
+def place_invariants(net: PetriNet) -> list[tuple[int, ...]]:
+    c = incidence_matrix(net)
+    if not c:  # no places -> no invariants (empty net, §38)
+        return []
+    ct = [[c[p][t] for p in range(len(c))] for t in range(len(c[0]))]
+    return [_coprime_int_vector(v) for v in nullspace(ct)]
+```
+
+If the project allows dependencies, `sympy.Matrix(...).nullspace()` yields the same rational basis with less code; it is an acceptable shortcut, not a v1 requirement. Either way, normalize vectors to coprime integers before exposing them as user-facing invariants.
+
+v1 scope: expose the exact rational basis normalized to coprime integers. Computing *minimal non-negative* invariants is research-level work and is out of scope for the first version; tests should assert conservation properties (e.g. "p1 + p2 = constant") rather than a canonical minimal vector.
 
 ---
 
@@ -1369,12 +1394,11 @@ C y = 0
 
 It represents a multiset of transition firings that returns the marking to its original value, at least at the incidence-equation level.
 
-Use:
+Use the same exact-nullspace routine on the incidence matrix itself:
 
 ```python
-def transition_invariants(net: PetriNet):
-    c = incidence_matrix_sympy(net)
-    return c.nullspace()
+def transition_invariants(net: PetriNet) -> list[tuple[int, ...]]:
+    return [_coprime_int_vector(v) for v in nullspace(incidence_matrix(net))]
 ```
 
 Again, this is a structural property. The existence of a non-negative T-invariant does not automatically mean that every marking can execute the corresponding firing sequence.
@@ -1409,9 +1433,14 @@ def transition_liveness(
     net: PetriNet,
     transition: str,
     graph: ReachabilityGraph,
-) -> bool | None:
+) -> AnalysisResult:
+    """True = t is live (every reachable state can reach a state enabling t);
+    False = disproven; None = unknown because the graph is incomplete."""
     if not graph.complete:
-        return None
+        return AnalysisResult(
+            None, False, len(graph.states),
+            "Reachability graph is incomplete; liveness is unknown.",
+        )
 
     enabling_states = {
         state
@@ -1420,7 +1449,7 @@ def transition_liveness(
     }
 
     if not enabling_states:
-        return False
+        return AnalysisResult(False, True, len(graph.states))
 
     reverse: dict[tuple[int, ...], list[tuple[int, ...]]] = {
         state: [] for state in graph.states
@@ -1440,7 +1469,11 @@ def transition_liveness(
                 can_reach_enabled.add(predecessor)
                 stack.append(predecessor)
 
-    return can_reach_enabled == set(graph.states)
+    return AnalysisResult(
+        can_reach_enabled == set(graph.states),
+        True,
+        len(graph.states),
+    )
 ```
 
 This is only an exhaustive result when the graph itself is complete.
@@ -1452,19 +1485,19 @@ This is only an exhaustive result when the graph itself is complete.
 To determine whether the whole net is live over a finite complete reachability graph:
 
 ```python
-def is_live(net: PetriNet, graph: ReachabilityGraph) -> bool | None:
+def is_live(net: PetriNet, graph: ReachabilityGraph) -> AnalysisResult:
     for transition in net.transition_order:
         result = transition_liveness(net, transition, graph)
-        if result is not True:
+        if result.value is not True:
             return result
-    return True
+    return AnalysisResult(True, graph.complete, len(graph.states))
 ```
 
-A result of `None` should mean "unknown because analysis was incomplete," not false.
+A `value` of `None` should mean "unknown because analysis was incomplete," not false.
 
 ---
 
-## 22. Home Markings and Reachability Queries
+## 22. Home Markings and Reachability Queries (v2)
 
 A **home marking** is a marking reachable from every reachable marking.
 
@@ -1484,9 +1517,11 @@ def is_home_marking(
     net: PetriNet,
     target: tuple[int, ...],
     graph: ReachabilityGraph,
-) -> bool | None:
+) -> AnalysisResult:
     ...
 ```
+
+When `graph.complete` is `False`, return `AnalysisResult(None, False, len(graph.states), reason)`; `True`/`False` are only proven on a complete graph (§27).
 
 ---
 
@@ -1546,7 +1581,7 @@ These helpers are useful for diagnostics, visualization, and advanced analyses s
 
 ---
 
-## 25. Siphons and Traps — Optional Structural Analysis
+## 25. Siphons and Traps — Optional Structural Analysis (v2)
 
 For a more complete analysis toolkit, implement:
 
@@ -1637,6 +1672,8 @@ Meaning:
 - `False` = property disproven
 - `None` = unknown because the analysis was incomplete or inconclusive
 
+`transition_liveness`, `is_live`, and `is_home_marking` return exactly this type (§20–§22); the payload-carrying analyses (`reachable_markings`, `reachability_graph`, `deadlocks`, `bounds`) use their own dataclasses (§12–§16) with the same `complete`/`reason` contract. Bare `bool | None` returns are reserved for internal helpers only.
+
 This rule should be applied consistently to reachability, boundedness, liveness, and similar queries.
 
 ---
@@ -1654,6 +1691,8 @@ time_limit: float | None = None
 ```
 
 A coding agent should not introduce a hidden hard-coded limit that can silently produce incorrect conclusions. **v1 scope:** implement `max_states` only; `max_depth` and `time_limit` are reserved for later versions. Do not invent partial semantics for them in v1.
+
+**`max_states` semantics (v1):** exploration visits at most `max_states` distinct markings, and `explored_states` always equals the number of markings actually visited. `complete=True` means the entire state space was visited within the limit; `complete=False` means a new marking was discovered beyond the limit. A truncated result contains only information gathered up to the last fully explored state: in `reachable_markings`, the predecessor map covers only visited states; in `reachability_graph`, all outgoing edges of explored states are recorded, including edges whose targets were never enqueued. A truncated search never proves a negative property (§39).
 
 ⚠️ **v1 `max_states` warning:** On even modest nets, the state space can grow exponentially. A `max_states=100` limit on a net with 2+ concurrent transitions may truncate after exploring only a fraction of reachable markings. Always verify `result.complete` and, if `False`, consider increasing the limit or switching to coverability analysis (§17) for unbounded properties.
 
@@ -1700,45 +1739,64 @@ This makes tests and generated reports reproducible.
 The test suite should use these small nets with known properties (referenced throughout §30). They are defined here once to ensure consistency:
 
 ```python
-# Example nets — defined as (places, initial_marking, description)
-# Place order is always sorted alphabetically for tuple markings
+# Example nets — defined as (places, initial_marking, transitions, arcs, description)
+# Place order is always sorted alphabetically for tuple markings.
+# "arcs": {transition: {"in": {place: weight}, "out": {place: weight}}}
 
 CONSERVATION_NET = {
     "places": ["p1", "p2"],
     "initial_marking": (1, 1),  # p1+p2 = 2 invariant
     "transitions": ["t1", "t2"],
-    "description": "p1 --t1--> p2 --t2--> p1 (p1+p2 constant)"
+    "arcs": {
+        "t1": {"in": {"p1": 1}, "out": {"p2": 1}},
+        "t2": {"in": {"p2": 1}, "out": {"p1": 1}},
+    },
+    "description": "p1 --t1--> p2 --t2--> p1 (p1+p2 constant)",
 }
 
 CYCLE_NET = {
     "places": ["p1", "p2"],
     "initial_marking": (1, 0),  # token cycles p1→p2→p1
     "transitions": ["t1", "t2"],
-    "description": "p1 --t1--> p2 --t2--> p1 (live, bounded)"
+    "arcs": {
+        "t1": {"in": {"p1": 1}, "out": {"p2": 1}},
+        "t2": {"in": {"p2": 1}, "out": {"p1": 1}},
+    },
+    "description": "p1 --t1--> p2 --t2--> p1 (live, bounded)",
 }
 
 UNBOUNDED_NET = {
     "places": ["p"],
     "initial_marking": (1,),
     "transitions": ["t"],
-    "description": "p --t--> p with output weight 2 (unbounded: each firing adds 1 token)"
+    "arcs": {
+        "t": {"in": {"p": 1}, "out": {"p": 2}},
+    },
+    "description": "p --1--> t --2--> p (unbounded: each firing adds 1 token)",
 }
 
 DEADLOCK_NET = {
     "places": ["p"],
     "initial_marking": (0,),
     "transitions": ["t"],
-    "description": "p=0 → t (consuming transition; immediate deadlock)"
+    "arcs": {
+        "t": {"in": {"p": 1}, "out": {}},
+    },
+    "description": "p=0 → t (consuming transition; immediate deadlock)",
 }
 
-# Convenience: build a PetriNet from the dict above
+# Convenience: build a PetriNet from the dict above (places, arcs included)
 def make_net(defn):
     net = PetriNet()
-    net.add_place(defn["places"][0], tokens=defn["initial_marking"][0])
-    for p in defn["places"][1:]:
-        net.add_place(p, tokens=defn["initial_marking"][defn["places"].index(p)])
-    for T in defn["transitions"]:
-        net.add_transition(T)
+    for place, tokens in zip(defn["places"], defn["initial_marking"]):
+        net.add_place(place, tokens=tokens)
+    for transition in defn["transitions"]:
+        net.add_transition(transition)
+    for transition, arcs in defn["arcs"].items():
+        for place, weight in arcs.get("in", {}).items():
+            net.add_input(place, transition, weight=weight)
+        for place, weight in arcs.get("out", {}).items():
+            net.add_output(transition, place, weight=weight)
     return net
 ```
 
@@ -1807,7 +1865,7 @@ p --1--> t --2--> p
 
 Each firing increases the number of tokens by one.
 
-BFS with no state limit does not terminate on this net, so the test must use coverability analysis or a bounded exploration limit and verify that the result is reported as incomplete rather than falsely bounded.
+BFS with no state limit does not terminate on this net, and v1 has no coverability implementation (§17 is v2). The v1 test must therefore pass a small `max_states` and assert that the result reports `complete=False` with `bounded=None` — never a finite bound claim. A coverability-based proof of unboundedness is v2 work.
 
 ### P-invariant
 
@@ -1979,7 +2037,7 @@ class PetriNetAnalyzer:
         )
 ```
 
-Add graph, SCC, liveness, and invariant functions to this module as they mature (v1); coverability is v2 (see "Scope and Build Order").
+Add the remaining v1 API as it matures: `reachability_graph` and `firing_sequence_to` per §13–§14, `transition_liveness`/`is_live` per §20–§21 (returning `AnalysisResult`), `place_invariants`/`transition_invariants` per §18–§19, `strongly_connected_components` per §23. Coverability is v2 (see "Scope and Build Order").
 
 ---
 
@@ -2002,10 +2060,11 @@ bounds = analyzer.bounds(max_states=100_000)
 graph = analyzer.reachability_graph(max_states=100_000)
 p_invariants = analyzer.place_invariants()
 t_invariants = analyzer.transition_invariants()
-liveness = analyzer.transition_liveness("t1")
+liveness = analyzer.transition_liveness("t1", graph)
+net_is_live = analyzer.is_live(graph)
 ```
 
-Keep names stable and make result types serializable when practical.
+Keep names stable and make result types serializable when practical. Liveness queries take the reachability graph explicitly — they never rebuild or mutate it, and their `AnalysisResult.complete` mirrors the graph's (§20–§21).
 
 ---
 
@@ -2053,11 +2112,11 @@ The agent should follow these rules:
 ```text
 petri_net/
 ├── __init__.py
-├── model.py          # PetriNet, Place, Transition, firing semantics
-├── analysis.py       # reachability, deadlocks, bounds, liveness, invariants
-├── coverability.py   # Karp-Miller-style analysis for unbounded nets
-├── graph.py          # generic graph algorithms such as SCC
-├── simulator.py      # one-path simulation policies
+├── model.py          # PetriNet + firing semantics (plain string names; Place/Transition dataclasses optional)
+├── analysis.py       # reachability, deadlocks, bounds, liveness, invariants, SCC (v1)
+├── coverability.py   # v2 — v1 ships a stub raising NotImplementedError
+├── graph.py          # optional — v1 keeps generic graph helpers in analysis.py
+├── simulator.py      # v2 — not part of v1
 ├── errors.py         # custom exceptions
 └── tests/
     ├── test_model.py
@@ -2066,7 +2125,7 @@ petri_net/
     └── test_graph.py
 ```
 
-For a tiny project, `analysis.py` can initially contain the graph helpers too. Split modules when complexity increases.
+For a tiny project, `analysis.py` can initially contain the graph helpers too. Split modules when complexity increases. **v1 default:** no `graph.py`, no `simulator.py` — SCC and graph helpers live in `analysis.py` until complexity justifies splitting.
 
 The library is **build-once** in v1: consumers that need structural adaptation (e.g. `feature_001` rebuilding its net when `USER_OBJECTIVES.md` changes CRC) construct a fresh `PetriNet`; no `remove_*` API is provided in v1 (§34).
 
@@ -2189,7 +2248,7 @@ A place can legally hold zero tokens (see §3.2).
 
 ### Empty net
 
-Decide whether an empty Petri net is allowed. If allowed, analysis should behave consistently: its initial marking is the empty tuple and there are no enabled transitions.
+An empty Petri net (no places, no transitions) is **allowed** in v1. Analysis must behave consistently: the initial marking is `()`, there are no enabled transitions, `reachable_markings` returns exactly the empty marking with `complete=True`, `bounds` reports `bounded=True` with empty bounds, `deadlocks` reports the empty marking as a deadlock, and the invariant sets are empty (§18–§19 handle the zero-column case).
 
 ---
 
