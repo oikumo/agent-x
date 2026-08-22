@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-08-22 (iter 7 — review fixes applied; no feature work)
+
+### Done
+
+- **Applied the full 2026-08-22 project-home review fix set** (all findings) to `PROJECT.md` + `CURRENT_STATE.md`: stale feature slug (030 taken by `feature_030.project_lifecycle` → number auto-assigned by `new_feature.py` at scaffold, next free 031; all refs updated), iter-3 lock overclaim corrected (only D4 is locked), session-log backfill (iter-2 + iter-4 blocks added; iter-0 ≡ PROJECT.md iter-1 offset noted), `--project petri_net_library` on all scaffold commands, `__init__.py` aligned to the verified model/ convention (docstring-only, no re-exports), section-map gaps closed (§35 v1, §26 v2, §36 split, §41 principle), iter-5 lettering H/I/L/M disposition recorded (not adopted, no outstanding action), TA format normalized, PROJECT.md header bumped to iter 7. No `src/`, no feature, no `omt_phase` — pure project-home markdown.
+
+### Next
+
+- **User ticks the Lock sign-off checklist** → flip Status to locked (v1.1) → (on user go) scaffold via `uv run scripts/omt/new_feature.py "petri net library" --type major_feature --project petri_net_library` (feature number auto-assigned, currently 031) and declare the first phase.
+
+---
+
 ## 2026-08-22 (iter 6 — review patch applied; no feature work)
 
 ### Done
@@ -14,7 +26,7 @@
 
 ### Next
 
-- **User ticks the Lock sign-off checklist** → flip Status to locked (v1.1) → (on user go) scaffold `feature_030.petri_net_library` and declare the first phase.
+- **User ticks the Lock sign-off checklist** → flip Status to locked (v1.1) → (on user go) scaffold the feature via `new_feature.py` (number auto-assigned, see PROJECT.md D1) and declare the first phase.
 - backfill baseline: no linked features (draft); log continuity starts here
 
 ---
@@ -28,7 +40,19 @@
 
 ### Next
 
-- **User approval of scope & decisions (D1–D11)** — then (on user go) scaffold `feature_030.petri_net_library` and declare the first phase.
+- **User approval of scope & decisions (D1–D11)** — then (on user go) scaffold the feature via `new_feature.py` (number auto-assigned, see PROJECT.md D1) and declare the first phase.
+
+---
+
+## 2026-08-16 (iter 4 — anchor-doc second pass; no feature work)
+
+### Done
+
+- **Second feasibility/simplicity pass on the requirement doc** (doc-only; block backfilled in iter 7): `nullspace()` zero-row `n_cols` fix (degenerate-net invariants), `_coprime_int_vector` sign normalization, `marking_to_dict` non-negativity validation, §11/§35 module-tree cleanup, §8.5 diagram removed, §9 `add_input`/`add_output` arg-order gotcha, §31 duplication note, §38 degenerate-net edge cases. Full list: PROJECT.md iter 4.
+
+### Next
+
+- **User approval of scope & decisions (D1–D11)** — unchanged.
 
 ---
 
@@ -46,11 +70,23 @@
 
 ### Next
 
-- **User approval of scope & decisions (D1–D11)** — unchanged; the anchor doc is now internally consistent with the locked project decisions (D4 locked: pure-Python nullspace, no sympy; D5/D7/D8/D9 also locked).
+- **User approval of scope & decisions (D1–D11)** — unchanged; the anchor doc is now internally consistent with the project decisions (D4 locked: pure-Python nullspace, no sympy; D5–D11 remain **draft**, pending approval — corrected iter 7: this entry previously mislabeled D5/D7/D8/D9 as locked).
 
 ---
 
-## 2026-08-16 (iter 0 — project home created; no feature work)
+## 2026-08-16 (iter 2 — scope refinement; no feature work)
+
+### Done
+
+- **Scope refinement for feasibility & simplicity** (block backfilled in iter 7): v1-only extraction from the 41-section doc; D4 locked to pure-Python rational nullspace (zero deps); `simulator.py`/`graph.py` removed from v1; `coverability.py` stub-only; `max_states`-only limits; convenience wrappers dropped; explicit empty-net policy; "unknown"-case test matrix; decisions updated to D1–D11. Full list: PROJECT.md iter 2.
+
+### Next
+
+- **User approval of scope & decisions (D1–D11)** — unchanged.
+
+---
+
+## 2026-08-16 (iter 0 — project home created; no feature work · ≡ PROJECT.md iteration-log iter 1)
 
 ### Done
 
@@ -60,7 +96,7 @@
 
 ### Facts verified before writing
 
-- Next free feature slot is **030** (`feature_029.rag_v2_slash_commands` is last in `2.requirements/features/`).
+- Next free feature slot is **030** (`feature_029.rag_v2_slash_commands` is last in `2.requirements/features/`). *(True at iter-0; stale since 2026-08-22 — `feature_030.project_lifecycle` took 030; next free is 031. See PROJECT.md D1.)*
 - `src/agentx/model/petri_net/` **does not exist**; `tests/model/petri_net/test_petri_net.py` exists as a June placeholder stub (`self.assertTrue(True)`) — the library's real tests will replace it.
 - `src/agentx/model/` uses flat packages with empty `__init__.py` (e.g. `session/`, `rag_v2/`).
 - `pyproject.toml` has `numpy>=2.5.1`, **no sympy** — drives open decision D4 (exact arithmetic for invariants: add sympy vs pure-Python nullspace).
@@ -77,7 +113,7 @@
 ### Next
 
 - **User approval of scope & decisions (D1–D11)** — approve as-is or revise (especially: scope boundary and edge-case policy D7; note D4 is already locked to pure-Python exact nullspace with sympy rejected).
-- After approval: lock scope in PROJECT.md (v1.1), then (only on user go) scaffold `feature_030.petri_net_library` via `uv run scripts/omt/new_feature.py "petri net library" --type major_feature` and declare the first phase.
+- After approval: lock scope in PROJECT.md (v1.1), then (only on user go) scaffold via `uv run scripts/omt/new_feature.py "petri net library" --type major_feature --project petri_net_library` (feature number auto-assigned, see PROJECT.md D1) and declare the first phase.
 
 ### Notes / context
 
