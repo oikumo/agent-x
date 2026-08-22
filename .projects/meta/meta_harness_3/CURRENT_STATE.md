@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-08-22 (auto — project.py log)
+
+- backfill baseline: linked feature_028.feature_scoped_gating (DONE = Phase-A); Phase-B/C pending as future features; log continuity starts here
+
+---
+
 ## 2026-08-16 (iter 4 — post-ship review: all gates re-verified live; PROJECT.md status sync)
 
 ### Done

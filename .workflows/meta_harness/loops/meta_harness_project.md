@@ -17,7 +17,7 @@ to develop software, but always can be improved, so the improvements must be fou
 # Project strategy
 1. Understand deeply what is META HARNESS using the META HARNESS artifacts available **DO NOT SEARCH THE SOURCE CODE**
 2. Understand the current structure and behavior of META HARNESS in the whole workspace **USING META HARNESS TOOLBOX**
-3. Create project idea in a structured way in a file ./projects/meta/project_<ID>/PROJECT.md 
+3. Create the project home mechanically: `uv run scripts/omt/project.py new "<name>"` — creates `.projects/meta/<slug>/{PROJECT.md,CURRENT_STATE.md}` from templates + the ledger lifecycle record + the GENERATED manifest row (feature_030). Iterate PROJECT.md freely (non-gated); spawn features with `new_feature.py "<name>" --project <slug>`; close with `project.py close <slug>`.
 4. Propose to the user the project idea with alternatives
 5. Refine the project idea 
 6. Propose to the user a plan to implement the project for him approval 

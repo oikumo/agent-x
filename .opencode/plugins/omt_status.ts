@@ -14,7 +14,7 @@ import { execSync } from "node:child_process"
 // R8: tool descriptions resolve from the compiled IR (irToolDescription).
 import {
   initOmtShared, repoRoot, workMdPath, designRoot,
-  readLedger as sharedReadLedger, resolveFeatureDir, globToRegex, UNLOCK_WINDOW_MS,
+  readLedger as sharedReadLedger, readLedgerAll as sharedReadLedgerAll, resolveFeatureDir, globToRegex, UNLOCK_WINDOW_MS,
   irToolDescription, phaseTransitions,
 } from "../lib/omt_shared"
 
@@ -201,6 +201,33 @@ function formatDuration(ms: number): string {
 
 // R8: build the tool AFTER initOmtShared so irToolDescription reads the IR
 // under the injected repo root (never the pre-init cwd).
+
+// feature_030: active project = project linked to the active feature (derived
+// per call, never stored — D1). Full fold: project links span months.
+function deriveActiveProject(feature: string): { project: string; state: string; last_log: string } | null {
+  if (!feature) return null
+  const records = sharedReadLedgerAll()
+  let link: any = null
+  for (const r of records) if (r.kind === "project_link" && r.feature === feature) link = r
+  if (!link) return null
+  let state = "unknown"
+  for (const r of records) {
+    if (r.kind === "project" && r.project === link.project) {
+      if (r.op === "close") state = "complete"
+      else if (r.op === "archive") state = "archived"
+      else if (r.op === "create" || r.op === "reopen") state = "active"  // a link exists by construction
+    }
+  }
+  let last_log = ""
+  try {
+    const m = readFileSync(
+      join(repoRoot(), ".projects", "meta", link.project, "CURRENT_STATE.md"), "utf8",
+    ).match(/^## (\d{4}-\d{2}-\d{2})/m)
+    last_log = m ? m[1] : ""
+  } catch { /* home missing */ }
+  return { project: link.project, state, last_log }
+}
+
 function createStatusTool() {
   return tool({
     description: irToolDescription("omt_status", "Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task."),
@@ -258,6 +285,7 @@ function createStatusTool() {
       }
 
       const nextTask = getWorkMdNextTask()
+      const projectInfo = deriveActiveProject(feature)
 
       const lastLedger = recent.length ? recent[recent.length - 1] : null
       const result: Record<string, any> = {
@@ -269,6 +297,7 @@ function createStatusTool() {
         lint_baseline: lint,
         next_valid_phases: nextPhases,
         work_md_next_task: nextTask,
+        project: projectInfo,
         feature_health: featureHealth,
         recent_ledger_summary: {
           total_phase_or_skip_records: statusRecords.length,
@@ -292,6 +321,7 @@ function createStatusTool() {
         ...(activeUnlock?.scope ? [`Scope: ${activeUnlock.scope}`] : []),
         `Artifacts: ${required.length ? `${required.length} required` : "none"}${missing.length ? ` — missing: ${missing.join(", ")}` : ""}${present.length ? ` · present: ${present.join(", ")}` : ""}`,
         `Valid next: ${nextPhases.join(", ")} · Next task: ${nextTask || "none pending"}`,
+        ...(projectInfo ? [`Project: ${projectInfo.project} (${projectInfo.state}) · last log ${projectInfo.last_log || "—"}`] : []),
       ]
 
       if (Object.keys(featureHealth).length) {

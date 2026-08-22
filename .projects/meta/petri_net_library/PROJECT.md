@@ -1,6 +1,14 @@
 # PROJECT: petri_net_library — Weighted P/T Petri-net library for agentx
 
-> Status: **v1 (2026-08-16)** — project home created from the requirement anchor `.meta/doc/petri_nets/petri_net_python_coding_agents.md`. Scope draft recorded; NOT yet locked (user approval pending). Feature dir, phase declaration, and all implementation work deliberately deferred — this document is the project's *purpose* only.
+> Status: **draft** · v1 (2026-08-16) — project home created from the requirement anchor `.meta/doc/petri_nets/petri_net_python_coding_agents.md`. Scope draft recorded; NOT yet locked (user approval pending). Feature dir, phase declaration, and all implementation work deliberately deferred — this document is the project's *purpose* only.
+
+---
+
+## New Session Quick Start
+
+> One line: pure-Python weighted P/T Petri-net library (execution + analysis layers, exact rational invariants, completeness-explicit results) — scope drafted at v1, NOT yet locked (user approval pending); zero linked features.
+
+**Next:** user scope approval → `uv run scripts/omt/new_feature.py "petri net library" --type major_feature --project petri_net_library` → Analysis per the requirement anchor `.meta/doc/petri_nets/petri_net_python_coding_agents.md`.
 
 ---
 

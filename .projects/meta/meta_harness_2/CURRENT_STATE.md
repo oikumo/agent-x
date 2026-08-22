@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-08-22 (auto — project.py log)
+
+- backfill baseline: linked features feature_020/021/022/023/026 (all DONE; reports @ 6.testing/features/<f>/); log continuity starts here
+
+---
+
 ## 2026-08-09 (iter 13 — omt_q GREEN + REFACTOR + DONE)
 
 ### Done

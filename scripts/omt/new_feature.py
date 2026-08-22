@@ -71,6 +71,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("name", help="human-readable feature name, e.g. 'modern ui'")
     parser.add_argument("--type", default="minor_feature", choices=sorted(VALID_TYPES))
     parser.add_argument("--date", default=None, help="ISO date stamp (default: today)")
+    parser.add_argument("--project", default=None,
+                        help="link the new feature to a .projects/meta/<slug> home "
+                             "(spawn-time link, origin: scaffold — feature_030)")
     parser.add_argument("--dry-run", action="store_true", help="print what would be created")
     args = parser.parse_args(argv)
 
@@ -103,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[dry-run] would create {feature_slug}/ (type={args.type}):")
         for path in targets:
             print(f"  - {path.relative_to(REPO_ROOT)}")
+        if args.project:
+            print(f"  - would link {feature_slug} → {args.project} (origin: scaffold)")
         return 0
 
     for path, content in targets.items():
@@ -112,6 +117,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"✅ created {feature_slug}/")
     for path in targets:
         print(f"   {path.relative_to(REPO_ROOT)}")
+    if args.project:
+        import project as project_cli
+        rc = project_cli.main(["link", feature_slug, args.project, "--origin", "scaffold"])
+        if rc != 0:
+            print(f"⚠️ project link to '{args.project}' failed (rc={rc}) — run: "
+                  f"uv run scripts/omt/project.py link {feature_slug} {args.project} --origin scaffold")
     print(f"\nNext: declare your phase before editing src/  →  omt_phase{{task_type:'{args.type}'}}")
     print("Naming: analysis_NNN_<topic>.md, design_NNN_<topic>.md (no ad-hoc *_PROOF.md).")
     return 0

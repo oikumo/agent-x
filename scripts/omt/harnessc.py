@@ -715,6 +715,114 @@ def check_work_done_max(c: Corpus) -> None:
                         "— rotate older DONE to WORK_ARCHIVE.md (CONV_WORK_ROTATE)")
 
 
+# --- feature_030.project_lifecycle: .projects/ lifecycle checks (design_001 §4) ---
+# Truth = ledger project/project_link records + filesystem dirs; the manifest
+# and Status headers are projections (project.py is the single writer; these
+# checks verify). `.projects/` stays NON-GATED (D8) — compile-time only.
+
+import project_state as _ps  # noqa: E402 — lazy env paths; no import-time state
+
+
+def check_projects_structure(c: Corpus) -> None:
+    """Each home carries the canonical pair; dates newest-on-top; no *.bak.
+    The archive root is exempt (moved homes keep their shape)."""
+    root = _ps.projects_root()
+    if not root.is_dir():
+        return
+    for d in sorted(p for p in root.iterdir() if p.is_dir()):
+        if not (d / "PROJECT.md").exists():
+            c.errors.append(f".projects: {d.name}/ missing PROJECT.md (canonical pair)")
+        cs = d / "CURRENT_STATE.md"
+        if not cs.exists():
+            c.errors.append(f".projects: {d.name}/ missing CURRENT_STATE.md (canonical pair)")
+            continue
+        dates = re.findall(r"^## (\d{4}-\d{2}-\d{2})", cs.read_text(encoding="utf-8"), re.M)
+        if any(dates[i] < dates[i + 1] for i in range(len(dates) - 1)):
+            c.errors.append(f".projects: {d.name}/CURRENT_STATE.md date blocks out of order "
+                            "(newest-on-top convention)")
+    baks = sorted(str(p) for p in root.rglob("*.bak"))
+    if baks:
+        c.errors.append(f".projects: stray *.bak files {baks} — delete (root-hygiene idiom)")
+
+
+def check_projects_links(c: Corpus) -> None:
+    """Links resolve both directions; no dupes; no links after close (reopen first)."""
+    records = _ps.read_ledger_all()
+    links = _ps.derive_links(records)
+    for proj, feat in _ps.duplicate_links(records):
+        c.errors.append(f".projects: duplicate link record ({proj}, {feat}) — writers must be idempotent")
+    feats_root = REPO_ROOT / ".meta" / "software_development_process" / "2.requirements" / "features"
+    for feat, link in links.items():
+        proj = link["project"]
+        if not (_ps.projects_root() / proj).is_dir() \
+                and _ps.derive_state(proj, records, links) != "archived":
+            c.errors.append(f".projects: link {feat} → {proj}: project home missing (phantom link)")
+        if re.match(r"feature_\d+\.", feat) and not (feats_root / feat).is_dir():
+            c.errors.append(f".projects: link {feat} → {proj}: feature dir missing in 2.requirements/features/")
+    last_close: dict[str, str] = {}
+    for r in records:
+        if r.get("kind") == "project" and r.get("op") in ("close", "archive"):
+            last_close[r["project"]] = r.get("ts", "")
+        elif r.get("kind") == "project" and r.get("op") == "reopen":
+            last_close.pop(r["project"], None)
+    for r in records:
+        if r.get("kind") == "project_link":
+            closed_at = last_close.get(r.get("project", ""))
+            if closed_at and r.get("ts", "") > closed_at:
+                c.errors.append(f".projects: link {r.get('feature')} → {r.get('project')} written "
+                                f"after close ({closed_at}) — reopen the project first")
+
+
+def check_projects_resume(c: Corpus) -> None:
+    """PROJECT.md over the byte threshold must carry a Quick-Start/Resume block
+    near the top (D7 — the rag_v2 organic pattern made mechanical; T3 cost)."""
+    r = c.get("var", "project_resume_threshold_bytes")
+    threshold = int(r.payload) if r and r.payload.isdigit() else 16384
+    root = _ps.projects_root()
+    for slug in _ps.homes():
+        pm = root / slug / "PROJECT.md"
+        if not pm.exists():
+            continue
+        text = pm.read_text(encoding="utf-8")
+        if len(text.encode("utf-8")) <= threshold:
+            continue
+        head = "\n".join(text.split("\n")[:80])
+        if not re.search(r"^## (New Session Quick Start|Resume)", head, re.M):
+            c.errors.append(f".projects: {slug}/PROJECT.md > {threshold} B without a "
+                            "## New Session Quick Start block in the first 80 lines")
+
+
+def check_projects_status(c: Corpus) -> None:
+    """PROJECT.md Status header == ledger-derived state (headers are projections)."""
+    records = _ps.read_ledger_all()
+    links = _ps.derive_links(records)
+    root = _ps.projects_root()
+    for slug in _ps.homes():
+        derived = _ps.derive_state(slug, records, links)
+        header = _ps.parse_status_header(root / slug / "PROJECT.md")
+        if derived == "unknown":
+            c.errors.append(f".projects: {slug} has no lifecycle records — run: "
+                            f"uv run scripts/omt/project.py backfill {slug}")
+        elif header not in _ps.PROJECT_STATES:
+            c.errors.append(f".projects: {slug}/PROJECT.md Status header unparseable — run: "
+                            "uv run scripts/omt/project.py sync")
+        elif header != derived:
+            c.errors.append(f".projects: {slug} Status header '{header}' != derived '{derived}' "
+                            "— run: uv run scripts/omt/project.py sync")
+
+
+def check_projects_manifest(c: Corpus) -> None:
+    """The GENERATED manifest matches a fresh projection (byte-compare)."""
+    records = _ps.read_ledger_all()
+    manifest = _ps.manifest_path()
+    if not manifest.exists():
+        c.errors.append(".projects/meta/META.md missing — run: uv run scripts/omt/project.py sync")
+        return
+    expected = _ps.build_manifest(records, _ps.derive_links(records))
+    if manifest.read_text(encoding="utf-8") != expected:
+        c.errors.append(".projects/meta/META.md stale — run: uv run scripts/omt/project.py sync")
+
+
 # improvement006/OPT-C: the TS irToolDescription(name, seed) fallback seeds must
 # mirror the .omt @tool payloads EXACTLY (single source; seed = IR-missing
 # fallback only). Drift (e.g. omt_phase pre-006) = build error here.
@@ -1083,6 +1191,11 @@ def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str =
     check_harness_paths(c)
     check_root_hygiene(c)
     check_work_done_max(c)
+    check_projects_structure(c)
+    check_projects_links(c)
+    check_projects_resume(c)
+    check_projects_status(c)
+    check_projects_manifest(c)
     check_tool_seed_sync(c)
     sizes = measure_budgets(c, agents_md, nav_text, ir_text)
     for rid, (size, cap) in sizes.items():

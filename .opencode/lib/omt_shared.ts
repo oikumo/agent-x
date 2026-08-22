@@ -177,6 +177,18 @@ export function readLedger(root?: string): any[] {
   return [...older, ...readJsonl(ledgerPath(root))]
 }
 
+// feature_030: full fold — ALL archives (oldest first) + hot. Project lifecycle
+// links span months; latest+hot (readLedger) is gate-window-sufficient only.
+export function readLedgerAll(root?: string): any[] {
+  try {
+    const dir = dirname(ledgerPath(root))
+    const archives = readdirSync(dir)
+      .filter((n) => /^ledger-\d{6}\.jsonl$/.test(n))
+      .sort()
+    return [...archives.flatMap((n) => readJsonl(join(dir, n))), ...readJsonl(ledgerPath(root))]
+  } catch { return readJsonl(ledgerPath(root)) }
+}
+
 // Append one record, then rotate the hot file if it exceeded the cap.
 export function appendLedger(record: Record<string, unknown>, root?: string): void {
   appendJsonl(ledgerPath(root), record)

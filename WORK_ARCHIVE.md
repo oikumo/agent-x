@@ -4,6 +4,13 @@
 > keeps pending + last 5 DONE inline; older DONE lands here. NEVER auto-read
 > (not in startup, not nav-indexed); consult only when archaeology is needed.
 
+## 2026-08-22 rotation (feature_030.project_lifecycle kickoff round)
+
+- [x] **feature_025.coding_context_window_optimization** — DONE (2026-08-08): deepagents full stack (`create_deep_agent` + middleware) — rotated to WORK_ARCHIVE.md.
+- [x] **feature_026.omt_q_interrogative_first_ops** — DONE (2026-08-09): read-only `omt_q` plugin (3 ops `state|plan|drift`, `as_of_commit` envelope); 14/14 golden + 14/14 sentinel + suite 1223 passed (2 allowlisted). Report @ `6.testing/features/feature_026.omt_q_interrogative_first_ops/test_report.md`.
+- [x] **feature_027.rag_v2** — DONE (2026-08-15): v2 console retrieve-offload-delegate RAG (deepagents + chunk-analyst subagent); 31/31 tests GREEN. Report @ `.meta/software_development_process/6.testing/features/feature_027.rag_v2/test_report.md`.
+- [x] **feature_028.feature_scoped_gating** — DONE 2026-08-16 (meta_harness_3 Phase-A): P1-1 feature-scoped TDD state · P1-3 coverage-on-diff · P1-2 done split · T1 op=state summary 44KB→2.7KB; 10/10 GREEN; 217/217 omt. Report @ `6.testing/features/feature_028.feature_scoped_gating/test_report.md`.
+
 ## 2026-08-08 rotation (feature_025 completion round)
 
 - [x] **meta.workflows_definition_layer** — DONE (2026-08-08): `.workflows/` catalog definition layer — root `META.md` (8 sections) + 3 subject META.md (`agentx` 2 loops, `meta_harness` 2 loops + 1 one-shot, `app_knowledge_base` future/reserved). 3 open gaps fixed (empty loops stub declared future; `consitency_enforcement` typo fixed; pause workflow brought to full schema). S5 dry-run verified. Details: `.projects/meta/workflows/PROJECT.md` + git log.

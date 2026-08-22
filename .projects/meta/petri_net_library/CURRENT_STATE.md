@@ -15,6 +15,7 @@
 ### Next
 
 - **User ticks the Lock sign-off checklist** → flip Status to locked (v1.1) → (on user go) scaffold `feature_030.petri_net_library` and declare the first phase.
+- backfill baseline: no linked features (draft); log continuity starts here
 
 ---
 

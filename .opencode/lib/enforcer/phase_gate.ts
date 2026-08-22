@@ -10,7 +10,7 @@
 import { tool } from "@opencode-ai/plugin"
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { resolveFeatureDir, globToRegex, irToolDescription, phaseTransitions, tddAutoOn, gateMsg } from "../omt_shared"
+import { resolveFeatureDir, globToRegex, irToolDescription, phaseTransitions, tddAutoOn, gateMsg, readLedgerAll } from "../omt_shared"
 import {
   OmtBlock, writeLedger, readLedger, getActiveUnlock, getActiveFeaturePhase, type EnforcerEnv,
 } from "./session_state"
@@ -131,6 +131,60 @@ function resolveArtifact(env: EnforcerEnv, record: any): string | null {
 }
 const artifactPresent = (env: EnforcerEnv, record: any): boolean => !!resolveArtifact(env, record)
 
+// --- feature_030.project_lifecycle: project link inference + ship-sync --------
+// The .projects/ mechanic (design_001 §5): the design_doc bridge records the
+// project↔feature link; omt_complete mirrors the ship into the owning home.
+// Facts only (D2) — Status verdicts and closure stay with project.py/user.
+
+export function maybeLinkProjectFromDesignDoc(
+  env: EnforcerEnv,
+  session: string | undefined,
+  feature: string,
+  designDoc: string,
+): string | null {
+  if (!feature || !designDoc) return null
+  const m = designDoc.match(/^\.projects\/meta\/([^/]+)\//)
+  if (!m) return null
+  if (!existsSync(join(env.directory, designDoc))) return null
+  const project = m[1]
+  const alreadyLinked = readLedgerAll().some(
+    (r) => r.kind === "project_link" && r.feature === feature)
+  if (alreadyLinked) return null
+  writeLedger({ kind: "project_link", project, feature, origin: "inferred", session })
+  return project
+}
+
+export function syncProjectLogFromLedger(
+  env: EnforcerEnv,
+  feature: string,
+  taskType: string,
+): string | null {
+  if (!feature) return null
+  let link: any = null
+  for (const r of readLedgerAll()) {
+    if (r.kind === "project_link" && r.feature === feature) link = r
+  }
+  if (!link) return "no project link — project.py link if this work belongs to a project home"
+  const csPath = join(env.directory, ".projects", "meta", link.project, "CURRENT_STATE.md")
+  if (!existsSync(csPath)) return `project ${link.project}: CURRENT_STATE.md missing`
+  const marker = `(auto — ${feature} Done)`
+  const text = readFileSync(csPath, "utf8")
+  if (text.includes(marker)) return `project ${link.project}: ship already logged`
+  const today = new Date().toISOString().slice(0, 10)
+  const block = [
+    `## ${today} ${marker}`, "",
+    `- shipped: ${taskType || "feature"} · test report @ 6.testing/features/${feature}/test_report.md`,
+    "- logged by omt_complete; expand by hand if resume needs more.", "", "---", "",
+  ]
+  const lines = text.split("\n")
+  const div = lines.findIndex((ln) => ln === "---")
+  const at = div >= 0 ? div + 1 : 1
+  lines.splice(at, 0, "", ...block)
+  writeFileSync(csPath, lines.join("\n"), "utf8")
+  return `logged ship → ${link.project}/CURRENT_STATE.md`
+}
+
+
 // --- teaching messages ---------------------------------------------------
 // improvement007 R8/OPT-G: block texts resolve from the IR @msg records via
 // gateMsg ({rel}/{tt}/{feature} interpolated per call) — .omt-only edits.
@@ -240,6 +294,11 @@ export function createPhaseTools(env: EnforcerEnv) {
           : `- Artifact: ⚠️ none found (checked design_doc + 4.design/features/${args.feature || "<feature>"}/) ` +
             `— src/ stays BLOCKED until a design doc exists ` +
             `(scaffold: uv run scripts/omt/new_feature.py "<name>" --type ${tt}).`)
+
+        if (found) {
+          const linkedProject = maybeLinkProjectFromDesignDoc(env, session, args.feature || "", found)
+          if (linkedProject) lines.push(`- Project: linked → ${linkedProject} (inferred from design_doc)`)
+        }
       }
       lines.push("✅ src/ edits unlocked for this session" +
         (ARTIFACT_REQUIRED.has(tt) ? " once the artifact check passes." : "."))
@@ -359,6 +418,16 @@ export function createPhaseTools(env: EnforcerEnv) {
 
       // Auto-sync WORK.md
       try { await syncWorkMdFromLedger() } catch { /* ignore */ }
+
+      // feature_030: mirror the ship into the owning project home (D2) —
+      // TERMINAL completions only (Testing/Done): an Analysis/Design/Programming
+      // complete is not a ship and must not write a "Done" block.
+      if (currentPhase === "Testing" || currentPhase === "Done") {
+        try {
+          const projectNote = syncProjectLogFromLedger(env, feature, phaseRecord.task_type || "")
+          if (projectNote) result += `\n📁 Project: ${projectNote}`
+        } catch { /* best-effort, mirrors syncWorkMdFromLedger */ }
+      }
 
       return result
     },

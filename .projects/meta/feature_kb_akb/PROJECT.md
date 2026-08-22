@@ -1,5 +1,17 @@
 # PROJECT: feature_kb_akb — Application Knowledge Base (v2)
 
+> Status: **draft** · machine header added by the feature_030 backfill (2026-08-22); the **v2 (2026-08-02)** note below is the version history.
+
+---
+
+## New Session Quick Start
+
+> One line: source-code-primary Application Knowledge Base — AST skeleton (`kb_ast_extract.py`) + curated concept text merged by `kb_compiler.py build`; g.kb consult-gate before src/ edits; nav via `omt_kb_nav`. Shipped under non-numbered `feature_kb_akb.*` slugs; no linked feature_0NN (maintenance).
+
+**Next:** none scheduled — the v2.1 contract lives in the sections below + `kb_code_tools_sample.jsonl`.
+
+---
+
 > Source-code-primary KB. **Main goal: keep CONCEPTS + ABSTRACTION** — the KB is the concept layer over source code (WHAT/WHY/CONNECTS-TO), never implementation. Mandatory agent consult before `src/` edits. Hybrid: AST skeleton + curated concept text. **Index content is UNBOUNDED** — query-scoped, not size-capped. Supersedes `design_001_kb_akb.md` + `operation_spec_001_kb_operations.md` (see Decision log).
 
 **v2 (2026-08-02)**: re-focus approved sess 6 (source-code-primary, Alt-1). Rewritten from sess-6 proof-of-concept findings (`kb_code_tools_sample.jsonl`, 11 records) + budget correction (index unbounded).

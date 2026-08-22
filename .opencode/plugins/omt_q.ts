@@ -25,10 +25,10 @@
 
 import { tool } from "@opencode-ai/plugin"
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync, statSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import {
-  initOmtShared, repoRoot, loadIr, readLedger, appendLedger,
+  initOmtShared, repoRoot, loadIr, readLedger, readLedgerAll, appendLedger,
   readThoughtsIndex, loadKbIr, omtHarnessE2eStatus,
   irToolDescription,
   UNLOCK_WINDOW_MS, THOUGHT_PATTERN, relOf,
@@ -647,6 +647,107 @@ function createQTools() {
     },
   })
 
+
+// ---------------------------------------------------------------------------
+// feature_030: project-lifecycle drift (read-only). Full ledger fold — links
+// span months. Additive `project_drift` envelope field (U3 surface untouched).
+// ---------------------------------------------------------------------------
+function foldProjectDrift(): any[] {
+  const root = repoRoot()
+  const records = readLedgerAll()
+  const out: any[] = []
+  const links = new Map<string, any>()
+  const creates = new Map<string, string>()
+  const lastEvent = new Map<string, any>()
+  for (const r of records) {
+    if (r.kind === "project_link" && r.feature && r.project) links.set(r.feature, r)
+    if (r.kind === "project" && r.project) {
+      lastEvent.set(r.project, r)
+      if (r.op === "create" && !creates.has(r.project)) creates.set(r.project, r.ts || "")
+    }
+  }
+  const hasLink = (slug: string) => [...links.values()].some((l) => l.project === slug)
+  const derivedState = (slug: string): string => {
+    const ev = lastEvent.get(slug)
+    if (!ev) return "unknown"
+    if (ev.op === "close") return "complete"
+    if (ev.op === "archive") return "archived"
+    return hasLink(slug) ? "active" : "draft"
+  }
+  const homesRoot = join(root, ".projects", "meta")
+  const featsRoot = join(root, ".meta", "software_development_process", "2.requirements", "features")
+  const topLogDate = (csPath: string): string => {
+    try {
+      const m = readFileSync(csPath, "utf8").match(/^## (\d{4}-\d{2}-\d{2})/m)
+      return m ? m[1] : ""
+    } catch { return "" }
+  }
+  for (const [feature, link] of links) {
+    const home = join(homesRoot, link.project)
+    if (!existsSync(home) && derivedState(link.project) !== "archived") {
+      out.push({ class: "phantom-link", feature, project: link.project, detail: "project home missing" })
+    }
+    if (/^feature_\d+\./.test(feature) && !existsSync(join(featsRoot, feature))) {
+      out.push({ class: "phantom-link", feature, project: link.project,
+                 detail: "feature dir missing in 2.requirements/features/" })
+    }
+    // terminal ships only: a phase:"Analysis/Design/Programming" complete is
+    // mid-flight, not a ship; legacy records without phase count as terminal.
+    const completes = records.filter((r) => r.kind === "complete" && r.feature === feature
+      && (!r.phase || r.phase === "Testing" || r.phase === "Done"))
+    if (completes.length) {
+      const lastDone = String(completes[completes.length - 1].ts || "").slice(0, 10)
+      const top = topLogDate(join(home, "CURRENT_STATE.md"))
+      if (lastDone && top && lastDone > top) {
+        out.push({ class: "stale-log", feature, project: link.project,
+                   detail: `shipped ${lastDone} > top log entry ${top}` })
+      }
+    }
+  }
+  for (const r of records) {
+    if (r.kind !== "phase" || !r.design_doc || !r.feature) continue
+    const m = String(r.design_doc).match(/^\.projects\/meta\/([^/]+)\//)
+    if (m && links.get(r.feature)?.project !== m[1]) {
+      out.push({ class: "unlinked-project-backed", feature: r.feature, project: m[1],
+                 detail: "design_doc under .projects/ without project_link — re-declare omt_phase (inference) or project.py link" })
+    }
+  }
+  const now = Date.now()
+  for (const [slug, ts] of creates) {
+    const ageDays = ts ? (now - Date.parse(ts)) / 86400000 : 0
+    if (!hasLink(slug) && derivedState(slug) === "draft" && ageDays > 21) {
+      out.push({ class: "aging-draft", project: slug,
+                 detail: `draft ${Math.floor(ageDays)}d, no linked features` })
+    }
+  }
+  try {
+    for (const slug of readdirSync(homesRoot)) {
+      let header = ""
+      try {
+        const m = readFileSync(join(homesRoot, slug, "PROJECT.md"), "utf8")
+          .match(/> Status: \*\*([a-z]+)\*\*/)
+        header = m ? m[1] : ""
+      } catch { continue }
+      const derived = derivedState(slug)
+      if (derived !== "unknown" && header && header !== derived) {
+        out.push({ class: "status-drift", project: slug,
+                   detail: `header '${header}' != derived '${derived}' — project.py sync` })
+      }
+      try {
+        const lastChange = execFileSync(
+          "git", ["log", "-1", "--format=%cs", "--", `.projects/meta/${slug}/PROJECT.md`],
+          { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim()
+        const top = topLogDate(join(homesRoot, slug, "CURRENT_STATE.md"))
+        if (lastChange && top && lastChange > top) {
+          out.push({ class: "iteration-log", project: slug,
+                     detail: `PROJECT.md changed ${lastChange} > top log entry ${top}` })
+        }
+      } catch { /* git unavailable (probe tmp root) — class omitted */ }
+    }
+  } catch { /* no homes root */ }
+  return out
+}
+
   const omt_drift = tool({
     description: "op=drift impl (unregistered; dispatched via omt_q).",
     args: { as_of: tool.schema.string().optional() },
@@ -657,12 +758,12 @@ function createQTools() {
         const { drift_records, count_drift } = foldDrift()
         return emitQEnvelope(
           start, "drift", ["U3"], "U3",
-          { as_of_commit, drift_records, count_drift },
+          { as_of_commit, drift_records, count_drift, project_drift: foldProjectDrift() },
         )
       } catch {
         const envelope = {
           as_of_commit, op: "drift",
-          drift_records: [], count_drift: { kb: 0, skeleton: 0, direction_b_only: true },
+          drift_records: [], count_drift: { kb: 0, skeleton: 0, direction_b_only: true }, project_drift: [],
         }
         return JSON.stringify(envelope)
       }

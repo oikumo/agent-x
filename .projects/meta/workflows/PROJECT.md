@@ -1,6 +1,14 @@
 # PROJECT: workflows
 
-> Status: **draft v1 — purpose only**. Scope, vision, architecture, and tasks pending.
+> Status: **draft** · draft v1 — purpose only. Scope, vision, architecture, and tasks pending.
+
+---
+
+## New Session Quick Start
+
+> One line: the `.workflows/` operational workflow catalog — definition layer (root `.workflows/META.md` manifest + 3 subject manifests + workflow docs). Docs-only project; no linked features.
+
+**Next:** none scheduled — catalog changes are driven by the `.workflows/` tree itself; see `.workflows/META.md`.
 
 ---
 

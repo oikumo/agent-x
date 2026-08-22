@@ -227,4 +227,10 @@ Decision: index UNBOUNDED — keep all 62 curated + all code records; bound toke
 
 ---
 
+## 2026-08-22 (auto — project.py log)
+
+- backfill baseline: no feature_0NN links (non-numbered slug; work shipped as feature_kb_akb.* + improvement00X); stray .bak removed; log continuity starts here
+
+---
+
 *Updated: 2026-08-02 session 7 (PROJECT.md v2 — unbounded index, 3 kinds, hybrid AST+curated, design docs superseded) · session 8 (exploration+plan, ZERO edits) · session 9 (PROJECT.md v2.1 — coverage=all public classes+auto-text, doc-tier deferred §C, 7 live-verified drift fixes, P0/P1 re-tier; doc-only) · session 10 (P0 non-gated steps 1-3 DONE: sample append+validate, 6 .kb.omt fixes sources+index, code.kb.omt overlay 16 recs; PAUSED before gated step 4). Resume at `PROJECT.md` (v2.1) → here (§Session 10) → `kb_code_tools_sample.jsonl`.*

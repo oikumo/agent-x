@@ -1,6 +1,6 @@
 # PROJECT: rag_v2 — RAG v2 (console-only, new module, deepagents grounding)
 
-> Status: **v1.2 (2026-08-09)** — v1.1 scope locked + Vision written; v1.2 adds the §New Session Quick Start block (this header) + `CURRENT_STATE.md` iter-0 entry so a fresh session lands on the three exact next commands without re-reading 210 lines. Definition body (Summary → Purpose → Vision → Scope → Decisions → References) unchanged from v1.1.
+> Status: **active** · v1.2 (2026-08-09) — v1.1 scope locked + Vision written; v1.2 adds the §New Session Quick Start block (this header) + `CURRENT_STATE.md` iter-0 entry so a fresh session lands on the three exact next commands without re-reading 210 lines. Definition body (Summary → Purpose → Vision → Scope → Decisions → References) unchanged from v1.1.
 
 ---
 

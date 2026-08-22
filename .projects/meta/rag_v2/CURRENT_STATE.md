@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-08-22 (auto — project.py log)
+
+- backfill baseline: linked feature_027.rag_v2 + feature_029.rag_v2_slash_commands (both DONE); bug_fix.rag_v2_ingestion_persist + bug_fix.help_command_deepcopy_thread shipped 2026-08-16 (unlinked bug fixes); log continuity starts here
+
+---
+
 ## 2026-08-15 (iter 2 — Design phase complete; advanced to Programming)
 
 ### Done (this iter)
