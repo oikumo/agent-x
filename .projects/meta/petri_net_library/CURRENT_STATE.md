@@ -5,6 +5,32 @@
 
 ---
 
+## 2026-08-22 (iter 6 — review patch applied; no feature work)
+
+### Done
+
+- **Applied the review patch to `PROJECT.md`** (findings a–e) per user "apply patch": (a) named excluded DoD §40-18 = Coverability for unbounded nets (v2, already out of scope via D5 + `coverability.py` stub); (b) pinned `max_states` as required (no implicit default) in D9 and added model-API semantics — `reset()` restores `M0`, `fire_marking(M,t)` raises `TransitionNotEnabledError` when disabled — in In-scope #1; (c) added a per-function test-coverage matrix (happy + "unknown" for every analysis fn) to In-scope #5; (d) added feature_001 runtime-mutation cross-ref to D11 (confirm add-only vs add+remove before lock); (e) added a "Lock sign-off checklist" (single-action approval) + "Design-phase must-pin checklist". No `src/`, no feature, no `omt_phase` — pure project-home markdown.
+- **Scope & decisions remain draft, awaiting the lock sign-off** (new checklist makes approval a single action).
+
+### Next
+
+- **User ticks the Lock sign-off checklist** → flip Status to locked (v1.1) → (on user go) scaffold `feature_030.petri_net_library` and declare the first phase.
+
+---
+
+## 2026-08-22 (iter 5 — review-driven doc fixes; no feature work)
+
+### Done
+
+- **Applied the review findings to `PROJECT.md`** (N, A, C, D, E, F, G, B, J, K) + iteration-log entry; and updated `CURRENT_STATE.md` iter-0 decision references (D1–D11, D4 locked). No `src/`, no feature, no `omt_phase` — pure project-home markdown.
+- **Scope & decisions remain draft, awaiting user approval** — these edits only sharpen/derisk the draft; they do not lock it.
+
+### Next
+
+- **User approval of scope & decisions (D1–D11)** — then (on user go) scaffold `feature_030.petri_net_library` and declare the first phase.
+
+---
+
 ## 2026-08-16 (iter 3 — requirement-doc feasibility review; no feature work)
 
 ### Done
@@ -19,7 +45,7 @@
 
 ### Next
 
-- **User approval of scope & decisions (D1–D9)** — unchanged; the anchor doc is now internally consistent with the locked project decisions (D4/D5/D7/D8/D9).
+- **User approval of scope & decisions (D1–D11)** — unchanged; the anchor doc is now internally consistent with the locked project decisions (D4 locked: pure-Python nullspace, no sympy; D5/D7/D8/D9 also locked).
 
 ---
 
@@ -41,7 +67,7 @@
 ### Locked decisions (do not re-litigate without new evidence)
 
 - **(user) Project only, no feature yet** — no `new_feature.py` scaffolding, no `omt_phase`, no `src/` edits, no tests.
-- **(draft, unconfirmed)** D1–D9 in PROJECT.md — all pending user approval/revision, especially the scope boundary and D4 (sympy dependency).
+- **(draft, unconfirmed)** D1–D11 in PROJECT.md — all pending user approval/revision (D4 is already **locked**: pure-Python exact nullspace, no sympy; remaining draft items are the scope boundary, D7 edge-case policy, and D1 feature slug).
 
 ### In progress / Blocked
 
@@ -49,7 +75,7 @@
 
 ### Next
 
-- **User approval of scope & decisions (D1–D9)** — approve as-is or revise (especially: scope boundary, sympy-vs-pure-Python for invariants, edge-case policy D7).
+- **User approval of scope & decisions (D1–D11)** — approve as-is or revise (especially: scope boundary and edge-case policy D7; note D4 is already locked to pure-Python exact nullspace with sympy rejected).
 - After approval: lock scope in PROJECT.md (v1.1), then (only on user go) scaffold `feature_030.petri_net_library` via `uv run scripts/omt/new_feature.py "petri net library" --type major_feature` and declare the first phase.
 
 ### Notes / context

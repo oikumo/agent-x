@@ -78,11 +78,26 @@ Non-negotiable requirements this project inherits:
 
 ### In scope (draft v1)
 
-1. **Model layer** — `PetriNet` with the doc §9 API (streamlined): `add_place`, `add_transition`, `add_input`, `add_output`, `is_enabled_at`, `fire`, `fire_marking` (pure), `enabled_transitions_at`, `current_marking`, `reset`, canonical tuple markings (`place_order`/`place_index`), structural queries (`pre_set`/`post_set`, §24). Convenience wrappers `is_enabled()` and `enabled_transitions()` omitted (call `_at` variants directly).
-2. **Analysis layer (v1 minimum toolkit, doc §36 filtered)** — `reachable_markings` (BFS, predecessor map), `reachability_graph`, `firing_sequence_to`, `deadlocks`, `bounds`, `incidence_matrix` (exact), `place_invariants`, `transition_invariants` (pure-Python exact rational Gaussian elimination), `transition_liveness`/`is_live` (finite complete graphs, reverse-BFS, returning `AnalysisResult`), `strongly_connected_components` (Tarjan in `analysis.py`). `coverability_tree` is a stub raising `NotImplementedError`.
+1. **Model layer** — `PetriNet` with the doc §9 API (streamlined): `add_place`, `add_transition`, `add_input`, `add_output`, `is_enabled_at`, `fire`, `fire_marking` (pure), `enabled_transitions_at`, `current_marking`, `reset`, canonical tuple markings (`place_order`/`place_index`), structural queries (`pre_set`/`post_set`, §24). Convenience wrappers `is_enabled()` and `enabled_transitions()` omitted (call `_at` variants directly). Typed error hierarchy in `errors.py`: `PetriNetError` (base) with `InvalidModelError` (incl. duplicate-arc rejection), `UnknownPlaceError`, `UnknownTransitionError`, `TransitionNotEnabledError`. — `reset()` restores the **initial marking `M0`**; `fire_marking(M, t)` is **pure** and **raises `TransitionNotEnabledError` when `t` is not enabled at `M`** (the caller may guard with `is_enabled_at`); mutable `fire(t)` applies the same check against the live marking.
+2. **Analysis layer (v1 minimum toolkit, doc §36 filtered)** — `reachable_markings` (BFS, predecessor map), `reachability_graph`, `firing_sequence_to` (returns the firing sequence **or `None`** when the target is unreachable within `max_states`, with `complete`/`reason` set on truncation), `deadlocks`, `bounds`, `incidence_matrix` (exact), `place_invariants`, `transition_invariants` (pure-Python exact rational Gaussian elimination), `transition_liveness`/`is_live` (operate on a **precomputed `reachability_graph`** — per §32 they take the graph explicitly — returning `AnalysisResult`; definitive verdict only via reverse-BFS on a finite *complete* graph, `value=None` when the supplied graph is incomplete, never a bare `bool`), `strongly_connected_components` (Tarjan, computed on the **reachability graph**). `coverability_tree` is a stub raising `NotImplementedError`.
 3. **Completeness semantics + limits** — result dataclasses with `complete`/`reason`; **`max_states` only** on every exploration API (no `max_depth`/`time_limit` in v1); no hidden hard-coded limits.
 4. **Edge cases** — self-loops, no-input/no-output transitions, parallel transitions, zero-token places, empty net allowed (consistent analysis: `()` marking, no enabled transitions, bounded=True, empty invariants), duplicate arcs: reject.
-5. **Tests** — `tests/model/petri_net/` (`test_model.py`, `test_analysis.py`, `test_coverability.py`): model, analysis, coverability stub; both positive results AND "unknown" cases (doc §30, §40-19). Explicit test matrix for truncated vs complete analyses.
+5. **Tests** — `tests/model/petri_net/` (`test_model.py`, `test_analysis.py`, `test_coverability.py`): model, analysis, coverability stub; both positive results AND "unknown" cases (doc §30, §40-19). The existing `test_petri_net.py` placeholder stub is **deleted** when these are added.
+
+   **Per-function test-coverage matrix (every analysis fn gets a happy test + a truncated/"unknown" test — directly operationalizes §40-19 and the "no overclaim" rule):**
+
+   | Function | Happy test | "Unknown" / truncated test (`complete=False`, `reason` set) |
+   |----------|-----------|-------------------------------------------------------------|
+   | `reachable_markings` | finite net, known marking set | `max_states` hit before full exploration |
+   | `reachability_graph` | finite net, known graph | `max_states` hit → `complete=False` |
+   | `firing_sequence_to` | reachable target → sequence | unreachable within `max_states` → `None`, `complete=False` |
+   | `deadlocks` | net with known deadlock | truncated search ⇒ `complete=False` (never "deadlock-free") |
+   | `bounds` | complete finite graph, known bounds | `max_states` hit ⇒ `complete=False` (never `bounded=True`) |
+   | `incidence_matrix` | known net | structural (no truncation); full-space tests for degenerate nets |
+   | `place_invariants` / `transition_invariants` | known invariants | degenerate nets (places-no-transitions / transitions-no-places) full-space basis |
+   | `transition_liveness` / `is_live` | complete finite graph → verdict | **incomplete** graph supplied → `value=None`, `complete=False` |
+   | `strongly_connected_components` | known SCCs on reachability graph | (computed on graph; `complete` inherited from graph) |
+   | `coverability_tree` (stub) | raises `NotImplementedError` | — |
 
 ### Out of scope (explicit non-goals, draft v1)
 
@@ -99,7 +114,7 @@ Non-negotiable requirements this project inherits:
 
 ### Success criteria (draft — mapped to requirement doc)
 
-- Doc §40 DoD items 1–17, 19 all demonstrably pass (execution items 1–6; analysis items 7–17, 19).
+- Doc §40 DoD items 1–17, 19 all demonstrably pass (execution items 1–6; analysis items 7–17, 19). **Excluded: §40-18 (Coverability analysis for unbounded nets) is v2 / Karp–Miller — already out of scope via D5 + the `coverability.py` stub, so it is not part of v1 sign-off.**
 - Doc §36 minimum analysis toolkit checklist complete (v1 items only).
 - Every truncated/limited exploration returns `complete=False` with a reason — tests assert this, not just the happy path (§30).
 - Full suite green; when implemented as a feature: TDD closed via `omt_tdd{op:done}` with `checklist.suite_passes:true`, NOT via `omt_skip`.
@@ -107,7 +122,7 @@ Non-negotiable requirements this project inherits:
 
 ### Boundaries (draft, one line each)
 
-- **What changes (will change):** new `src/agentx/model/petri_net/` package (`model.py`, `analysis.py`, `coverability.py`, `errors.py`, `__init__.py`) + real tests under `tests/model/petri_net/` (`test_model.py`, `test_analysis.py`, `test_coverability.py`) replacing the placeholder `test_petri_net.py` stub; `pyproject.toml` **unchanged** (zero dependencies).
+- **What changes (will change):** new `src/agentx/model/petri_net/` package (`model.py`, `analysis.py`, `coverability.py`, `errors.py`, `__init__.py`) + real tests under `tests/model/petri_net/` (`test_model.py`, `test_analysis.py`, `test_coverability.py`) replacing — and deleting — the placeholder `test_petri_net.py` stub; `pyproject.toml` **unchanged** (zero dependencies).
 - **What does not change:** `src/agentx/model/internal_state/` (does not exist yet — feature_001's future home, untouched by design), the harness, the enforcer, all existing agentx modules.
 - **What is deferred (future, not this project):** feature_001 integration, coverability implementation, siphons/traps, home markings, DOT/JSON export, state-space optimization, `simulator.py`, `graph.py`, `max_depth`/`time_limit` parameters.
 
@@ -127,6 +142,40 @@ Non-negotiable requirements this project inherits:
 
 ---
 
+---
+
+## Lock sign-off checklist (review iter 6 — pending user)
+
+> Collected from the 2026-08-22 review so approval is a single action. Each item is either already satisfied or a one-line decision.
+
+- [ ] **Approve v1/v2 section split** (§1–16, §18–21, §23–24, §27–34, §36, §40 items 1–17, 19 in scope; §17/§22/§25/§37 etc. v2).
+- [x] **Name excluded DoD item** — §40-18 (Coverability for unbounded nets) is v2; already reflected in D5 + `coverability.py` stub. *(satisfied — see Success criteria)*
+- [ ] **Approve edge-case policy D7** (self-loops, no-input/no-output, parallel, zero-token, empty net, degenerate-net invariant basis, duplicate-arc rejection).
+- [ ] **Approve feature slug `feature_030.petri_net_library` (D1).**
+- [x] **Confirm `max_states` is a required parameter with no implicit default (D9 addendum).** *(satisfied)*
+- [x] **Confirm `fire_marking(M,t)` raises `TransitionNotEnabledError` when disabled; `reset()` restores `M0` (model-API addendum).** *(satisfied)*
+- [ ] **Confirm `PetriNetAnalyzer` binding** (constructor `PetriNetAnalyzer(net)` vs per-call `net`) — pin in design phase.
+- [ ] **Confirm feature_001 runtime-mutation needs** (add-only vs add+remove) — see D11 integration note.
+- [x] **Adopt the per-function test-coverage matrix** (happy + "unknown" case for every analysis fn) — see In-scope #5. *(satisfied)*
+
+On all boxes ticked: flip `Scope & success criteria` Status to **locked** (v1.1) and proceed to scaffold `feature_030.petri_net_library`.
+
+---
+
+## Design-phase must-pin checklist (owned by `feature_030` design doc)
+
+> These are deliberately NOT resolved in the project home; they are recorded here so the design phase cannot skip them.
+
+1. **`AnalysisResult` exact fields** — `(value: bool | None, complete: bool, explored_states: int, reason: str | None)`; payload-carrying analyses use their own dataclasses sharing the `complete`/`reason` contract (D5).
+2. **`PetriNetAnalyzer` binding** — constructor vs per-call `net` (review item above).
+3. **`fire_marking` disabled behavior** — raise `TransitionNotEnabledError` (model-API addendum).
+4. **`reset()` target** — restore `M0` (model-API addendum).
+5. **`max_states` default policy** — required, no implicit default (D9 addendum).
+6. **Per-function test matrix** — happy + truncated/"unknown" test node for each analysis fn (Success criteria + In-scope #5).
+7. **`__init__.py` exports** — `PetriNet`, `PetriNetAnalyzer`; coverability stub exposure TBD.
+
+---
+
 ## Out-of-scope reminders (deferred, not done by this document)
 
 - Feature dir scaffolding — `.meta/software_development_process/{2.requirements,...}/features/feature_030.petri_net_library/` is **not** created by this document (user: "project, no feature yet").
@@ -142,13 +191,13 @@ Non-negotiable requirements this project inherits:
 - **D2 — Library location `src/agentx/model/petri_net/`** (agentx model-layer convention, e.g. `session/`, `rag_v2/`), module layout: `model.py`, `analysis.py`, `coverability.py`, `errors.py`, `__init__.py` exposing `PetriNet`, `PetriNetAnalyzer`. **No `graph.py`, no `simulator.py` in v1.**
 - **D3 — Two-layer separation is mandatory** — execution/model layer and analysis layer; analysis never mutates the live marking; `fire_marking` is pure (§5.4, §34).
 - **D4 — Exact arithmetic for invariants: pure-Python rational Gaussian elimination (LOCKED).** Doc §18 recommends `sympy` but also states *"a small exact-rational Gaussian-elimination nullspace (~40 lines) is sufficient for v1"*. **Decision: zero dependencies, implement inline.** No `sympy` added to `pyproject.toml`.
-- **D5 — Completeness-explicit results everywhere** (§27, §39): `AnalysisResult(value: bool | None, complete: bool, explored_states: int, reason: str | None)`; `transition_liveness`/`is_live`/`is_home_marking` return `AnalysisResult` with `value=None` when the graph is incomplete (never a bare `bool`); payload-carrying analyses (`reachability`, `graph`, `deadlocks`, `bounds`) use their own dataclasses with the same `complete`/`reason` contract.
-- **D6 — Deterministic ordering** — `place_order`/`transition_order` sorted; markings are tuples; no `set`-iteration dependence anywhere (§6.2, §29).
-- **D7 — Edge-case policy** — self-loops legal; no-input transitions always enabled; no-output transitions legal (consume-and-vanish); parallel transitions distinct by name; zero tokens meaningful; empty net allowed with consistent analysis (`()` initial marking, no enabled transitions, bounded=True, empty invariants); duplicate arcs: reject (doc §38 "simplest API should reject duplicates").
+- **D5 — Completeness-explicit results everywhere** (§27, §39): `AnalysisResult(value: bool | None, complete: bool, explored_states: int, reason: str | None)`; `transition_liveness`/`is_live` return `AnalysisResult` with `value=None` when the supplied reachability graph is incomplete (never a bare `bool`; `is_home_marking` is v2 — home-marking analysis is out of v1 scope); payload-carrying analyses (`reachability`, `graph`, `deadlocks`, `bounds`) use their own dataclasses with the same `complete`/`reason` contract. **`bounds` no-overclaim rule:** observing finite per-place token counts in the *explored* portion must return `complete=False` when `max_states` is hit — never `bounded=True` from a truncated search (same §39 rule as never labeling a truncated BFS "unbounded" or "deadlock-free").
+- **D6 — Deterministic ordering** — `place_order`/`transition_order` sorted; markings are tuples; no `set`-iteration dependence anywhere (§6.2, §29). Concretely `place_order = tuple(sorted(self._places))` and `transition_order = tuple(sorted(self._transitions))`, so canonical tuple markings are stable across runs and sessions (rule pinned here, realized in design phase).
+- **D7 — Edge-case policy** — self-loops legal; no-input transitions always enabled; no-output transitions legal (consume-and-vanish); parallel transitions distinct by name; zero tokens meaningful; **empty net** (zero places **and** zero transitions) allowed with consistent analysis (`()` initial marking, no enabled transitions, `bounded=True`, empty invariants, incidence matrix 0×0); **degenerate-but-nonempty nets also allowed** — (a) places-but-no-transitions: incidence P×0, place-invariants = full-space basis (each place individually), `bounds`/`deadlocks` consistent, no enabled transitions; (b) transitions-but-no-places: incidence 0×T, transition-invariants = full-space basis, no-input transitions always enabled; duplicate arcs: reject (doc §38 "simplest API should reject duplicates") — re-adding an existing (place, transition) input/output arc raises `InvalidModelError` regardless of weight; changing an arc weight requires removing then re-adding.
 - **D8 — API simplification: no convenience wrappers** — `is_enabled(transition)` and `enabled_transitions()` removed from v1; callers use `is_enabled_at(current_marking(), transition)` and `enabled_transitions_at(current_marking())` directly. Pure `fire_marking` + mutable `fire` retained.
-- **D9 — v1 limits: `max_states` only** — no `max_depth`/`time_limit` parameters in v1 signatures; add in v2 when needed.
+- **D9 — v1 limits: `max_states` only** — no `max_depth`/`time_limit` parameters in v1 signatures; add in v2 when needed. **`max_states` is a required parameter with no implicit default** on every exploration API, so there is never a hidden limit (In-scope #3, 'no hidden hard-coded limits').
 - **D10 — TDD is mandatory when implemented** — `major_feature` → feature_016 auto-activates at Programming; close via `omt_tdd{op:done}`, not `omt_skip`.
-- **D11 — feature_001 relationship: consumer, not scope** — this library is the generic substrate; `feature_001.session_user_objectives_driven_by_Petri_Net` (internal state, USER_OBJECTIVES.md) is a separate future feature that consumes it.
+- **D11 — feature_001 relationship: consumer, not scope** — this library is the generic substrate; `feature_001.session_user_objectives_driven_by_Petri_Net` (internal state, USER_OBJECTIVES.md) is a separate future feature that consumes it. **Integration note (confirm before lock):** feature_001's FEATURE.md describes an *adaptive* net with CRC-driven runtime restructuring; confirm whether it needs **runtime removal** of places/arcs (the v1 model API is add-only mutation). The lib must not be locked into a shape its only known consumer cannot use.
 
 ---
 
@@ -158,6 +207,8 @@ Non-negotiable requirements this project inherits:
 - **iter 2 (2026-08-16)** — scope refinement for feasibility & simplicity per user review: (1) extracted v1-only scope from 41-section doc, (2) locked D4 to pure-Python rational nullspace (zero deps), (3) removed `simulator.py` and `graph.py` from v1, (4) coverability.py is stub only, (5) `max_states` only limit in v1, (6) removed convenience wrappers `is_enabled()`/`enabled_transitions()`, (7) explicit empty-net policy, (8) test matrix for "unknown" cases, (9) updated module list, decisions D1–D11, boundaries, success criteria.
 - **iter 3 (2026-08-16)** — requirement-doc feasibility/simplicity review per user request ("review the project @.meta/doc/petri_nets/ … improve the project itself, do not implement anything more"). Edited the anchor doc (no src/, no feature): (1) §30 example nets now carry explicit arcs and `make_net()` builds them (previously unbuildable — arcs existed only in prose); (2) §18/§19 replaced the sympy-only invariant code with the zero-dependency exact-rational `nullspace()` + `_coprime_int_vector()` reference implementation, making D4 fully specified; (3) §20–§22 liveness/home-marking now return `AnalysisResult` (the doc's own §27 rule was violated by bare `bool | None`); (4) §32 API pinned — analyzer liveness methods take the graph explicitly; (5) §28 pins `max_states` semantics for truncated results; (6) empty-net policy decided in-doc (§38, matches D7); (7) v1/v2 section map table added; (8) duplicated admonition removed; (9) module layouts (§11/§35) aligned to v1 (no simulator/graph.py; coverability stub); (10) convenience wrappers marked optional (§9), Place/Transition dataclasses explicitly optional in v1 (§3/§4). PROJECT.md updated: D5 clarified, in-scope item 2 wording, this log entry.
 - **iter 4 (2026-08-16)** — second feasibility/simplicity review of the anchor doc: fixed critical correctness bug in `nullspace()` (zero-row matrices undercounted columns, breaking invariants for places-but-no-transitions and transitions-but-no-places) by adding `n_cols` parameter; added sign normalization to `_coprime_int_vector` for deterministic test results; added missing non-negativity validation to `marking_to_dict` per §6.3 spec; cleaned up module trees in §11/§35 (removed v2 files from v1 tree, fixed `test_graph.py` inconsistency); removed confusing §8.5 ASCII diagram; added `add_input`/`add_output` argument-order gotcha note in §9; added §31 duplication note; extended §38 with explicit edge-case docs for degenerate nets. No src/ changes — doc-only improvements.
+- **iter 5 (2026-08-22)** — review-driven doc fixes to the project home (no src/, no feature; user approved "do the doc fixes"). Resolved review findings: **N** removed `is_home_marking` from D5 (home-marking is v2, out of scope); **A** pinned liveness methods take the reachability graph explicitly (§32) and return `value=None` on incomplete graphs; **C** expanded D7 with degenerate-but-nonempty nets (places-no-transitions, transitions-no-places) and full-space invariant basis; **D** made duplicate-arc policy precise (`InvalidModelError`, weight change = remove+re-add); **E** added `errors.py` typed hierarchy to in-scope #1; **F** added explicit `bounds` no-overclaim rule (truncated ⇒ `complete=False`); **G** pinned SCC to the reachability graph; **B** pinned `firing_sequence_to` returns sequence-or-`None` with `complete`/`reason`; **J** made placeholder `test_petri_net.py` deletion explicit; **K** pinned `place_order`/`transition_order` determinism rule. `CURRENT_STATE.md` iter-0 decision references updated (D1–D11, D4 marked locked). No implementation.
+- **iter 6 (2026-08-22)** — applied review-driven doc patch (no src/, no feature; user said "apply patch"). Resolved review findings: **(a)** named excluded DoD item §40-18 (Coverability for unbounded nets = v2, already out of scope via D5 + `coverability.py` stub) in Success criteria; **(b)** pinned `max_states` as required (no implicit default) in D9, and added model-API semantics (`reset()` restores `M0`; `fire_marking(M,t)` raises `TransitionNotEnabledError` when disabled) in In-scope #1; **(c)** added a per-function test-coverage matrix (happy + "unknown" for every analysis fn) to In-scope #5; **(d)** added feature_001 runtime-mutation cross-ref to D11 (confirm add-only vs add+remove before lock); **(e)** added a "Lock sign-off checklist" (single-action approval) and a "Design-phase must-pin checklist" (analyzer binding, AnalysisResult fields, fire_marking/reset/max_states semantics, test matrix). Scope remains draft, awaiting the lock sign-off. `CURRENT_STATE.md` iter-6 entry added. No implementation.
 
 ---
 
