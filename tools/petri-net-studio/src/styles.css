@@ -1,0 +1,306 @@
+/* Petri Net Studio — dark-neutral minimal styling (design §7: plain CSS, no UI kit). */
+
+:root {
+  color-scheme: dark;
+  --bg: #14161a;
+  --panel: #1d2026;
+  --border: #33383f;
+  --text: #d7dae0;
+  --muted: #8a919c;
+  --accent: #4f8cff;
+  --enabled: #34c77b;
+  --danger: #d95555;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* --- toolbar --- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 650;
+  margin-right: 12px;
+}
+
+button,
+select {
+  background: #262a31;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled,
+select:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  margin-top: 10px;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mode-toggle button {
+  border: none;
+  border-radius: 0;
+}
+
+.mode-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+button.armed {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+/* --- banners --- */
+
+.error-banner,
+.hint-banner {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.error-banner {
+  background: #3a2226;
+  color: #f0a8a8;
+  border-bottom: 1px solid var(--danger);
+}
+
+.hint-banner {
+  background: #233047;
+  color: #a9c6f5;
+  border-bottom: 1px solid var(--accent);
+}
+
+/* --- canvas --- */
+
+.canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.react-flow {
+  background: var(--bg);
+}
+
+.node-name {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  user-select: none;
+}
+
+.place-node,
+.transition-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.place-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.place-tokens {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.transition-bar {
+  width: 14px;
+  height: 52px;
+  border: 2px solid var(--text);
+  border-radius: 2px;
+  background: var(--panel);
+}
+
+.transition-node.enabled .transition-bar {
+  border-color: var(--enabled);
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--enabled) 55%, transparent);
+  cursor: pointer;
+}
+
+.transition-node.disabled {
+  opacity: 0.55;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--muted);
+  border: none;
+}
+
+.react-flow__edge-text {
+  fill: var(--text);
+  font-size: 12px;
+}
+
+.react-flow__edge-textbg {
+  fill: var(--bg);
+}
+
+.react-flow__attribution {
+  background: transparent;
+  color: var(--muted);
+}
+
+/* --- inspector --- */
+
+.inspector {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 230px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.inspector h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.inspector-sub {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.field span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.field input {
+  width: 100%;
+  background: #14161a;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font: inherit;
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+/* --- dialogs --- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.dialog {
+  width: min(560px, 90vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.dialog h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.dialog textarea {
+  width: 100%;
+  background: #101216;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font: 12px/1.5 ui-monospace, "Cascadia Code", Menlo, monospace;
+  resize: vertical;
+}
+
+.dialog-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}

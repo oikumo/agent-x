@@ -5,6 +5,139 @@
 
 ---
 
+## 2026-08-23 (auto — feature_034.studio_v1_editor Done)
+
+- shipped: major_feature · test report @ 6.testing/features/feature_034.studio_v1_editor/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+### Detail (manual expansion, same session — roadmap feature #3 DONE → **project v1 COMPLETE**)
+
+- Resumed from `.sandbox/pause_2026-08-23c.md` (late-Programming: build+report remaining) — consumed. Remaining sequence executed: tree re-verified (Vitest **170/170**, `tsc --noEmit` clean, independence OK 12 files/36 imports) → `npm run build` (= `tsc --noEmit && vite build`) green → `dist/` verified (`index.html` + hashed css/js) → `vite preview` smoke: `/` + both assets 200; shared examples bundled via `?raw` (no runtime fs).
+- **Artifacts**: `implementation_001_manual_cycles.md` + `test_report.md` written (all 4 cycles' RED/GREEN evidence, build/independence/tsc outputs, design-gap resolutions); FEATURE.md/PLAN.md filled; `omt_complete` Programming → Testing → **Done**.
+- **Gate fix of note**: Programming-exit requires `tests/features/<feature>/test_*.py` (pytest-shaped, same family as the A11 `omt_tdd` mismatch) → sentinel `tests/features/feature_034.studio_v1_editor/test_studio_v1_editor_sentinel.py` executes `npx vitest run` (env-skip without node, structural floor always-on; feature_031 sentinel precedent; canary-approval skip logged). Agentx suite: **1637 passed + 2 KNOWN_SUITE_FAILURES** (feature_031 TDD-ledger probes still in the 8h window — pass when it clears; zero `src/` edits ⇒ no regressions).
+- **Design-gap resolutions recorded** (test_report): `addArc` op (op-spec omission; §7 gesture pinned), import ⇒ edit mode, store-level simulate lock (A9 in every mutating action).
+- **Next**: roadmap feature #4 `.studio_v2_analysis` (major_feature — TS analysis port + no-overclaim dashboard D10; TA:gotcha on exact rational invariants + truncation order) on user go.
+
+---
+
+
+## 2026-08-23 (PAUSED #3 late-Programming — resume via `.sandbox/pause_2026-08-23c.md`)
+
+### State
+
+- **State layer + UI + independence tooling COMPLETE**: `src/state/{document,store}.ts` + `src/examples.ts` + `src/ui/{flow,PlaceNode,TransitionNode,Inspector,App}` + `main.tsx`/`styles.css` + `scripts/check-independence.mjs`. Vitest **170/170** (122 engine + 47 store + 1 independence) · `tsc --noEmit` clean · independence OK (12 files, 36 imports) — tree verified working at pause.
+- Cycles 3 (store: RED 46F/1P → GREEN 169) + 4 (independence: RED 1F → GREEN 170) done manual red→green (A11); evidence in pause doc (for the test report, with cycles 1–2 from pause_2026-08-23b).
+- Build breakers fixed (first tsc run): io.ts JsonObject return, store.ts Point→JsonObject literal, @types/node + tsconfig types, `**/`-in-comment SyntaxError (TA-pinned).
+- Design-gap resolutions (record in test report): addArc op added (op-spec omission; §7 gesture pinned); import ⇒ edit mode; store-level simulate lock.
+- **Remaining**: `npm run build` → dist verify → test report → FEATURE/PLAN checkboxes → `omt_complete` (Testing).
+- TA: 5 thoughts pinned this session (check-independence.mjs, document.ts, store.ts, independence.test.ts, App.tsx).
+
+---
+
+## 2026-08-23 (PAUSED #2 mid-Programming — resume via `.sandbox/pause_2026-08-23b.md`)
+
+### State
+
+- **Engine port COMPLETE, GREEN**: `tools/petri-net-studio/src/engine/{errors,model,io}.ts` — Vitest **122/122** (60 model + 59 io + 3 golden-example bytes); two manual red→green cycles, evidence in the pause doc (for the test report). Golden byte-identity vs `shared/petri-net/examples/` verified cross-impl without Python.
+- Phases: Analysis ✅ · Design ✅ (+operation_spec_001) · Programming ⏸ declared (Vitest/omt_tdd mismatch declared in scope — A11).
+- Harness: `tools` in root_allowlist (check 0 errors). Scaffold + npm install done (incl. ajv dev-only).
+- **Remaining**: document.ts → store.ts (+store tests) → React Flow UI → check-independence.mjs → `npm run build` → test report → `omt_complete`.
+- TA-pinned: io.ts (unary-`**`/integral-float caveats), model.ts (code-point sort), io.test.ts (node-env docblock).
+- Budgets tight (work_md ~5015/5120, scratchpad full) — prefer WORK_ARCHIVE rotation over growth on next bookkeeping.
+
+---
+
+## 2026-08-23 (RESUMED feature_034 — Analysis+Design DONE; next Programming)
+
+### State
+
+- feature_034.studio_v1_editor un-paused (resume doc `.sandbox/pause_2026-08-23.md` consumed).
+- **Analysis DONE**: `3.analysis/features/feature_034.studio_v1_editor/analysis_001_port_sources.md` — port matrices (62 model + 59 io behaviors; 3 golden-bytes examples), findings A1–A12 (dup-key parser, code-point sort vs UTF-16 erratum, add_output arg order, document-model-first UI, Edit/Simulate modes, root_allowlist +tools, omt_tdd/Vitest mismatch resolution).
+- **Design DONE**: `4.design/features/feature_034.studio_v1_editor/design_001_studio_v1_editor.md` — repo layout, errors/model/io API pins, store/UI pin, independence check, test plan + RED/GREEN evidence protocol, programming sequence. `omt_phase{major_feature, Design}` recorded.
+- No code yet; no `src/` edits (this feature never touches src/).
+
+### Next
+
+1. Add `tools` to `@var root_allowlist` (META_HARNESS.omt + `harnessc.py build`; receipt discipline) — A10.
+2. `omt_phase` Programming (scope declares Vitest/omt_tdd mismatch — A11).
+3. Scaffold `tools/petri-net-studio/` (hand-written package.json; npm install — network OK), then RED cycle 1 (model).
+
+---
+
+## 2026-08-23 (PAUSED mid-feature-#3 — resume via `.sandbox/pause_2026-08-23.md`)
+
+### State
+
+- Features #1 (format) + #2 (io) DONE, omt_complete'd, suite 1639 green (re-verified at pause: petri_net subset 158 green).
+- **feature_034.studio_v1_editor scaffolded only** (FEATURE.md/PLAN.md stubs, linked). No design doc, no `omt_phase`, no code.
+- Paused via `pause_dev_for_resume_later` workflow. **Resume: read `WORK.md` `[~]` row → `.sandbox/pause_2026-08-23.md`** (next step = design doc + `omt_phase`, then Vite scaffold; network confirmed OK; open decision: `omt_tdd` is pytest-shaped vs Vitest — manual red-green likely, recorded in pause doc).
+
+---
+
+## 2026-08-23 (auto — feature_033.petri_net_io Done)
+
+- shipped: minor_feature (declaration-only §12) · test evidence @ `tests/model/petri_net/test_io.py` (59 green) + FEATURE.md test row
+- logged by omt_complete; details in the iter-3 entry below.
+
+---
+
+
+## 2026-08-23 (iter 3 — roadmap feature #2 DONE: feature_033.petri_net_io · ≡ PROJECT.md iteration-log iter 4)
+
+### Done
+
+- **Roadmap feature #2 shipped** (continued "execute the project" go): scaffolded `feature_033.petri_net_io` (minor_feature, origin: scaffold) → `omt_phase` Programming → KB consult (no petri_net records — library postdates KB compile; consult recorded) → TA consult (errors.py: 0 thoughts).
+- **`src/agentx/model/petri_net/io.py`** (~290 LOC, stdlib-only, D4): `net_to_json(net, *, layout=None)` canonical §8 bytes · `net_from_json` · `document_from_json` (net + verbatim layout). Validation: level-1 (shape/types/integer domains + duplicate-key rejection via `object_pairs_hook`) → level-2 (V1–V6, rule ids in messages); typed errors subclass `PetriNetError` with pinned precedence (syntax → format → version → L1 → L2). Schema-`integer` semantics honored (integral floats normalized). M0-only serialization (`initial_marking`). Existing library modules + `pyproject.toml` untouched.
+- **59 tests green** (`tests/model/petri_net/test_io.py`; canary-approval skip logged — roadmap #2 is locked-scope): canonical dump, byte-identity round-trips, shared examples as golden bytes, layout verbatim/extensions/V6, typed-error matrix, JSON Schema cross-checks. **Full suite 1639 passed, 0 regressions.**
+- Bookkeeping: FEATURE.md/PLAN.md filled, WORK.md (feature_031 task line rotated to WORK_ARCHIVE.md — budget), CURRENT_STATE.md, PROJECT.md iter 4.
+
+### In progress / Blocked
+
+- _(nothing)_
+
+### Next
+
+- **Roadmap feature #3 `.studio_v1_editor`** (major_feature, depends on #1 ✅): `tools/petri-net-studio/` scaffold (Vite+React+TS+React Flow+Vitest per D2) — visual editor, token/weight editing, **TS model-layer port**, click-to-fire simulation with enabled highlighting, JSON import/export with validation, static build, independence lint check (no agentx/harness imports). Scaffold via `new_feature.py "studio v1 editor" --type major_feature --project petri_net_studio` on user go — **major_feature ⇒ design doc (§12) + TDD pipeline auto-activates at Programming**; npm install requires network.
+
+### Notes / context
+
+- io.py gotchas pinned for future features: `add_output` called by keyword (§9 argument-order gotcha); `object_pairs_hook` for duplicate-key rejection; `bool` excluded before `int` checks everywhere; layout extension members pass through with parsed key order (canonical ordering pinned only for v1 members).
+- The TS io port (feature #3) must match these exact behaviors — `tests/model/petri_net/test_io.py` is the reference matrix to port.
+
+---
+
+## 2026-08-23 (auto — feature_032.petri_net_format Done)
+
+- shipped: minor_feature (declaration-only §12) · validation evidence @ `2.requirements/features/feature_032.petri_net_format/FEATURE.md` test row (32/32 checks)
+- logged by omt_complete; details in the iter-2 entry below.
+
+---
+
+
+## 2026-08-23 (iter 2 — roadmap feature #1 DONE: feature_032.petri_net_format · ≡ PROJECT.md iteration-log iter 3)
+
+### Done
+
+- **User go received** ("execute project") → scaffolded roadmap feature #1 via `new_feature.py "petri net format" --type minor_feature --project petri_net_studio` → auto-numbered **feature_032** (D9), linked origin: scaffold; manifest flipped **draft → active** mechanically.
+- **`shared/petri-net/` shipped** (the contract, D5): `FORMAT.md` spec v1 (document shape; naming stricter-than-library per D6 — names unique across P ∪ T; two-level validation: schema + semantic rules V1–V6; semantics by reference to the tested library §7; canonical serialization §8 per D7; versioning §9; conformance-vectors plan §10), `petri-net-json-v1.schema.json` (Draft 2020-12), 3 canonical examples (`hello`, `producer_consumer` with layout, `weighted_reaction`), plus `shared/META.md` (dir manifest, contract-only rule).
+- **Validated**: 32/32 one-off checks — schema Draft 2020-12 self-valid; 3/3 examples schema-valid + V1–V4 clean + on-disk bytes already canonical + canonicalize idempotent; 9 schema-negative + 4 semantic-negative docs rejected; 3/3 examples construct real `PetriNet` objects via the FORMAT.md §7 algorithm with expected enabled sets. No `src/` edits (src-gate never fires for this feature — features 1,3,4,5 live outside `src/`).
+- **Bookkeeping**: FEATURE.md + PLAN.md filled (declaration-only, §12), WORK.md task + scratchpad entries, PROJECT.md status/iteration-log iter 3.
+
+### In progress / Blocked
+
+- _(nothing)_
+
+### Next
+
+- **Roadmap feature #2 `.petri_net_io`** (minor_feature, depends on #1 ✅): `src/agentx/model/petri_net/io.py` + `tests/model/petri_net/test_io.py` — `net_to_json`/`net_from_json`, schema + V1–V6 validation, typed errors, canonical bytes, byte-identity round-trip tests; fulfills the library's deferred v2 "JSON export" backlog item. Scaffold via `new_feature.py "petri net io" --type minor_feature --project petri_net_studio` on user go. **Only `src/`-touching feature → needs `omt_phase` + KB consult before edits; stdlib-only (library D4, `pyproject.toml` unchanged).**
+
+### Notes / context
+
+- Format design choices pinned in v1 (re-litigating = scope re-lock): flat `arcs` array with source/target (React Flow-friendly); `tokens`/`weight` always explicit (no defaults); integer-only layout coordinates (kills Python/JS float-serialization divergence in canonical bytes); duplicate JSON keys MUST be rejected by loaders; `layout` round-trip preserved verbatim (byte-identity includes layout).
+- Validation script was one-off (/tmp); permanent test coverage lands with feature #2 (pytest) and the conformance runner (feature #5, Vitest).
+
+---
+
 ## 2026-08-23 (iter 1 — scope LOCKED v1.1; no feature work · ≡ PROJECT.md iteration-log iter 2)
 
 ### Done

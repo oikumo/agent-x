@@ -4,6 +4,14 @@
 > keeps pending + last 5 DONE inline; older DONE lands here. NEVER auto-read
 > (not in startup, not nav-indexed); consult only when archaeology is needed.
 
+## 2026-08-23 rotation (feature_033.petri_net_io round)
+
+- [x] **feature_031.petri_net_library** — DONE 2026-08-23: weighted P/T Petri-net library in `src/agentx/model/petri_net/` (model layer: weighted arcs, canonical tuple markings, pure `fire_marking`, typed errors; analysis layer: BFS reachability/graph/firing-sequences/deadlocks/bounds, exact incidence + P/T-invariants via pure-Python rational nullspace (D4, zero deps), liveness + Tarjan SCC on complete graphs; completeness-explicit `complete`/`reason`, `max_states` required kw-only; coverability = v2 stub). 3 TDD cycles; 99 tests; placeholder stub deleted; full suite 1577 passed, 0 regressions. Report @ `6.testing/features/feature_031.petri_net_library/test_report.md`.
+
+## 2026-08-23 rotation (feature_032.petri_net_format round)
+
+- [x] **feature_030.project_lifecycle** — DONE 2026-08-22: mechanical .projects/ lifecycle (project.py CLI 9 cmds · 5 harnessc checks · design_doc inference + omt_complete ship-sync · omt_q project_drift + omt_status line · GENERATED manifest); 7 homes backfilled (9 origin:backfill links); 20/20 goldens, 232/0 omt. Report @ `6.testing/features/feature_030.project_lifecycle/test_report.md`.
+
 ## 2026-08-22 rotation (feature_030.project_lifecycle kickoff round)
 
 - [x] **feature_025.coding_context_window_optimization** — DONE (2026-08-08): deepagents full stack (`create_deep_agent` + middleware) — rotated to WORK_ARCHIVE.md.

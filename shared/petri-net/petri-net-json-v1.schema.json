@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentx:petri-net-json:v1",
+  "title": "petri-net-json v1",
+  "description": "Exchange format for weighted Place/Transition Petri nets (structure + initial marking). Spec: FORMAT.md. Semantic rules V1-V6 in FORMAT.md section 6 are NOT expressible here and must be enforced by loaders.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "places", "transitions", "arcs"],
+  "properties": {
+    "format": {
+      "const": "petri-net-json"
+    },
+    "version": {
+      "const": 1
+    },
+    "places": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "tokens"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tokens": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "arcs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "target", "weight"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1
+          },
+          "weight": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y"],
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

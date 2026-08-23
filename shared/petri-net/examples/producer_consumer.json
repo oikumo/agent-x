@@ -1,0 +1,95 @@
+{
+  "format": "petri-net-json",
+  "version": 1,
+  "places": [
+    {
+      "name": "buffer",
+      "tokens": 0
+    },
+    {
+      "name": "consumer_ready",
+      "tokens": 1
+    },
+    {
+      "name": "free_slots",
+      "tokens": 3
+    },
+    {
+      "name": "producer_ready",
+      "tokens": 1
+    }
+  ],
+  "transitions": [
+    {
+      "name": "consume"
+    },
+    {
+      "name": "produce"
+    }
+  ],
+  "arcs": [
+    {
+      "source": "buffer",
+      "target": "consume",
+      "weight": 1
+    },
+    {
+      "source": "consume",
+      "target": "consumer_ready",
+      "weight": 1
+    },
+    {
+      "source": "consumer_ready",
+      "target": "consume",
+      "weight": 1
+    },
+    {
+      "source": "free_slots",
+      "target": "produce",
+      "weight": 1
+    },
+    {
+      "source": "produce",
+      "target": "buffer",
+      "weight": 1
+    },
+    {
+      "source": "produce",
+      "target": "producer_ready",
+      "weight": 1
+    },
+    {
+      "source": "producer_ready",
+      "target": "produce",
+      "weight": 1
+    }
+  ],
+  "layout": {
+    "nodes": {
+      "buffer": {
+        "x": 260,
+        "y": 60
+      },
+      "consume": {
+        "x": 260,
+        "y": 220
+      },
+      "consumer_ready": {
+        "x": 420,
+        "y": 220
+      },
+      "free_slots": {
+        "x": 100,
+        "y": 220
+      },
+      "produce": {
+        "x": 100,
+        "y": 60
+      },
+      "producer_ready": {
+        "x": 420,
+        "y": 60
+      }
+    }
+  }
+}

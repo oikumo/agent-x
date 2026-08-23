@@ -1,0 +1,34 @@
+{
+  "name": "petri-net-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Standalone browser-based Petri net workbench (petri_net_studio roadmap #3). Independent of agentx at runtime; shared/petri-net/ is the only coupling.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check-independence": "node scripts/check-independence.mjs"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.3.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^26.2.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "ajv": "^8.20.0",
+    "jsdom": "^25.0.1",
+    "typescript": "~5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}

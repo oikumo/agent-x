@@ -1,0 +1,40 @@
+{
+  "format": "petri-net-json",
+  "version": 1,
+  "places": [
+    {
+      "name": "h2",
+      "tokens": 4
+    },
+    {
+      "name": "h2o",
+      "tokens": 0
+    },
+    {
+      "name": "o2",
+      "tokens": 2
+    }
+  ],
+  "transitions": [
+    {
+      "name": "react"
+    }
+  ],
+  "arcs": [
+    {
+      "source": "h2",
+      "target": "react",
+      "weight": 2
+    },
+    {
+      "source": "o2",
+      "target": "react",
+      "weight": 1
+    },
+    {
+      "source": "react",
+      "target": "h2o",
+      "weight": 2
+    }
+  ]
+}

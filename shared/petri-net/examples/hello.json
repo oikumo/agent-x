@@ -1,0 +1,31 @@
+{
+  "format": "petri-net-json",
+  "version": 1,
+  "places": [
+    {
+      "name": "p1",
+      "tokens": 1
+    },
+    {
+      "name": "p2",
+      "tokens": 0
+    }
+  ],
+  "transitions": [
+    {
+      "name": "t1"
+    }
+  ],
+  "arcs": [
+    {
+      "source": "p1",
+      "target": "t1",
+      "weight": 1
+    },
+    {
+      "source": "t1",
+      "target": "p2",
+      "weight": 1
+    }
+  ]
+}
