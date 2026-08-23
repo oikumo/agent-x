@@ -10,7 +10,7 @@
 | feature_kb_akb | draft | — | 2026-08-22 | 2026-08-22 |
 | meta_harness_2 | active | feature_020.meta_harness_navigation, feature_021.meta_harness_think_anywhere, feature_022.meta_harness_think_anywhere_v2, feature_023.meta_harness_improvement, feature_026.omt_q_interrogative_first_ops | 2026-08-22 | 2026-08-22 |
 | meta_harness_3 | active | feature_028.feature_scoped_gating | 2026-08-22 | 2026-08-22 |
-| petri_net_library | draft | — | 2026-08-22 | 2026-08-22 |
+| petri_net_library | active | feature_031.petri_net_library | 2026-08-22 | 2026-08-22 |
 | project_lifecycle | active | feature_030.project_lifecycle | 2026-08-22 | 2026-08-22 |
 | rag_v2 | active | feature_027.rag_v2, feature_029.rag_v2_slash_commands | 2026-08-22 | 2026-08-22 |
 | workflows | draft | — | 2026-08-22 | 2026-08-22 |

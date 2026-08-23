@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-08-23 (auto — feature_031.petri_net_library Done)
+
+- shipped: major_feature · test report @ 6.testing/features/feature_031.petri_net_library/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+### Session detail (expanded by hand)
+
+- **v1 SHIPPED** — the full locked v1.1 scope landed in one session: `src/agentx/model/petri_net/{__init__.py (docstring-only), errors.py, model.py, analysis.py, coverability.py}` + `tests/model/petri_net/{test_model,test_analysis,test_coverability}.py` (June placeholder deleted). 3 TDD cycles (testlist 26 behaviors → red→green→refactor at same file-level node), closed via `omt_tdd{op:done}` (all checklist green), 99 canonical tests + sentinel re-export, full suite 1577 passed, 0 regressions vs baseline.
+- **Prior phases (2026-08-22, prev session):** feature scaffolded via `new_feature.py --project petri_net_library`; analysis_001 (anchors A1–A12, findings F1–F10) and design_001 + operation_spec_001 produced; Programming declared but no code written before session end (only a TDD_BOOTSTRAP skip + phase records in the ledger).
+- **Build decisions worth remembering:** (1) deferred imports in ALL test files — a top-level import of the cycle's not-yet-existing module aborts collection (pytest exit 2) and `cmd_start` rejects it as a red; (2) placeholder deleted at bootstrap (two-hats blocks tests/ during green hat); (3) SCC restricted to the graph vertex set (no phantom components from truncated graphs); (4) empty-net `is_live` = `(True, True, 1)` per F1/§31; (5) sentinel + conftest fixture bridge for the `tests/features/<feature>/` omt_complete pattern.
+- **Project status:** the library objective is COMPLETE for v1. feature_001 (the future consumer) remains a separate feature; v2 backlog (coverability Karp–Miller, siphons/traps, home markings, simulator, DOT/JSON, optimization) unscheduled.
+
+---
+
+
+## 2026-08-22 (iter 8 — scope LOCKED v1.1; feature scaffolding underway)
+
+### Done
+
+- **Scope LOCKED v1.1** — user said "execute the project" (the single-action lock approval). All Lock sign-off checklist boxes ticked in `PROJECT.md`: v1/v2 section split, D7 edge-case policy, D1 slug policy approved as drafted; `PetriNetAnalyzer` binding resolved to **constructor binding** `PetriNetAnalyzer(net)`; D11 feature_001 runtime-mutation need resolved — **add-only is sufficient** (FEATURE.md: structure updates on `USER_OBJECTIVES.md` CRC change ⇒ rebuild a fresh `PetriNet` instance; in-place removal is a non-breaking v2 addition if ever needed). PROJECT.md header + Scope section flipped to locked v1.1; iter-8 log entry added.
+- **D11 evidence check** — read `feature_001.../FEATURE.md` (10 lines): "The Petri Net structure must be updated if the crc of the file changes" — no in-place-removal requirement; rebuild strategy satisfies it.
+
+### In progress
+
+- **Feature scaffolding + phase pipeline** — `new_feature.py "petri net library" --type major_feature --project petri_net_library` → Analysis (requirement-anchor extraction via parallel sub-agents) → Design → TDD Programming → Testing.
+
+---
+
 ## 2026-08-22 (iter 7 — review fixes applied; no feature work)
 
 ### Done

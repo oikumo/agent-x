@@ -1,14 +1,14 @@
 # PROJECT: petri_net_library — Weighted P/T Petri-net library for agentx
 
-> Status: **draft** · v1 (2026-08-16), iter 7 (2026-08-22) — project home created from the requirement anchor `.meta/doc/petri_nets/petri_net_python_coding_agents.md`. Scope draft recorded; NOT yet locked (user approval pending). Feature dir, phase declaration, and all implementation work deliberately deferred — this document is the project's *purpose* only.
+> Status: **active** · v1 SHIPPED 2026-08-23 (feature_031.petri_net_library Done) · v1.1 (2026-08-22), iter 9 (2026-08-23) — project home created from the requirement anchor `.meta/doc/petri_nets/petri_net_python_coding_agents.md`. Scope LOCKED by user approval ("execute the project", 2026-08-22); v1 implemented, tested, and landed (suite 1577 passed, 0 regressions).
 
 ---
 
 ## New Session Quick Start
 
-> One line: pure-Python weighted P/T Petri-net library (execution + analysis layers, exact rational invariants, completeness-explicit results) — scope drafted at v1, NOT yet locked (user approval pending); zero linked features.
+> One line: pure-Python weighted P/T Petri-net library (execution + analysis layers, exact rational invariants, completeness-explicit results) — **v1 SHIPPED 2026-08-23** in `src/agentx/model/petri_net/` (99 tests); v2 backlog = coverability (Karp–Miller), siphons/traps, home markings, simulator, DOT/JSON export, optimization.
 
-**Next:** user scope approval → `uv run scripts/omt/new_feature.py "petri net library" --type major_feature --project petri_net_library` → Analysis per the requirement anchor `.meta/doc/petri_nets/petri_net_python_coding_agents.md`.
+**Next:** nothing v1 — consume the library (`agentx.model.petri_net.model` / `.analysis` / `.errors`) or scope v2 / feature_001 (the future consumer, D11) as separate work. Test report @ `6.testing/features/feature_031.petri_net_library/test_report.md`.
 
 ---
 
@@ -80,9 +80,9 @@ Non-negotiable requirements this project inherits:
 
 ---
 
-## Scope & success criteria (draft — NOT locked; user approval pending)
+## Scope & success criteria (LOCKED v1.1 — approved 2026-08-22)
 
-> Draft v1. The requirement doc is the anchor; this section records the proposed boundary for user approval. Locking this boundary (or a revised version) is the precondition for any feature work.
+> Locked v1.1. The requirement doc is the anchor; the boundary below is the approved scope. Changes require an explicit re-lock decision recorded in the iteration log.
 
 ### In scope (draft v1)
 
@@ -141,12 +141,12 @@ Non-negotiable requirements this project inherits:
 - [x] Summary (one line)
 - [x] Purpose (what it is / what it isn't / requirement anchor / principles)
 - [x] Vision + standing principle + main objectives (draft v1)
-- [x] Scope & success criteria (**draft v1 — awaiting user approval**)
-- [ ] Scope & success criteria **locked** — pending user decision (approve as-is or revise)
-- [ ] Architecture — pending (deferred to the feature design phase; the scaffolded feature's `design_001_*.md` will own it once the feature dir exists — feature number auto-assigned by `new_feature.py`, see D1)
-- [ ] Tasks — pending (no tasks until the feature dir exists and the first phase is declared)
-- [ ] Feature dir scaffolded — pending (`uv run scripts/omt/new_feature.py "petri net library" --type major_feature` — deliberately NOT run; user said project only, no feature yet)
-- [ ] Phase declared — pending (`omt_phase{task_type:"major_feature", ...}` — deferred, see above)
+- [x] Scope & success criteria (**draft v1**)
+- [x] Scope & success criteria **locked** — v1.1 approved by user 2026-08-22 ("execute the project"; all sign-off boxes ticked)
+- [x] Architecture — design_001 + operation_spec_001 (`4.design/features/feature_031.petri_net_library/`; all 7 must-pins closed, F1–F10 disposed)
+- [x] Tasks — 26-behavior TDD testlist → 3 cycles (implementation_001)
+- [x] Feature dir scaffolded — `feature_031.petri_net_library` (number auto-assigned by `new_feature.py` per D1)
+- [x] Phase declared — Analysis → Design → Programming → Testing → **Done** (2026-08-23; `omt_tdd{op:done}` all checklist green)
 
 ---
 
@@ -156,14 +156,14 @@ Non-negotiable requirements this project inherits:
 
 > Collected from the 2026-08-22 review so approval is a single action. Each item is either already satisfied or a one-line decision.
 
-- [ ] **Approve v1/v2 section split** (§1–16, §18–21, §23–24, §27–35, §36 v1-checklist-items-only, §40 items 1–17, 19 in scope; §17/§22/§25/§26/§36-advanced/§37 v2; §41 = principle, not scoped).
+- [x] **Approve v1/v2 section split** (§1–16, §18–21, §23–24, §27–35, §36 v1-checklist-items-only, §40 items 1–17, 19 in scope; §17/§22/§25/§26/§36-advanced/§37 v2; §41 = principle, not scoped). *(approved 2026-08-22)*
 - [x] **Name excluded DoD item** — §40-18 (Coverability for unbounded nets) is v2; already reflected in D5 + `coverability.py` stub. *(satisfied — see Success criteria)*
-- [ ] **Approve edge-case policy D7** (self-loops, no-input/no-output, parallel, zero-token, empty net, degenerate-net invariant basis, duplicate-arc rejection).
-- [ ] **Approve feature slug policy (D1):** suffix `.petri_net_library`, number auto-assigned by `new_feature.py` at scaffold (next free slot verified 2026-08-22: **031** — 030 is taken by `feature_030.project_lifecycle`).
+- [x] **Approve edge-case policy D7** (self-loops, no-input/no-output, parallel, zero-token, empty net, degenerate-net invariant basis, duplicate-arc rejection). *(approved 2026-08-22)*
+- [x] **Approve feature slug policy (D1):** suffix `.petri_net_library`, number auto-assigned by `new_feature.py` at scaffold (next free slot verified 2026-08-22: **031** — 030 is taken by `feature_030.project_lifecycle`). *(approved 2026-08-22)*
 - [x] **Confirm `max_states` is a required parameter with no implicit default (D9 addendum).** *(satisfied)*
 - [x] **Confirm `fire_marking(M,t)` raises `TransitionNotEnabledError` when disabled; `reset()` restores `M0` (model-API addendum).** *(satisfied)*
-- [ ] **Confirm `PetriNetAnalyzer` binding** (constructor `PetriNetAnalyzer(net)` vs per-call `net`) — pin in design phase.
-- [ ] **Confirm feature_001 runtime-mutation needs** (add-only vs add+remove) — see D11 integration note.
+- [x] **Confirm `PetriNetAnalyzer` binding** (constructor `PetriNetAnalyzer(net)` vs per-call `net`) — **RESOLVED iter 8:** constructor binding `PetriNetAnalyzer(net)`; pinned in design doc.
+- [x] **Confirm feature_001 runtime-mutation needs** (add-only vs add+remove) — **RESOLVED iter 8:** add-only is sufficient; FEATURE.md requires structure updates on CRC change, satisfiable by rebuilding a fresh `PetriNet` from the updated `USER_OBJECTIVES.md` (replacement, not in-place removal). In-place removal is a non-breaking v2 addition if ever needed.
 - [x] **Adopt the per-function test-coverage matrix** (happy + "unknown" case for every analysis fn) — see In-scope #5. *(satisfied)*
 
 On all boxes ticked: flip `Scope & success criteria` Status to **locked** (v1.1) and proceed to scaffold the feature via the command in Status (number auto-assigned by `new_feature.py`, see D1).
@@ -211,6 +211,8 @@ On all boxes ticked: flip `Scope & success criteria` Status to **locked** (v1.1)
 
 ## Iteration log
 
+- **iter 9 (2026-08-23)** — **v1 SHIPPED** via `feature_031.petri_net_library` (full phase pipeline: Analysis → Design → TDD Programming → Testing → Done). Implementation: 3 TDD cycles (26-behavior testlist; red→green→refactor at same file-level node; genuine exit-1 REDs via deferred imports — a top-level import of the cycle's missing module aborts collection at pytest exit 2, which `cmd_start` rejects). `src/agentx/model/petri_net/{errors,model,analysis,coverability,__init__}.py` + `tests/model/petri_net/{test_model,test_analysis,test_coverability}.py` (June placeholder deleted); sentinel + conftest bridge at `tests/features/feature_031.petri_net_library/` for the omt_complete pattern. `omt_tdd{op:done}` checklist all green; 99 canonical tests; full suite 1577 passed, 0 regressions vs baseline. Build decisions: placeholder deletion at bootstrap (two-hats blocks tests/ at green); SCC restricted to graph vertex set; empty-net `is_live` = `(True,True,1)` (F1). DoD §40 items 1–17, 19 verified (item 18 = v2 stub per D5). Project status → **v1 SHIPPED**; v2 backlog (coverability Karp–Miller, siphons/traps, home markings, simulator, DOT/JSON, optimization) + feature_001 consumption remain separate work.
+- **iter 8 (2026-08-22)** — **scope LOCKED v1.1** by user approval ("execute the project"). All lock sign-off boxes ticked: v1/v2 section split, D7 edge-case policy, D1 slug policy approved as drafted; `PetriNetAnalyzer` binding resolved to **constructor binding** `PetriNetAnalyzer(net)` (design doc pins it); D11 feature_001 runtime-mutation need resolved — **add-only is sufficient** (CRC-change restructuring = rebuild a fresh `PetriNet` from updated `USER_OBJECTIVES.md`; in-place removal is a non-breaking v2 addition if ever needed). Header flipped to locked v1.1; proceeding to scaffold the feature (`new_feature.py`, number auto-assigned per D1) and run the phase pipeline (Analysis → Design → TDD Programming → Testing). No src/ changes yet.
 - **iter 1 (2026-08-16)** — project home `.projects/meta/petri_net_library/` created per user request ("create a new project for a petri net library for agentx, follow this doc as a requirement starting point"; "do not implement anything, just create the project"; "project, no feature yet"). PROJECT.md v1 shipped: Summary, Purpose (what/not/requirement anchor/principles), Vision + standing principle + objectives (draft), Scope & success criteria (draft — explicitly NOT locked, awaiting user approval), Status checklist (feature dir + phase marked pending by user instruction), Decisions log D1–D9 (draft), Iteration log, References. Companion `CURRENT_STATE.md` iter-0 created. Facts verified before writing: next free feature slot is 030 *(true at iter-0; stale since 2026-08-22 — `feature_030.project_lifecycle` took it; see D1)*; `tests/model/petri_net/test_petri_net.py` exists as a June placeholder stub (library tests will replace it); `src/agentx/model/petri_net/` does not exist; `pyproject.toml` has `numpy`, no `sympy` (drives D4); `src/agentx/model/` uses flat packages with empty `__init__.py` (drives D2).
 - **iter 2 (2026-08-16)** — scope refinement for feasibility & simplicity per user review: (1) extracted v1-only scope from 41-section doc, (2) locked D4 to pure-Python rational nullspace (zero deps), (3) removed `simulator.py` and `graph.py` from v1, (4) coverability.py is stub only, (5) `max_states` only limit in v1, (6) removed convenience wrappers `is_enabled()`/`enabled_transitions()`, (7) explicit empty-net policy, (8) test matrix for "unknown" cases, (9) updated module list, decisions D1–D11, boundaries, success criteria.
 - **iter 3 (2026-08-16)** — requirement-doc feasibility/simplicity review per user request ("review the project @.meta/doc/petri_nets/ … improve the project itself, do not implement anything more"). Edited the anchor doc (no src/, no feature): (1) §30 example nets now carry explicit arcs and `make_net()` builds them (previously unbuildable — arcs existed only in prose); (2) §18/§19 replaced the sympy-only invariant code with the zero-dependency exact-rational `nullspace()` + `_coprime_int_vector()` reference implementation, making D4 fully specified; (3) §20–§22 liveness/home-marking now return `AnalysisResult` (the doc's own §27 rule was violated by bare `bool | None`); (4) §32 API pinned — analyzer liveness methods take the graph explicitly; (5) §28 pins `max_states` semantics for truncated results; (6) empty-net policy decided in-doc (§38, matches D7); (7) v1/v2 section map table added; (8) duplicated admonition removed; (9) module layouts (§11/§35) aligned to v1 (no simulator/graph.py; coverability stub); (10) convenience wrappers marked optional (§9), Place/Transition dataclasses explicitly optional in v1 (§3/§4). PROJECT.md updated: D5 clarified, in-scope item 2 wording, this log entry.
@@ -222,8 +224,8 @@ On all boxes ticked: flip `Scope & success criteria` Status to **locked** (v1.1)
 ---
 
 ## References
+<!-- TA: xref: v1 SHIPPED 2026-08-23 (feature_031 Done) — src/agentx/model/petri_net/ EXISTS (errors/model/analysis/coverability/__init__); tests/model/petri_net/ has the real suite (June placeholder deleted); feature_001.session_user_objectives_driven_by_Petri_Net remains the FUTURE CONSUMER, not this project's scope (D11). -->
 <!-- TA: risk: requirement doc §17/§39 — a truncated BFS must NEVER be reported as "unbounded" or "deadlock-free"; only coverability-tree analysis can prove unboundedness. The tests must include "unknown" cases (doc §40-19), not just happy paths. Design phase must pin the AnalysisResult(value: bool|None, complete, explored_states, reason) contract before any analysis function is written. -->
-<!-- TA: xref: tests/model/petri_net/test_petri_net.py is a June placeholder stub (assertTrue(True)); src/agentx/model/petri_net/ does not exist; feature_001.session_user_objectives_driven_by_Petri_Net (FEATURE.md: internal_state module, USER_OBJECTIVES.md CRC update) is the FUTURE CONSUMER, not part of this project's scope (D11). Verified 2026-08-16 at iter-0. -->
 <!-- TA: gotcha: doc §18 recommends sympy for exact invariant nullspace, but D4 LOCKS to pure-Python rational Gaussian elimination (zero deps). Do not silently implement invariants with numpy floating-point nullspace — doc §18 explicitly rejects float rank/null-space for Petri-net invariants. -->
 
 - **Requirement doc (the anchor)** — `.meta/doc/petri_nets/petri_net_python_coding_agents.md`. 41 sections covering foundations (§1–2), model layer (§3–10), analysis layer (§11–25), design rules (§26–34), structure (§35), minimum feature set (§36), end-to-end example (§37), edge cases (§38), no-overclaiming (§39), Definition of Done (§40), final mental model (§41). **v1 scope: §1–16, §18–21, §23–24, §27–35, §36 (v1 checklist items only), §40 items 1–17, 19 only; §26 → v2; §41 = guiding principle, not scoped.**

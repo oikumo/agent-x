@@ -66,3 +66,9 @@
 ## 2026-08-16 rotation (ingestion bug_fix completion round)
 
 - [x] **feature_025.coding_context_window_optimization** — DONE (2026-08-08): `CodingAgentService` swapped from bare `create_agent` to deepagents full stack (`create_deep_agent` + Filesystem/Summarization/Memory/Skills middleware + `compact_conversation` tool; legacy fallback kept). `deepagents>=0.7` dep; 8/8 new + 143/143 regression + suite 1196 passed (3 known react_screen). Test report @ `6.testing/features/feature_025.coding_context_window_optimization/test_report.md`.
+
+## 2026-08-23 rotation (feature_031 completion round)
+
+- [x] **feature_029.rag_v2_slash_commands** — DONE 2026-08-16: rag_v2 REPL → hybrid slash grammar (`/help /search /repos /use /create /ingest /status /reset /quit`); streamed tool activity (`» search:` / `» analyst:`); tools renamed `search_documents`/`ingestion_status`; 51 new tests; suite 1335 passed. Report @ `6.testing/features/feature_029.rag_v2_slash_commands/test_report.md`.
+- [x] **bug_fix.rag_v2_ingestion_persist** — DONE 2026-08-16: `_persist` (web/md/pdf) built `RagV2` which has no `add_texts` → silent no-op (chunks never stored). Now persists via `AIService().rag_chromadb("<repo>/chroma_db")` per operation_spec_001; `/chroma` drift removed (one Chroma per repo; empty skeleton dirs deleted from session); web journal record added; 6 regression tests pin production path. Suite 1338 passed (3 harness budget tests fixed).
+- [x] **bug_fix.help_command_deepcopy_thread** — DONE 2026-08-16: console `help` crashed `TypeError: cannot pickle '_thread.lock' object` after a RAG v2 chat. `get_commands()` deepcopied every Command; each holds a MainController back-ref whose graph contains the rag_v2 worker thread. Now shallow list copy (`list(self.commands.values())`); 2 regression tests; suite 1343 passed.
