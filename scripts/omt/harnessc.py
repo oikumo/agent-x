@@ -821,6 +821,21 @@ def check_projects_manifest(c: Corpus) -> None:
     expected = _ps.build_manifest(records, _ps.derive_links(records))
     if manifest.read_text(encoding="utf-8") != expected:
         c.errors.append(".projects/meta/META.md stale — run: uv run scripts/omt/project.py sync")
+    check_work_projects_fresh(c)  # Option-1: the WORK.md surface rides the projects checks
+
+
+def check_work_projects_fresh(c: Corpus) -> None:
+    """WORK.md `## Projects` section mirrors the projects ledger (byte-compare)."""
+    records = _ps.read_ledger_all()
+    links = _ps.derive_links(records)
+    path = _ps.work_md_path()
+    if not path.exists():
+        c.errors.append("WORK.md `## Projects` section missing — run: uv run scripts/omt/project.py sync")
+        return
+    expected = _ps.build_work_projects_section(records, links)
+    current = _ps.extract_work_projects_section(path.read_text(encoding="utf-8"))
+    if current != expected:
+        c.errors.append("WORK.md `## Projects` section stale — run: uv run scripts/omt/project.py sync")
 
 
 # improvement006/OPT-C: the TS irToolDescription(name, seed) fallback seeds must

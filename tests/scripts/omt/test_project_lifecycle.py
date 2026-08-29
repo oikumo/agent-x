@@ -46,6 +46,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("OMT_LEDGER_PATH", str(ledger))
     monkeypatch.setenv("OMT_PROJECTS_ROOT", str(proots))
     monkeypatch.setenv("OMT_PROJECTS_ARCHIVE", str(parch))
+    monkeypatch.setenv("OMT_WORK_PATH", str(tmp_path / "WORK.md"))  # Option-1: WORK.md surface stays hermetic
     return {"ledger": ledger, "root": proots, "archive": parch, "tmp": tmp_path}
 
 
@@ -224,6 +225,66 @@ class TestHarnesscChecks:
         joined = "\n".join(c.errors)
         assert "draft" in joined and "active" in joined and "project.py sync" in joined
         assert "META.md missing" in joined
+
+
+class TestWorkProjectsSurface:
+    """Option-1: WORK.md `## Projects` section synced by project.py sync and
+    byte-checked by harnessc check_work_projects_fresh (rides the projects
+    checks; OMT_WORK_PATH keeps every write hermetic)."""
+
+    _WORK_TMPL = ("# WORK\n\n## Tasks\n\n- [ ] **feature_001.x**\n\n---\n\n"
+                  "## Agent Scratchpad\n\n```\nscratch\n```\n")
+
+    def test_sync_inserts_work_section(self, env):
+        project = _mod("project")
+        work = env["tmp"] / "WORK.md"
+        work.write_text(self._WORK_TMPL)
+        project.main(["new", "alpha proj"])
+        project.main(["link", "feature_030.x", "alpha_proj"])
+        assert project.main(["sync"]) == 0
+        text = work.read_text()
+        row = [ln for ln in text.splitlines() if "alpha_proj" in ln]
+        assert row and "active" in row[0] and "feature_030.x" in row[0]
+        assert "do not hand-edit" in text
+        # inserted between the Tasks separator and the scratchpad
+        assert text.index("## Projects") < text.index("## Agent Scratchpad")
+
+    def test_sync_idempotent_and_roundtrip(self, env):
+        project = _mod("project")
+        ps = _mod("project_state")
+        work = env["tmp"] / "WORK.md"
+        work.write_text(self._WORK_TMPL)
+        project.main(["new", "alpha proj"])
+        project.main(["link", "feature_030.x", "alpha_proj"])
+        project.main(["sync"])
+        first = work.read_text()
+        assert project.main(["sync"]) == 0
+        assert work.read_text() == first  # byte-stable
+        recs = ps.read_ledger_all()
+        links = ps.derive_links(recs)
+        assert ps.extract_work_projects_section(first) == ps.build_work_projects_section(recs, links)
+        # extraction round-trips the canonical section
+        assert ps.upsert_work_projects(recs, links) is False  # already fresh
+
+    def test_harnessc_check_flags_stale_work_section(self, env):
+        harnessc = _mod("harnessc")
+        ps = _mod("project_state")
+        work = env["tmp"] / "WORK.md"
+        work.write_text(self._WORK_TMPL)
+        (env["root"] / "p1").mkdir()
+        (env["root"] / "p1" / "PROJECT.md").write_text("> Status: **active**\n")
+        (env["root"] / "p1" / "CURRENT_STATE.md").write_text("# c\n")
+        ps.write_record({"kind": "project", "op": "create", "project": "p1"})
+        ps.write_record({"kind": "project_link", "project": "p1",
+                         "feature": "feature_030.project_lifecycle", "origin": "manual"})
+        c = _corpus()
+        harnessc.check_work_projects_fresh(c)
+        assert any("WORK.md" in e and "Projects" in e for e in c.errors)
+        # fresh after sync → clean
+        ps.upsert_work_projects(ps.read_ledger_all(), ps.derive_links(ps.read_ledger_all()))
+        c2 = _corpus()
+        harnessc.check_work_projects_fresh(c2)
+        assert c2.errors == []
 
 
 class TestScaffoldLink:

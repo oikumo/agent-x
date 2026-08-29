@@ -48,6 +48,7 @@ def _sync_all() -> list[str]:
     records = ps.read_ledger_all()
     links = ps.derive_links(records)
     ps.manifest_path().write_text(ps.build_manifest(records, links), encoding="utf-8")
+    ps.upsert_work_projects(records, links)  # WORK.md `## Projects` surface (Option-1)
     flips = []
     for slug in ps.homes():
         derived = ps.derive_state(slug, records, links)

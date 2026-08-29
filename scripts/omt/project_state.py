@@ -251,3 +251,77 @@ def build_manifest(records: list[dict], links: dict[str, dict]) -> str:
     if archived:
         lines += ["", "## Archived", "", "| project | archived_to |", "|---|---|", *archived]
     return "\n".join(lines) + "\n"
+
+
+# --- WORK.md `## Projects` surface (harness Option-1) -------------------------
+
+def work_md_path() -> Path:
+    """WORK.md path — env override keeps tests hermetic (project_state idiom)."""
+    env = os.environ.get("OMT_WORK_PATH")
+    return Path(env) if env else REPO_ROOT / "WORK.md"
+
+
+def build_work_projects_section(records: list[dict], links: dict[str, dict]) -> str:
+    """Canonical `## Projects` block for WORK.md (non-archived homes only — the
+    manifest owns the archived list). Same records/links the manifest uses, so
+    harnessc can byte-compare a fresh projection against the file."""
+    rows = []
+    for slug in homes():
+        state = derive_state(slug, records, links)
+        if state == "archived":
+            continue
+        feats = sorted(f for f, l in links.items() if l["project"] == slug)
+        rows.append(f"| {slug} | {state} | {', '.join(feats) if feats else '—'} |")
+    body = "\n".join(rows) if rows else "| _(no projects)_ | — | — |"
+    return (
+        "## Projects (synced by `uv run scripts/omt/project.py sync` — do not hand-edit)\n"
+        "\n"
+        "| project | state | features |\n"
+        "|---|---|---|\n"
+        f"{body}\n"
+        "\n"
+        "---\n"
+    )
+
+
+def extract_work_projects_section(text: str) -> str | None:
+    """The current `## Projects` block from WORK.md text (None when absent)."""
+    lines = text.split("\n")
+    start = next((i for i, ln in enumerate(lines) if ln.startswith("## Projects")), None)
+    if start is None:
+        return None
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    block = lines[start:end]
+    while block and not block[-1].strip():
+        block.pop()
+    return "\n".join(block) + "\n"
+
+
+def upsert_work_projects(records: list[dict], links: dict[str, dict]) -> bool:
+    """Insert/replace the `## Projects` block in WORK.md; True when changed.
+
+    Inserted before `## Agent Scratchpad` (fallback: EOF). Layout matches the
+    house separator convention (`---` between sections); the replace path keeps
+    idempotency so repeated syncs are byte-stable.
+    """
+    path = work_md_path()
+    if not path.exists():
+        return False
+    text = path.read_text(encoding="utf-8")
+    section_lines = build_work_projects_section(records, links).rstrip("\n").split("\n")
+    lines = text.split("\n")
+    start = next((i for i, ln in enumerate(lines) if ln.startswith("## Projects")), None)
+    if start is not None:
+        end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+        new_lines = lines[:start] + section_lines + (["", ""] if end < len(lines) else []) + lines[end:]
+    else:
+        scratch = next((i for i, ln in enumerate(lines) if ln.startswith("## Agent Scratchpad")), None)
+        if scratch is None:
+            new_lines = lines + ([""] if lines and lines[-1].strip() else []) + section_lines
+        else:
+            new_lines = lines[:scratch] + section_lines + ["", ""] + lines[scratch:]
+    new_text = "\n".join(new_lines)
+    if new_text != text:
+        path.write_text(new_text, encoding="utf-8")
+        return True
+    return False
