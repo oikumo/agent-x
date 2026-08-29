@@ -11,7 +11,7 @@
 | meta_harness_2 | active | feature_020.meta_harness_navigation, feature_021.meta_harness_think_anywhere, feature_022.meta_harness_think_anywhere_v2, feature_023.meta_harness_improvement, feature_026.omt_q_interrogative_first_ops | 2026-08-22 | 2026-08-22 |
 | meta_harness_3 | active | feature_028.feature_scoped_gating | 2026-08-22 | 2026-08-22 |
 | petri_net_library | active | feature_031.petri_net_library | 2026-08-22 | 2026-08-22 |
-| petri_net_studio | active | feature_032.petri_net_format, feature_033.petri_net_io, feature_034.studio_v1_editor | 2026-08-23 | 2026-08-23 |
+| petri_net_studio | active | feature_032.petri_net_format, feature_033.petri_net_io, feature_034.studio_v1_editor, feature_035.studio_v2_analysis | 2026-08-23 | 2026-08-23 |
 | project_lifecycle | active | feature_030.project_lifecycle | 2026-08-22 | 2026-08-22 |
 | rag_v2 | active | feature_027.rag_v2, feature_029.rag_v2_slash_commands | 2026-08-22 | 2026-08-22 |
 | workflows | draft | — | 2026-08-22 | 2026-08-22 |

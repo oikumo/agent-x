@@ -60,6 +60,10 @@ export interface StudioData {
   marking: number[] | null;
   selection: Selection | null;
   importError: string | null;
+  /** Analysis UI state (B10/B12): max-states dial; default 1000, visible, never hidden. */
+  maxStates: number | null;
+  /** Analysis panel visibility; default hidden. */
+  analysisVisible: boolean;
 }
 
 export interface StudioState extends StudioData {
@@ -79,6 +83,8 @@ export interface StudioState extends StudioData {
   importJson(text: string): boolean;
   exportJson(): string;
   loadExample(name: string): boolean;
+  setMaxStates(n: number | null): void;
+  toggleAnalysis(): void;
 }
 
 export function initialDataState(): StudioData {
@@ -89,6 +95,8 @@ export function initialDataState(): StudioData {
     marking: null,
     selection: null,
     importError: null,
+    maxStates: 1000,
+    analysisVisible: false,
   };
 }
 
@@ -291,6 +299,19 @@ export const useStudioStore = create<StudioState>()((set, get) => {
         return false;
       }
       return get().importJson(text);
+    },
+
+    // ------------------------------------------------------------------
+    // Analysis UI state (B12: UI-only; NOT edit-locked — view over M0 in
+    // both modes; never written into the document/format).
+    // ------------------------------------------------------------------
+
+    setMaxStates(n: number | null): void {
+      set({ maxStates: n });
+    },
+
+    toggleAnalysis(): void {
+      set({ analysisVisible: !get().analysisVisible });
     },
   };
 });

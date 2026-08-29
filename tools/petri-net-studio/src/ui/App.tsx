@@ -24,6 +24,7 @@ import { toFlowGraph, type StudioFlowNode } from "./flow.js";
 import { PlaceNode } from "./PlaceNode.js";
 import { TransitionNode } from "./TransitionNode.js";
 import { Inspector } from "./Inspector.js";
+import { AnalysisPanel } from "./AnalysisPanel.js";
 
 const nodeTypes = { place: PlaceNode, transition: TransitionNode };
 
@@ -121,6 +122,8 @@ export function App() {
   const setSelection = useStudioStore((s) => s.setSelection);
   const loadExample = useStudioStore((s) => s.loadExample);
   const exportJson = useStudioStore((s) => s.exportJson);
+  const analysisVisible = useStudioStore((s) => s.analysisVisible);
+  const toggleAnalysis = useStudioStore((s) => s.toggleAnalysis);
 
   const [adding, setAdding] = useState<"place" | "transition" | null>(null);
   const [hint, setHint] = useState<string | null>(null);
@@ -249,6 +252,13 @@ export function App() {
           Import
         </button>
         <button onClick={() => setExportText(exportJson())}>Export</button>
+        <button
+          className={analysisVisible ? "active" : ""}
+          onClick={toggleAnalysis}
+          title="Analyze the net from its initial marking M0"
+        >
+          Analyze
+        </button>
         <button disabled={editing} onClick={resetMarking}>
           Reset marking
         </button>
@@ -275,6 +285,7 @@ export function App() {
         />
         <Inspector />
       </div>
+      {analysisVisible && <AnalysisPanel />}
       {importOpen && <ImportDialog onClose={() => setImportOpen(false)} />}
       {exportText !== null && <ExportDialog text={exportText} onClose={() => setExportText(null)} />}
     </div>

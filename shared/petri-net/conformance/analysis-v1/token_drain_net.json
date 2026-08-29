@@ -1,0 +1,202 @@
+{
+  "format": "petri-net-conformance",
+  "version": 1,
+  "id": "token_drain_net",
+  "max_states": null,
+  "net": {
+    "format": "petri-net-json",
+    "version": 1,
+    "places": [
+      {
+        "name": "p1",
+        "tokens": 1
+      },
+      {
+        "name": "p2",
+        "tokens": 0
+      }
+    ],
+    "transitions": [
+      {
+        "name": "t"
+      }
+    ],
+    "arcs": [
+      {
+        "source": "p1",
+        "target": "t",
+        "weight": 1
+      },
+      {
+        "source": "t",
+        "target": "p2",
+        "weight": 1
+      }
+    ]
+  },
+  "expected": {
+    "reachable_markings": {
+      "markings": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "predecessors": [
+        [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ],
+          "t"
+        ],
+        [
+          [
+            1,
+            0
+          ],
+          null,
+          null
+        ]
+      ],
+      "complete": true,
+      "explored_states": 2
+    },
+    "reachability_graph": {
+      "states": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "edges": [
+        [
+          "0,1",
+          []
+        ],
+        [
+          "1,0",
+          [
+            [
+              "t",
+              [
+                0,
+                1
+              ]
+            ]
+          ]
+        ]
+      ],
+      "complete": true
+    },
+    "deadlocks": {
+      "deadlocks": [
+        [
+          0,
+          1
+        ]
+      ],
+      "complete": true,
+      "explored_states": 2,
+      "reason": null
+    },
+    "bounds": {
+      "bounded": true,
+      "bounds": [
+        [
+          "p1",
+          1
+        ],
+        [
+          "p2",
+          1
+        ]
+      ],
+      "complete": true,
+      "reason": null
+    },
+    "incidence_matrix": [
+      [
+        -1
+      ],
+      [
+        1
+      ]
+    ],
+    "place_invariants": [
+      [
+        1,
+        1
+      ]
+    ],
+    "transition_invariants": [],
+    "firing_sequences": [
+      [
+        [
+          0,
+          1
+        ],
+        [
+          "t"
+        ]
+      ],
+      [
+        [
+          1,
+          0
+        ],
+        []
+      ],
+      [
+        [
+          2,
+          2
+        ],
+        null
+      ]
+    ],
+    "liveness": {
+      "is_live": [
+        false,
+        true,
+        2,
+        null
+      ],
+      "transitions": [
+        [
+          "t",
+          false,
+          true,
+          2,
+          null
+        ]
+      ]
+    },
+    "sccs": [
+      [
+        [
+          0,
+          1
+        ]
+      ],
+      [
+        [
+          1,
+          0
+        ]
+      ]
+    ]
+  }
+}

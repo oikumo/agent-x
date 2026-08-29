@@ -37,13 +37,22 @@
     "bash": {
       "*": "ask",
       "uv *": "allow",
+      "npx *": "allow",
+      "npm *": "allow",
       "ls *": "allow",
       "cat *": "allow",
-      "git status": "allow",
+      "git status *": "allow",
       "git log *": "allow",
       "git diff *": "allow",
       "git show *": "allow",
       "grep *": "allow",
+      "find *": "allow",
+      "sort *": "allow",
+      "head *": "allow",
+      "echo *": "allow",
+      "tail *": "allow",
+      "sed *": "allow",
+      "wc *": "allow",
       // harnessc:begin bash
         "git commit *": "deny",
         "git push *": "deny",
@@ -54,9 +63,9 @@
         "pytest *": "deny"
       // harnessc:end bash
     },
-    "grep": "allow",
-    "glob": "allow",
-    "list": "allow",
+    "grep *": "allow",
+    "glob *": "allow",
+    "list *": "allow",
     "lsp": "allow",
     "skill": "allow",
     // harnessc:begin perm

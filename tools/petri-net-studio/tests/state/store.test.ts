@@ -488,3 +488,55 @@ describe("TestDocFromNet", () => {
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Analysis UI state (design §10.4: maxStates dial + analysisVisible — B10/B12)
+// ---------------------------------------------------------------------------
+
+describe("TestAnalysisUIState", () => {
+  it("defaults: maxStates===1000, analysisVisible===false", () => {
+    const s = S();
+    expect(s.maxStates).toBe(1000);
+    expect(s.analysisVisible).toBe(false);
+  });
+
+  it("setMaxStates accepts a number or null (unlimited)", () => {
+    S().setMaxStates(250);
+    expect(S().maxStates).toBe(250);
+    S().setMaxStates(null);
+    expect(S().maxStates).toBeNull();
+    S().setMaxStates(1);
+    expect(S().maxStates).toBe(1);
+  });
+
+  it("toggleAnalysis flips analysisVisible", () => {
+    S().toggleAnalysis();
+    expect(S().analysisVisible).toBe(true);
+    S().toggleAnalysis();
+    expect(S().analysisVisible).toBe(false);
+  });
+
+  it("mode transitions leave maxStates/analysisVisible untouched", () => {
+    buildHelloInStore();
+    S().setMaxStates(77);
+    S().toggleAnalysis();
+    S().setMode("simulate");
+    expect(S().maxStates).toBe(77);
+    expect(S().analysisVisible).toBe(true);
+    S().setMode("edit");
+    expect(S().maxStates).toBe(77);
+    expect(S().analysisVisible).toBe(true);
+  });
+
+  it("analysis UI state survives import/export (never written into the doc)", () => {
+    buildHelloInStore();
+    S().setMaxStates(42);
+    S().toggleAnalysis();
+    const text = S().exportJson();
+    const parsed = JSON.parse(text);
+    expect(parsed.maxStates).toBeUndefined(); // B12: UI state only
+    expect(S().importJson(text)).toBe(true);
+    expect(S().maxStates).toBe(42);
+    expect(S().analysisVisible).toBe(true);
+  });
+});

@@ -1,0 +1,855 @@
+{
+  "format": "petri-net-conformance",
+  "version": 1,
+  "id": "producer_consumer",
+  "max_states": null,
+  "net": {
+    "format": "petri-net-json",
+    "version": 1,
+    "places": [
+      {
+        "name": "buffer",
+        "tokens": 0
+      },
+      {
+        "name": "consumer_ready",
+        "tokens": 1
+      },
+      {
+        "name": "free_slots",
+        "tokens": 3
+      },
+      {
+        "name": "producer_ready",
+        "tokens": 1
+      }
+    ],
+    "transitions": [
+      {
+        "name": "consume"
+      },
+      {
+        "name": "produce"
+      }
+    ],
+    "arcs": [
+      {
+        "source": "buffer",
+        "target": "consume",
+        "weight": 1
+      },
+      {
+        "source": "consume",
+        "target": "consumer_ready",
+        "weight": 1
+      },
+      {
+        "source": "consumer_ready",
+        "target": "consume",
+        "weight": 1
+      },
+      {
+        "source": "free_slots",
+        "target": "produce",
+        "weight": 1
+      },
+      {
+        "source": "produce",
+        "target": "buffer",
+        "weight": 1
+      },
+      {
+        "source": "produce",
+        "target": "producer_ready",
+        "weight": 1
+      },
+      {
+        "source": "producer_ready",
+        "target": "produce",
+        "weight": 1
+      }
+    ],
+    "layout": {
+      "nodes": {
+        "buffer": {
+          "x": 260,
+          "y": 60
+        },
+        "consume": {
+          "x": 260,
+          "y": 220
+        },
+        "consumer_ready": {
+          "x": 420,
+          "y": 220
+        },
+        "free_slots": {
+          "x": 100,
+          "y": 220
+        },
+        "produce": {
+          "x": 100,
+          "y": 60
+        },
+        "producer_ready": {
+          "x": 420,
+          "y": 60
+        }
+      }
+    }
+  },
+  "expected": {
+    "reachable_markings": {
+      "markings": [
+        [
+          0,
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          1,
+          1
+        ],
+        [
+          0,
+          1,
+          2,
+          1
+        ],
+        [
+          0,
+          1,
+          3,
+          1
+        ],
+        [
+          1,
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          2,
+          1
+        ],
+        [
+          2,
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          1,
+          1,
+          1
+        ],
+        [
+          3,
+          1,
+          0,
+          1
+        ]
+      ],
+      "predecessors": [
+        [
+          [
+            0,
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            0,
+            1
+          ],
+          "consume"
+        ],
+        [
+          [
+            0,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          "consume"
+        ],
+        [
+          [
+            0,
+            1,
+            2,
+            1
+          ],
+          [
+            1,
+            1,
+            2,
+            1
+          ],
+          "consume"
+        ],
+        [
+          [
+            0,
+            1,
+            3,
+            1
+          ],
+          null,
+          null
+        ],
+        [
+          [
+            1,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            1
+          ],
+          "produce"
+        ],
+        [
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            2,
+            1
+          ],
+          "produce"
+        ],
+        [
+          [
+            1,
+            1,
+            2,
+            1
+          ],
+          [
+            0,
+            1,
+            3,
+            1
+          ],
+          "produce"
+        ],
+        [
+          [
+            2,
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          "produce"
+        ],
+        [
+          [
+            2,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            2,
+            1
+          ],
+          "produce"
+        ],
+        [
+          [
+            3,
+            1,
+            0,
+            1
+          ],
+          [
+            2,
+            1,
+            1,
+            1
+          ],
+          "produce"
+        ]
+      ],
+      "complete": true,
+      "explored_states": 10
+    },
+    "reachability_graph": {
+      "states": [
+        [
+          0,
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          1,
+          1
+        ],
+        [
+          0,
+          1,
+          2,
+          1
+        ],
+        [
+          0,
+          1,
+          3,
+          1
+        ],
+        [
+          1,
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          2,
+          1
+        ],
+        [
+          2,
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          1,
+          1,
+          1
+        ],
+        [
+          3,
+          1,
+          0,
+          1
+        ]
+      ],
+      "edges": [
+        [
+          "0,1,0,1",
+          []
+        ],
+        [
+          "0,1,1,1",
+          [
+            [
+              "produce",
+              [
+                1,
+                1,
+                0,
+                1
+              ]
+            ]
+          ]
+        ],
+        [
+          "0,1,2,1",
+          [
+            [
+              "produce",
+              [
+                1,
+                1,
+                1,
+                1
+              ]
+            ]
+          ]
+        ],
+        [
+          "0,1,3,1",
+          [
+            [
+              "produce",
+              [
+                1,
+                1,
+                2,
+                1
+              ]
+            ]
+          ]
+        ],
+        [
+          "1,1,0,1",
+          [
+            [
+              "consume",
+              [
+                0,
+                1,
+                0,
+                1
+              ]
+            ]
+          ]
+        ],
+        [
+          "1,1,1,1",
+          [
+            [
+              "consume",
+              [
+                0,
+                1,
+                1,
+                1
+              ]
+            ],
+            [
+              "produce",
+              [
+                2,
+                1,
+                0,
+                1
+              ]
+            ]
+          ]
+        ],
+        [
+          "1,1,2,1",
+          [
+            [
+              "consume",
+              [
+                0,
+                1,
+                2,
+                1
+              ]
+            ],
+            [
+              "produce",
+              [
+                2,
+                1,
+                1,
+                1
+              ]
+            ]
+          ]
+        ],
+        [
+          "2,1,0,1",
+          [
+            [
+              "consume",
+              [
+                1,
+                1,
+                0,
+                1
+              ]
+            ]
+          ]
+        ],
+        [
+          "2,1,1,1",
+          [
+            [
+              "consume",
+              [
+                1,
+                1,
+                1,
+                1
+              ]
+            ],
+            [
+              "produce",
+              [
+                3,
+                1,
+                0,
+                1
+              ]
+            ]
+          ]
+        ],
+        [
+          "3,1,0,1",
+          [
+            [
+              "consume",
+              [
+                2,
+                1,
+                0,
+                1
+              ]
+            ]
+          ]
+        ]
+      ],
+      "complete": true
+    },
+    "deadlocks": {
+      "deadlocks": [
+        [
+          0,
+          1,
+          0,
+          1
+        ]
+      ],
+      "complete": true,
+      "explored_states": 10,
+      "reason": null
+    },
+    "bounds": {
+      "bounded": true,
+      "bounds": [
+        [
+          "buffer",
+          3
+        ],
+        [
+          "consumer_ready",
+          1
+        ],
+        [
+          "free_slots",
+          3
+        ],
+        [
+          "producer_ready",
+          1
+        ]
+      ],
+      "complete": true,
+      "reason": null
+    },
+    "incidence_matrix": [
+      [
+        -1,
+        1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "place_invariants": [
+      [
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ]
+    ],
+    "transition_invariants": [],
+    "firing_sequences": [
+      [
+        [
+          0,
+          1,
+          0,
+          1
+        ],
+        [
+          "produce",
+          "consume",
+          "produce",
+          "consume",
+          "produce",
+          "consume"
+        ]
+      ],
+      [
+        [
+          0,
+          1,
+          1,
+          1
+        ],
+        [
+          "produce",
+          "consume",
+          "produce",
+          "consume"
+        ]
+      ],
+      [
+        [
+          0,
+          1,
+          2,
+          1
+        ],
+        [
+          "produce",
+          "consume"
+        ]
+      ],
+      [
+        [
+          0,
+          1,
+          3,
+          1
+        ],
+        []
+      ],
+      [
+        [
+          1,
+          1,
+          0,
+          1
+        ],
+        [
+          "produce",
+          "consume",
+          "produce",
+          "consume",
+          "produce"
+        ]
+      ],
+      [
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          "produce",
+          "consume",
+          "produce"
+        ]
+      ],
+      [
+        [
+          1,
+          1,
+          2,
+          1
+        ],
+        [
+          "produce"
+        ]
+      ],
+      [
+        [
+          2,
+          1,
+          0,
+          1
+        ],
+        [
+          "produce",
+          "consume",
+          "produce",
+          "produce"
+        ]
+      ],
+      [
+        [
+          2,
+          1,
+          1,
+          1
+        ],
+        [
+          "produce",
+          "produce"
+        ]
+      ],
+      [
+        [
+          3,
+          1,
+          0,
+          1
+        ],
+        [
+          "produce",
+          "produce",
+          "produce"
+        ]
+      ],
+      [
+        [
+          4,
+          2,
+          4,
+          2
+        ],
+        null
+      ]
+    ],
+    "liveness": {
+      "is_live": [
+        false,
+        true,
+        10,
+        null
+      ],
+      "transitions": [
+        [
+          "consume",
+          false,
+          true,
+          10,
+          null
+        ],
+        [
+          "produce",
+          false,
+          true,
+          10,
+          null
+        ]
+      ]
+    },
+    "sccs": [
+      [
+        [
+          0,
+          1,
+          0,
+          1
+        ]
+      ],
+      [
+        [
+          1,
+          1,
+          0,
+          1
+        ]
+      ],
+      [
+        [
+          0,
+          1,
+          1,
+          1
+        ]
+      ],
+      [
+        [
+          2,
+          1,
+          0,
+          1
+        ]
+      ],
+      [
+        [
+          1,
+          1,
+          1,
+          1
+        ]
+      ],
+      [
+        [
+          0,
+          1,
+          2,
+          1
+        ]
+      ],
+      [
+        [
+          3,
+          1,
+          0,
+          1
+        ]
+      ],
+      [
+        [
+          2,
+          1,
+          1,
+          1
+        ]
+      ],
+      [
+        [
+          1,
+          1,
+          2,
+          1
+        ]
+      ],
+      [
+        [
+          0,
+          1,
+          3,
+          1
+        ]
+      ]
+    ]
+  }
+}

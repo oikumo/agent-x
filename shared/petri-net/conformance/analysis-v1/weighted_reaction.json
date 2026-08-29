@@ -1,0 +1,292 @@
+{
+  "format": "petri-net-conformance",
+  "version": 1,
+  "id": "weighted_reaction",
+  "max_states": null,
+  "net": {
+    "format": "petri-net-json",
+    "version": 1,
+    "places": [
+      {
+        "name": "h2",
+        "tokens": 4
+      },
+      {
+        "name": "h2o",
+        "tokens": 0
+      },
+      {
+        "name": "o2",
+        "tokens": 2
+      }
+    ],
+    "transitions": [
+      {
+        "name": "react"
+      }
+    ],
+    "arcs": [
+      {
+        "source": "h2",
+        "target": "react",
+        "weight": 2
+      },
+      {
+        "source": "o2",
+        "target": "react",
+        "weight": 1
+      },
+      {
+        "source": "react",
+        "target": "h2o",
+        "weight": 2
+      }
+    ]
+  },
+  "expected": {
+    "reachable_markings": {
+      "markings": [
+        [
+          0,
+          4,
+          0
+        ],
+        [
+          2,
+          2,
+          1
+        ],
+        [
+          4,
+          0,
+          2
+        ]
+      ],
+      "predecessors": [
+        [
+          [
+            0,
+            4,
+            0
+          ],
+          [
+            2,
+            2,
+            1
+          ],
+          "react"
+        ],
+        [
+          [
+            2,
+            2,
+            1
+          ],
+          [
+            4,
+            0,
+            2
+          ],
+          "react"
+        ],
+        [
+          [
+            4,
+            0,
+            2
+          ],
+          null,
+          null
+        ]
+      ],
+      "complete": true,
+      "explored_states": 3
+    },
+    "reachability_graph": {
+      "states": [
+        [
+          0,
+          4,
+          0
+        ],
+        [
+          2,
+          2,
+          1
+        ],
+        [
+          4,
+          0,
+          2
+        ]
+      ],
+      "edges": [
+        [
+          "0,4,0",
+          []
+        ],
+        [
+          "2,2,1",
+          [
+            [
+              "react",
+              [
+                0,
+                4,
+                0
+              ]
+            ]
+          ]
+        ],
+        [
+          "4,0,2",
+          [
+            [
+              "react",
+              [
+                2,
+                2,
+                1
+              ]
+            ]
+          ]
+        ]
+      ],
+      "complete": true
+    },
+    "deadlocks": {
+      "deadlocks": [
+        [
+          0,
+          4,
+          0
+        ]
+      ],
+      "complete": true,
+      "explored_states": 3,
+      "reason": null
+    },
+    "bounds": {
+      "bounded": true,
+      "bounds": [
+        [
+          "h2",
+          4
+        ],
+        [
+          "h2o",
+          4
+        ],
+        [
+          "o2",
+          2
+        ]
+      ],
+      "complete": true,
+      "reason": null
+    },
+    "incidence_matrix": [
+      [
+        -2
+      ],
+      [
+        2
+      ],
+      [
+        -1
+      ]
+    ],
+    "place_invariants": [
+      [
+        1,
+        1,
+        0
+      ],
+      [
+        1,
+        0,
+        -2
+      ]
+    ],
+    "transition_invariants": [],
+    "firing_sequences": [
+      [
+        [
+          0,
+          4,
+          0
+        ],
+        [
+          "react",
+          "react"
+        ]
+      ],
+      [
+        [
+          2,
+          2,
+          1
+        ],
+        [
+          "react"
+        ]
+      ],
+      [
+        [
+          4,
+          0,
+          2
+        ],
+        []
+      ],
+      [
+        [
+          5,
+          5,
+          3
+        ],
+        null
+      ]
+    ],
+    "liveness": {
+      "is_live": [
+        false,
+        true,
+        3,
+        null
+      ],
+      "transitions": [
+        [
+          "react",
+          false,
+          true,
+          3,
+          null
+        ]
+      ]
+    },
+    "sccs": [
+      [
+        [
+          0,
+          4,
+          0
+        ]
+      ],
+      [
+        [
+          2,
+          2,
+          1
+        ]
+      ],
+      [
+        [
+          4,
+          0,
+          2
+        ]
+      ]
+    ]
+  }
+}

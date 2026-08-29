@@ -1,0 +1,186 @@
+{
+  "format": "petri-net-conformance",
+  "version": 1,
+  "id": "two_way_cycle_truncated",
+  "max_states": 1,
+  "net": {
+    "format": "petri-net-json",
+    "version": 1,
+    "places": [
+      {
+        "name": "p1",
+        "tokens": 1
+      },
+      {
+        "name": "p2",
+        "tokens": 0
+      }
+    ],
+    "transitions": [
+      {
+        "name": "t1"
+      },
+      {
+        "name": "t2"
+      }
+    ],
+    "arcs": [
+      {
+        "source": "p1",
+        "target": "t1",
+        "weight": 1
+      },
+      {
+        "source": "p2",
+        "target": "t2",
+        "weight": 1
+      },
+      {
+        "source": "t1",
+        "target": "p2",
+        "weight": 1
+      },
+      {
+        "source": "t2",
+        "target": "p1",
+        "weight": 1
+      }
+    ]
+  },
+  "expected": {
+    "reachable_markings": {
+      "markings": [
+        [
+          1,
+          0
+        ]
+      ],
+      "predecessors": [
+        [
+          [
+            1,
+            0
+          ],
+          null,
+          null
+        ]
+      ],
+      "complete": false,
+      "explored_states": 1
+    },
+    "reachability_graph": {
+      "states": [
+        [
+          1,
+          0
+        ]
+      ],
+      "edges": [
+        [
+          "1,0",
+          [
+            [
+              "t1",
+              [
+                0,
+                1
+              ]
+            ]
+          ]
+        ]
+      ],
+      "complete": false
+    },
+    "deadlocks": {
+      "deadlocks": [],
+      "complete": false,
+      "explored_states": 1,
+      "reason": "State-space exploration was truncated; listed deadlocks are only those among explored states."
+    },
+    "bounds": {
+      "bounded": null,
+      "bounds": [
+        [
+          "p1",
+          1
+        ],
+        [
+          "p2",
+          0
+        ]
+      ],
+      "complete": false,
+      "reason": "State-space exploration was truncated; boundedness is unknown."
+    },
+    "incidence_matrix": [
+      [
+        -1,
+        1
+      ],
+      [
+        1,
+        -1
+      ]
+    ],
+    "place_invariants": [
+      [
+        1,
+        1
+      ]
+    ],
+    "transition_invariants": [
+      [
+        1,
+        1
+      ]
+    ],
+    "firing_sequences": [
+      [
+        [
+          1,
+          0
+        ],
+        []
+      ],
+      [
+        [
+          2,
+          1
+        ],
+        null
+      ]
+    ],
+    "liveness": {
+      "is_live": [
+        null,
+        false,
+        1,
+        "Reachability graph is incomplete; global liveness is unknown."
+      ],
+      "transitions": [
+        [
+          "t1",
+          null,
+          false,
+          1,
+          "Reachability graph is incomplete; liveness is unknown."
+        ],
+        [
+          "t2",
+          null,
+          false,
+          1,
+          "Reachability graph is incomplete; liveness is unknown."
+        ]
+      ]
+    },
+    "sccs": [
+      [
+        [
+          1,
+          0
+        ]
+      ]
+    ]
+  }
+}

@@ -5,6 +5,49 @@
 
 ---
 
+## 2026-08-29 (auto — feature_035.studio_v2_analysis Done)
+
+- shipped: major_feature · test report @ 6.testing/features/feature_035.studio_v2_analysis/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-08-29 (resumed + shipped — roadmap feature #4 DONE: feature_035.studio_v2_analysis · ≡ PROJECT.md iteration-log iter 8)
+
+### Done
+
+- **Resumed** from `.sandbox/pause_2026-08-29b.md` — found **stale** (claimed Cycle 2 stub; the tree had cycles 1–3 DONE + Cycle 4 partially wired). Reconstructed true state from `implementation_001_manual_cycles.md`, git status, and a green 245/245 Vitest run.
+- **Cycle 4 completed** (the actual remaining work): `App.tsx` imported `AnalysisPanel` but never rendered it (TS6133) and `styles.css` lacked the design §9 analysis styles. Fixed: `{analysisVisible && <AnalysisPanel />}` below the canvas + full analysis CSS section (badges green/red/amber via `--enabled`/`--danger`/`--warn`). Store additions (`maxStates`/`analysisVisible`/`setMaxStates`/`toggleAnalysis`) + 5 additive tests were already green.
+- **Verified all gates**: Vitest **245/245** (8 files) · `tsc --noEmit` clean · `npm run build` green · `check-independence` OK (15 files/43 imports) · `vite preview` smoke 200×3.
+- **Sentinel**: `tests/features/feature_035.studio_v2_analysis/test_studio_v2_analysis_sentinel.py` (executes `npx vitest run`; env-skip; structural floor incl. generator + vectors dir; canary-approval skip logged) → `uv run pytest -q` **1638 passed, 5 failed**: 2 = known TDD-ledger probes (in-window); 3 = ONE root cause — WORK.md 5644 B > 5120 B budget — cleared by DONE-rotation (feature_032/033 → WORK_ARCHIVE.md, scratchpad compacted; WORK.md now 3787 B).
+- **Bookkeeping**: implementation_001 updated (Cycle 4 + verification evidence), test_report.md written, FEATURE.md/PLAN.md filled, WORK.md feature_035 DONE, PROJECT.md iter 8 + status + Quick Start (next = feature #5 scaffold on user go), `omt_complete` Programming → Testing → Done.
+
+### In progress / Blocked
+
+- _(nothing)_ — project v2 analysis shipped.
+
+### Next
+
+- **Roadmap feature #5 `.studio_v3_graph`** (major_feature): reachability-graph explorer (auto-layout), firing-sequence animation, liveness/SCC views, conformance-suite runner wired into Vitest, example gallery — scaffold via `new_feature.py "studio v3 graph" --type major_feature --project petri_net_studio` on user go.
+
+### Notes / context
+
+- Pause-bookkeeping lesson: the pause doc described Cycle 2 while the implementation report + tree were 2 cycles ahead — resume docs must be re-verified against git status / test runs, not trusted blindly.
+- `-0` parity bug fixed in Cycle 3 (Fraction ctor + `_coprimeIntVector`); TA-pinned both sites; caught by conformance vector `weighted_reaction` place_invariants.
+- 9th vector emitted (two_way_cycle_truncated) — strict superset of the §3 8-file plan; strengthens the no-overclaim corpus.
+
+---
+
+## 2026-08-23 (bookkeeping sync — feature_035 already scaffolded; docs caught up)
+
+- `feature_035.studio_v2_analysis` (roadmap #4, major_feature) was scaffolded after the feature_034 bookkeeping — the manifest already listed it, but PROJECT.md / CURRENT_STATE.md / WORK.md still pointed at "scaffold #4 on user go". Synced: PROJECT.md iter 6 (Quick Start + status checklist + iteration log), WORK.md task row, feature_035 FEATURE.md WORK.md-task link.
+- No feature work, no phases declared, no `src/` edits; scope unchanged (LOCKED v1.1).
+- **D8 re-lock recorded (PROJECT.md iter 7, user directive)**: feature #2 shipped io.py without the conformance-vector generator (locked D8 said "feature 2 provides the generator"). Amendment: generator deliverable moved to feature #4 (`.studio_v2_analysis` — vectors are the TDD targets for the TS analysis port); runner wiring stays #5; generator placement is a #4-Analysis decision. Scope remains LOCKED v1.1 with this single amendment.
+- **Next**: feature_035 **Analysis** on user go → design doc (§12) → Programming (TDD pipeline auto-activates). TA:gotcha applies to the port: exact rational invariants (no float nullspace) + `_explore` truncation order must match Python or truncated-case vectors diverge.
+
+---
+
 ## 2026-08-23 (auto — feature_034.studio_v1_editor Done)
 
 - shipped: major_feature · test report @ 6.testing/features/feature_034.studio_v1_editor/test_report.md

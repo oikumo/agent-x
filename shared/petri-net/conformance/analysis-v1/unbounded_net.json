@@ -1,0 +1,298 @@
+{
+  "format": "petri-net-conformance",
+  "version": 1,
+  "id": "unbounded_net",
+  "max_states": 5,
+  "net": {
+    "format": "petri-net-json",
+    "version": 1,
+    "places": [
+      {
+        "name": "p",
+        "tokens": 1
+      }
+    ],
+    "transitions": [
+      {
+        "name": "t"
+      }
+    ],
+    "arcs": [
+      {
+        "source": "p",
+        "target": "t",
+        "weight": 1
+      },
+      {
+        "source": "t",
+        "target": "p",
+        "weight": 2
+      }
+    ]
+  },
+  "expected": {
+    "reachable_markings": {
+      "markings": [
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          5
+        ]
+      ],
+      "predecessors": [
+        [
+          [
+            1
+          ],
+          null,
+          null
+        ],
+        [
+          [
+            2
+          ],
+          [
+            1
+          ],
+          "t"
+        ],
+        [
+          [
+            3
+          ],
+          [
+            2
+          ],
+          "t"
+        ],
+        [
+          [
+            4
+          ],
+          [
+            3
+          ],
+          "t"
+        ],
+        [
+          [
+            5
+          ],
+          [
+            4
+          ],
+          "t"
+        ]
+      ],
+      "complete": false,
+      "explored_states": 5
+    },
+    "reachability_graph": {
+      "states": [
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          5
+        ]
+      ],
+      "edges": [
+        [
+          "1",
+          [
+            [
+              "t",
+              [
+                2
+              ]
+            ]
+          ]
+        ],
+        [
+          "2",
+          [
+            [
+              "t",
+              [
+                3
+              ]
+            ]
+          ]
+        ],
+        [
+          "3",
+          [
+            [
+              "t",
+              [
+                4
+              ]
+            ]
+          ]
+        ],
+        [
+          "4",
+          [
+            [
+              "t",
+              [
+                5
+              ]
+            ]
+          ]
+        ],
+        [
+          "5",
+          [
+            [
+              "t",
+              [
+                6
+              ]
+            ]
+          ]
+        ]
+      ],
+      "complete": false
+    },
+    "deadlocks": {
+      "deadlocks": [],
+      "complete": false,
+      "explored_states": 5,
+      "reason": "State-space exploration was truncated; listed deadlocks are only those among explored states."
+    },
+    "bounds": {
+      "bounded": null,
+      "bounds": [
+        [
+          "p",
+          5
+        ]
+      ],
+      "complete": false,
+      "reason": "State-space exploration was truncated; boundedness is unknown."
+    },
+    "incidence_matrix": [
+      [
+        1
+      ]
+    ],
+    "place_invariants": [],
+    "transition_invariants": [],
+    "firing_sequences": [
+      [
+        [
+          1
+        ],
+        []
+      ],
+      [
+        [
+          2
+        ],
+        [
+          "t"
+        ]
+      ],
+      [
+        [
+          3
+        ],
+        [
+          "t",
+          "t"
+        ]
+      ],
+      [
+        [
+          4
+        ],
+        [
+          "t",
+          "t",
+          "t"
+        ]
+      ],
+      [
+        [
+          5
+        ],
+        [
+          "t",
+          "t",
+          "t",
+          "t"
+        ]
+      ],
+      [
+        [
+          6
+        ],
+        null
+      ]
+    ],
+    "liveness": {
+      "is_live": [
+        null,
+        false,
+        5,
+        "Reachability graph is incomplete; global liveness is unknown."
+      ],
+      "transitions": [
+        [
+          "t",
+          null,
+          false,
+          5,
+          "Reachability graph is incomplete; liveness is unknown."
+        ]
+      ]
+    },
+    "sccs": [
+      [
+        [
+          5
+        ]
+      ],
+      [
+        [
+          4
+        ]
+      ],
+      [
+        [
+          3
+        ]
+      ],
+      [
+        [
+          2
+        ]
+      ],
+      [
+        [
+          1
+        ]
+      ]
+    ]
+  }
+}

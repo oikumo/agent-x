@@ -4,6 +4,11 @@
 > keeps pending + last 5 DONE inline; older DONE lands here. NEVER auto-read
 > (not in startup, not nav-indexed); consult only when archaeology is needed.
 
+## 2026-08-29 rotation (feature_035.studio_v2_analysis round)
+
+- [x] **feature_033.petri_net_io** — DONE 2026-08-23: `src/agentx/model/petri_net/io.py` (petri_net_studio #2): net_to_json/net_from_json/document_from_json — L1+V1–V6 validation, typed errors, canonical bytes, layout verbatim; stdlib-only, library untouched. 59 tests @ `tests/model/petri_net/test_io.py`.
+- [x] **feature_032.petri_net_format** — DONE 2026-08-23: `petri-net-json` v1 in `shared/petri-net/` (petri_net_studio #1): FORMAT.md spec (V1–V6 validation, semantics by reference, canonical §8, versioning §9), JSON Schema 2020-12, 3 canonical examples, `shared/META.md`; 32/32 validation checks. Details @ FEATURE.md.
+
 ## 2026-08-23 rotation (feature_033.petri_net_io round)
 
 - [x] **feature_031.petri_net_library** — DONE 2026-08-23: weighted P/T Petri-net library in `src/agentx/model/petri_net/` (model layer: weighted arcs, canonical tuple markings, pure `fire_marking`, typed errors; analysis layer: BFS reachability/graph/firing-sequences/deadlocks/bounds, exact incidence + P/T-invariants via pure-Python rational nullspace (D4, zero deps), liveness + Tarjan SCC on complete graphs; completeness-explicit `complete`/`reason`, `max_states` required kw-only; coverability = v2 stub). 3 TDD cycles; 99 tests; placeholder stub deleted; full suite 1577 passed, 0 regressions. Report @ `6.testing/features/feature_031.petri_net_library/test_report.md`.

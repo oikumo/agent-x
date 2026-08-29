@@ -1,0 +1,263 @@
+{
+  "format": "petri-net-conformance",
+  "version": 1,
+  "id": "two_deadlocks_net",
+  "max_states": null,
+  "net": {
+    "format": "petri-net-json",
+    "version": 1,
+    "places": [
+      {
+        "name": "p1",
+        "tokens": 1
+      },
+      {
+        "name": "p2",
+        "tokens": 0
+      }
+    ],
+    "transitions": [
+      {
+        "name": "t1"
+      },
+      {
+        "name": "t2"
+      }
+    ],
+    "arcs": [
+      {
+        "source": "p1",
+        "target": "t1",
+        "weight": 1
+      },
+      {
+        "source": "p1",
+        "target": "t2",
+        "weight": 1
+      },
+      {
+        "source": "t1",
+        "target": "p2",
+        "weight": 1
+      }
+    ]
+  },
+  "expected": {
+    "reachable_markings": {
+      "markings": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "predecessors": [
+        [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ],
+          "t2"
+        ],
+        [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ],
+          "t1"
+        ],
+        [
+          [
+            1,
+            0
+          ],
+          null,
+          null
+        ]
+      ],
+      "complete": true,
+      "explored_states": 3
+    },
+    "reachability_graph": {
+      "states": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "edges": [
+        [
+          "0,0",
+          []
+        ],
+        [
+          "0,1",
+          []
+        ],
+        [
+          "1,0",
+          [
+            [
+              "t1",
+              [
+                0,
+                1
+              ]
+            ],
+            [
+              "t2",
+              [
+                0,
+                0
+              ]
+            ]
+          ]
+        ]
+      ],
+      "complete": true
+    },
+    "deadlocks": {
+      "deadlocks": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "complete": true,
+      "explored_states": 3,
+      "reason": null
+    },
+    "bounds": {
+      "bounded": true,
+      "bounds": [
+        [
+          "p1",
+          1
+        ],
+        [
+          "p2",
+          1
+        ]
+      ],
+      "complete": true,
+      "reason": null
+    },
+    "incidence_matrix": [
+      [
+        -1,
+        -1
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "place_invariants": [],
+    "transition_invariants": [],
+    "firing_sequences": [
+      [
+        [
+          0,
+          0
+        ],
+        [
+          "t2"
+        ]
+      ],
+      [
+        [
+          0,
+          1
+        ],
+        [
+          "t1"
+        ]
+      ],
+      [
+        [
+          1,
+          0
+        ],
+        []
+      ],
+      [
+        [
+          2,
+          2
+        ],
+        null
+      ]
+    ],
+    "liveness": {
+      "is_live": [
+        false,
+        true,
+        3,
+        null
+      ],
+      "transitions": [
+        [
+          "t1",
+          false,
+          true,
+          3,
+          null
+        ],
+        [
+          "t2",
+          false,
+          true,
+          3,
+          null
+        ]
+      ]
+    },
+    "sccs": [
+      [
+        [
+          0,
+          0
+        ]
+      ],
+      [
+        [
+          0,
+          1
+        ]
+      ],
+      [
+        [
+          1,
+          0
+        ]
+      ]
+    ]
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "format": "petri-net-conformance",
+  "version": 1,
+  "id": "deadlock_net",
+  "max_states": null,
+  "net": {
+    "format": "petri-net-json",
+    "version": 1,
+    "places": [
+      {
+        "name": "p",
+        "tokens": 0
+      }
+    ],
+    "transitions": [
+      {
+        "name": "t"
+      }
+    ],
+    "arcs": [
+      {
+        "source": "p",
+        "target": "t",
+        "weight": 1
+      }
+    ]
+  },
+  "expected": {
+    "reachable_markings": {
+      "markings": [
+        [
+          0
+        ]
+      ],
+      "predecessors": [
+        [
+          [
+            0
+          ],
+          null,
+          null
+        ]
+      ],
+      "complete": true,
+      "explored_states": 1
+    },
+    "reachability_graph": {
+      "states": [
+        [
+          0
+        ]
+      ],
+      "edges": [
+        [
+          "0",
+          []
+        ]
+      ],
+      "complete": true
+    },
+    "deadlocks": {
+      "deadlocks": [
+        [
+          0
+        ]
+      ],
+      "complete": true,
+      "explored_states": 1,
+      "reason": null
+    },
+    "bounds": {
+      "bounded": true,
+      "bounds": [
+        [
+          "p",
+          0
+        ]
+      ],
+      "complete": true,
+      "reason": null
+    },
+    "incidence_matrix": [
+      [
+        -1
+      ]
+    ],
+    "place_invariants": [],
+    "transition_invariants": [],
+    "firing_sequences": [
+      [
+        [
+          0
+        ],
+        []
+      ],
+      [
+        [
+          1
+        ],
+        null
+      ]
+    ],
+    "liveness": {
+      "is_live": [
+        false,
+        true,
+        1,
+        null
+      ],
+      "transitions": [
+        [
+          "t",
+          false,
+          true,
+          1,
+          null
+        ]
+      ]
+    },
+    "sccs": [
+      [
+        [
+          0
+        ]
+      ]
+    ]
+  }
+}
