@@ -155,6 +155,7 @@ Three deliverables, developed as separate harness features under this project ho
 ## References
 <!-- TA: xref: only roadmap feature #2 (.petri_net_io) touches src/ — it needs omt_phase (minor_feature, declaration-only) before any io.py edit; features 1,3,4,5 create files outside src/ (shared/, tools/) so the src-gate never fires, but major_feature design docs are still required for 3–5 per §12. -->
 <!-- TA: gotcha: TS port must reproduce EXACT rational invariants (library D4 rejects float nullspace) — use a fraction arithmetic lib in TS; and the python _explore truncation order (finish current state's edges, then stop) must match or conformance vectors on truncated cases will diverge. -->
+<!-- TA: resume: resume: feature_036 @ Programming (TDD cycle 0) — operation_spec_001_studio_v3_graph.md written 2026-08-29 (gate unblocked), omt_phase Programming accepted; next TDD Cycle 1: markingFromKey export + analysis.test.ts additive RED→GREEN (design §11, pause_2026-08-29d.md); engine otherwise untouched (C1). -->
 
 - **Semantics anchor (executable spec)** — `src/agentx/model/petri_net/{model,analysis,errors}.py` + `tests/model/petri_net/` (99 tests); requirement doc `.meta/doc/petri_nets/petri_net_python_coding_agents.md`.
 - **Sibling/parent project** — `.projects/meta/petri_net_library/PROJECT.md` (v1 SHIPPED 2026-08-23; v2 backlog lists DOT/JSON export — this project's feature #2 delivers the JSON half).
