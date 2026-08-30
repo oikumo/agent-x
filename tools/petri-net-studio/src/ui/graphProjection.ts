@@ -14,6 +14,7 @@
  */
 
 import type { Edge, Node } from "@xyflow/react";
+// TA: why: design-gap resolution: design_001 §4 pinned projectGraph without the initial marking, yet the M0 label rule needs marking===initialMarkingTuple — added `initialMarking` as the final param (caller passes net.initialMarkingTuple()); recorded in test report + this docblock.
 import { markingKey, type ReachabilityGraph } from "../engine/analysis.js";
 import type { Point } from "../state/store.js";
 

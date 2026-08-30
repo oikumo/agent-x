@@ -440,3 +440,151 @@ button.armed {
   background: color-mix(in srgb, var(--warn) 22%, transparent);
   border: 1px solid var(--warn);
 }
+
+/* --- explorer (design §9 — reachability-graph view, feature_036) --- */
+
+.explorer-panel {
+  margin: 12px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.explorer-panel h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.truncation-banner {
+  margin: 8px 0;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  color: var(--warn);
+  font-size: 13px;
+}
+
+.explorer-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 8px;
+  font-size: 13px;
+}
+
+.explorer-legend-label {
+  color: var(--muted);
+  font-size: 12px;
+  margin-right: 2px;
+}
+
+.scc-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  color: #101216;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.explorer-liveness {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.explorer-canvas {
+  height: 420px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #101216;
+  overflow: hidden;
+}
+
+.sequence-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: #262a31;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.sequence-strip button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.sequence-cell {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sequence-cell.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sequence-step-label,
+.sequence-marking {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.explorer-tip {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* --- gallery (design §9 — example cards, feature_036) --- */
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.gallery-card {
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.gallery-card h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.gallery-card p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  min-height: 2.6em;
+}
+
+.gallery-card button {
+  width: 100%;
+}

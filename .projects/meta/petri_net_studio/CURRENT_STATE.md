@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-08-30 (auto — feature_036.studio_v3_graph Done)
+
+- shipped: major_feature · test report @ 6.testing/features/feature_036.studio_v3_graph/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
 ## 2026-08-29 (auto — feature_035.studio_v2_analysis Done)
 
 - shipped: major_feature · test report @ 6.testing/features/feature_035.studio_v2_analysis/test_report.md

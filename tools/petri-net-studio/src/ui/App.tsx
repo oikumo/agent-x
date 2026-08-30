@@ -25,6 +25,8 @@ import { PlaceNode } from "./PlaceNode.js";
 import { TransitionNode } from "./TransitionNode.js";
 import { Inspector } from "./Inspector.js";
 import { AnalysisPanel } from "./AnalysisPanel.js";
+import { GraphExplorer } from "./GraphExplorer.js";
+import { Gallery } from "./Gallery.js";
 
 const nodeTypes = { place: PlaceNode, transition: TransitionNode };
 
@@ -124,11 +126,14 @@ export function App() {
   const exportJson = useStudioStore((s) => s.exportJson);
   const analysisVisible = useStudioStore((s) => s.analysisVisible);
   const toggleAnalysis = useStudioStore((s) => s.toggleAnalysis);
+  const graphVisible = useStudioStore((s) => s.graphVisible);
+  const toggleGraph = useStudioStore((s) => s.toggleGraph);
 
   const [adding, setAdding] = useState<"place" | "transition" | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exportText, setExportText] = useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const { screenToFlowPosition } = useReactFlow();
 
   const flashHint = (message: string) => {
@@ -259,6 +264,20 @@ export function App() {
         >
           Analyze
         </button>
+        <button
+          className={graphVisible ? "active" : ""}
+          onClick={toggleGraph}
+          title="Show the reachability graph (auto-layout)"
+        >
+          Graph
+        </button>
+        <button
+          className={galleryOpen ? "active" : ""}
+          onClick={() => setGalleryOpen((o) => !o)}
+          title="Browse and load example nets"
+        >
+          Gallery
+        </button>
         <button disabled={editing} onClick={resetMarking}>
           Reset marking
         </button>
@@ -286,6 +305,8 @@ export function App() {
         <Inspector />
       </div>
       {analysisVisible && <AnalysisPanel />}
+      {graphVisible && <GraphExplorer />}
+      {galleryOpen && <Gallery onClose={() => setGalleryOpen(false)} />}
       {importOpen && <ImportDialog onClose={() => setImportOpen(false)} />}
       {exportText !== null && <ExportDialog text={exportText} onClose={() => setExportText(null)} />}
     </div>

@@ -64,6 +64,8 @@ export interface StudioData {
   maxStates: number | null;
   /** Analysis panel visibility; default hidden. */
   analysisVisible: boolean;
+  /** Graph explorer visibility; default hidden (design_001 §6 — feature_036). */
+  graphVisible: boolean;
 }
 
 export interface StudioState extends StudioData {
@@ -85,6 +87,7 @@ export interface StudioState extends StudioData {
   loadExample(name: string): boolean;
   setMaxStates(n: number | null): void;
   toggleAnalysis(): void;
+  toggleGraph(): void;
 }
 
 export function initialDataState(): StudioData {
@@ -97,6 +100,7 @@ export function initialDataState(): StudioData {
     importError: null,
     maxStates: 1000,
     analysisVisible: false,
+    graphVisible: false,
   };
 }
 
@@ -312,6 +316,10 @@ export const useStudioStore = create<StudioState>()((set, get) => {
 
     toggleAnalysis(): void {
       set({ analysisVisible: !get().analysisVisible });
+    },
+
+    toggleGraph(): void {
+      set({ graphVisible: !get().graphVisible });
     },
   };
 });

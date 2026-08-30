@@ -3,13 +3,15 @@
  * Independence check (design_001 §8, project D4/D5).
  *
  * tools/petri-net-studio must be runtime-independent of agentx and the meta
- * harness — the ONLY coupling is the shared format examples, which enter via
- * `?raw` imports in src/examples.ts. This script walks src/ recursively (.ts/.tsx), scans
+ * harness — the ONLY coupling is the shared format data, which enters via
+ * `?raw` imports in src/examples.ts (examples + conformance-vector fixture
+ * nets — C7). This script walks src/ recursively (.ts/.tsx), scans
  * static/dynamic/side-effect import specifiers, and FAILS (exit 1) when a
  * specifier:
  *   - matches BANNED (agentx / scripts/ / .meta/ / .projects/ / tests/), or
- *   - is relative AND resolves outside src/ — except specifiers containing the
- *     allowlisted substring `shared/petri-net/examples/` (the ?raw examples).
+ *   - is relative AND resolves outside src/ — except specifiers containing an
+ *     allowlisted substring (`shared/petri-net/examples/` or
+ *     `shared/petri-net/conformance/` — the ?raw coupling).
  *
  * Wired as `npm run check-independence`; also asserted by tests/independence.test.ts.
  */
@@ -20,7 +22,7 @@ import { fileURLToPath } from "node:url";
 
 const SRC = fileURLToPath(new URL("../src", import.meta.url));
 const BANNED = /agentx|scripts\/|\.meta\/|\.projects\/|tests\//;
-const ALLOWED_OUTSIDE = "shared/petri-net/examples/";
+const ALLOWED_OUTSIDE = /shared\/petri-net\/(examples|conformance)\//;
 
 const IMPORT_RE =
   /(?:import|export)\s[^'"]*?\sfrom\s*["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)|import\s*["']([^"']+)["']/g;
@@ -52,7 +54,7 @@ for (const file of walk(SRC)) {
   files++;
   for (const spec of specifiersOf(file)) {
     imports++;
-    if (spec.includes(ALLOWED_OUTSIDE)) continue; // allowlisted ?raw example coupling
+    if (ALLOWED_OUTSIDE.test(spec)) continue; // allowlisted ?raw shared-data coupling
     if (BANNED.test(spec)) {
       offenses.push(`${file}: banned specifier "${spec}"`);
       continue;

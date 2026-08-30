@@ -540,3 +540,36 @@ describe("TestAnalysisUIState", () => {
     expect(S().analysisVisible).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Graph explorer view state (design_001 §6 / §10.4 — feature_036 additive)
+// ---------------------------------------------------------------------------
+
+describe("TestGraphUIState", () => {
+  it("graphVisible defaults false", () => {
+    expect(S().graphVisible).toBe(false);
+  });
+
+  it("toggleGraph flips graphVisible", () => {
+    S().toggleGraph();
+    expect(S().graphVisible).toBe(true);
+    S().toggleGraph();
+    expect(S().graphVisible).toBe(false);
+  });
+
+  it("mode transitions leave graphVisible untouched (NOT edit-locked)", () => {
+    buildHelloInStore();
+    S().toggleGraph();
+    S().setMode("simulate");
+    expect(S().graphVisible).toBe(true);
+    S().setMode("edit");
+    expect(S().graphVisible).toBe(true);
+  });
+
+  it("graphVisible is never written into the exported doc", () => {
+    buildHelloInStore();
+    S().toggleGraph();
+    const parsed = JSON.parse(S().exportJson());
+    expect(parsed.graphVisible).toBeUndefined();
+  });
+});

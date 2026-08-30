@@ -8,10 +8,10 @@
 
 ## Steps
 
-- [ ] Analysis
-- [ ] Design
-- [ ] Implementation
-- [ ] Testing
+- [x] Analysis
+- [x] Design
+- [x] Implementation
+- [x] Testing
 
 ## Artifacts produced
 

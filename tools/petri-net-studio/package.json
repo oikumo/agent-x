@@ -10,10 +10,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check-independence": "node scripts/check-independence.mjs"
+    "check-independence": "node scripts/check-independence.mjs",
+    "conformance": "node scripts/conformance.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.3.6",
+    "elkjs": "^0.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^5.0.2"
