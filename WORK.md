@@ -31,6 +31,7 @@
 - [ ] **feature_001.session_user_objectives_driven_by_Petri_Net**
 - [ ] **feature_002.rag_retrieval_augmented_generation**
 ---
+Session pause 2026-08-30: designing meta_harness_concurrent architecture deep-dive (adaptive Petri net net-of-nets controlling concurrent projects/features); pointer: .sandbox/pause_2026-08-30.md
 
 
 ## Projects (synced by `uv run scripts/omt/project.py sync` — do not hand-edit)
@@ -42,6 +43,7 @@
 | meta_harness_3 | active | feature_028.feature_scoped_gating |
 | meta_harness_4 | complete | feature_037.tdd_testlist_prose_fallback |
 | meta_harness_5 | active | feature_038.tdd_toolchain_aware |
+| meta_harness_concurrent | draft | — |
 | petri_net_library | active | feature_031.petri_net_library |
 | petri_net_studio | active | feature_032.petri_net_format, feature_033.petri_net_io, feature_034.studio_v1_editor, feature_035.studio_v2_analysis, feature_036.studio_v3_graph |
 | project_lifecycle | active | feature_030.project_lifecycle |
