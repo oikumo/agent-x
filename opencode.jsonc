@@ -62,6 +62,7 @@
       "true" : "allow",
       "nl *": "allow",
       "mv *": "allow",
+      "stat *": "allow",
       // harnessc:begin bash
         "git commit *": "deny",
         "git push *": "deny",
