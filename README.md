@@ -36,8 +36,9 @@
 - 📚 **RAG** - PDF Q&A, web ingestion, Chroma/FAISS/Pinecone vector stores
 - 🤖 **Intelligent Agent** - Autonomous perceive→decide→act→reflect cycle with tool registry, policy DSL engine, and self-improvement loop
 - 🧠 **Petri Net Sessions** - Graph-based session/user objective management
+- 🖥️ **Petri Net Studio** - A standalone browser-based Petri net workbench (`tools/petri-net-studio/`) with exact engine parity to the Python model, structural analysis (reachability/deadlocks/bounds/liveness), a reachability-graph explorer, and a full React Flow editor/simulator
 - 🔌 **LangChain/LangGraph** - Full integration for agentic workflows
-- 🧪 **1100+ Tests** - Comprehensive unit + integration + automated TUI tests
+- 🧪 **1900+ Tests** - Comprehensive unit + integration + automated TUI tests (pytest + Vitest)
 
 Developed with **opencode** using the **META HARNESS** (OMT++ methodology: Analysis → Design → Programming → Testing with visible artifacts).
 
@@ -69,9 +70,11 @@ agentx is developed with **opencode** using a mechanically enforced **META HARNE
 | **Enforcement Plugin** | `.opencode/plugins/omt_enforcer.ts` + `.opencode/lib/enforcer/` | Composition root + 7 gate modules driven by `gate_driver.ts` (HDL-2): an IR-ordered chain of 8 gates whose order, triggers, predicates, and messages are pure `.omt` declarations |
 | **Status Tool** | `.opencode/plugins/omt_status.ts` | Returns current phase, unlock state, artifact status, TDD state (compact ~350 B/call) |
 | **Navigation Plugin** | `.opencode/plugins/omt_nav.ts` | feature_020: structured doc navigation via ONE consolidated tool — `omt_nav{op:nav\|list_sections\|cross_ref\|quick_ref}` |
+| **Interrogative Plugin** | `.opencode/plugins/omt_q.ts` | feature_026: read-only resume questions — `op:state` · `op:plan` · `op:drift` — answering "what's the state of X / which gates block this edit / what drifted" without per-session re-derivation |
+| **Knowledge Base Plugin** | `.opencode/plugins/omt_kb_nav.ts` | Application Knowledge Base (AKB) navigation — concept-altitude `TIER_CODE` index (`g.kb` consult before `src/` edits) |
 | **Think Anywhere Plugin** | `.opencode/plugins/omt_think.ts` | feature_021/022: persistent inline `TA:` thought-tags via ONE consolidated tool — `omt_think{op:add\|list\|remove\|verify\|suggest}` — + session digest |
 | **MVC++ Linter** | `scripts/omt/mvc_check.py` | Architecture checker for layer violations (View↔Model leaks, SQL outside DP, etc.) |
-| **TDD Engine** | `scripts/omt/tdd_check.py` + `omt_tdd` tool | Mechanically enforces Red→Green→Refactor cycles (two-hats gate) |
+| **TDD Engine** | `scripts/omt/tdd_check.py` + `omt_tdd` tool | Mechanically enforces Red→Green→Refactor cycles (two-hats gate); **toolchain-aware** (feature_038) — `.py`→pytest, `.ts/.tsx`→vitest |
 | **Feature Scaffold** | `scripts/omt/new_feature.py` | Creates consistently-named feature directories from templates |
 | **Harness DSL (source of truth)** | `.meta/META_HARNESS.omt` | OMT-HDL v1: every rule, gate, tool, constant, and budget declared as records in ONE file |
 | **Harness Compiler** | `scripts/omt/harnessc.py` | Projects the DSL → `AGENTS.md`, `opencode.jsonc` blocks, plugin IR, nav index; derives records at projection time; drift-tested; lints grammar vocab, tool-seed drift, message orphans, root hygiene |
@@ -187,6 +190,8 @@ A process harness that eats the context window would defeat its own purpose. Eve
 | `WORK.md` | 14 KiB cap, unbounded DONE log | **≤ 4 KiB** — pending + last-5 DONE inline, older rotate to `WORK_ARCHIVE.md` | every session |
 | `omt_status` output | ~1.5 KB/call | **~350 B/call** | on demand |
 
+> **Note on the tool count:** the 18→7 consolidation target predates the later additive harness tools. feature_026 added `omt_q` (interrogative layer) and the AKB `omt_kb_nav` grew the family to **9 tools**, pushing `@budget tool_schemas` from 1024→1280 B — a deliberate trade: two read-only tools that collapse ~10 per-session re-derivation reads into one deterministic call.
+
 **Recent hardening highlights:**
 
 - **HDL-2 gate driver** — the before-gate chain iterates IR-declared gates in `order=`, matching `tools=` and evaluating `when=` via a `@pred` registry; after-gates (MVC++ lint, TDD auto-revert) run in the same driver. A new *simple* gate is now a pure `.omt` declaration — no TypeScript to write.
@@ -266,7 +271,7 @@ Persistent, grep-friendly `TA:` thought-tags dropped **inline in any non-protect
 
 ### Tooling
 
-Seven consolidated opencode tools (down from 18 — schema cost 1484→775 B per turn):
+**Nine consolidated opencode tools** (down from 18 — schema cost 1484→775 B then feature_026 `omt_q` pushed the `@budget tool_schemas` 1024→1280 B):
 
 | Tool | Purpose |
 |------|---------|
@@ -274,8 +279,10 @@ Seven consolidated opencode tools (down from 18 — schema cost 1484→775 B per
 | `omt_skip` | Logged process-override escape hatch (scopes: src/tests/nav/all) |
 | `omt_complete` | Verify phase artifacts + advance to next phase |
 | `omt_status` | Process context: phase, TDD state, lint, valid next phases (compact) |
-| `omt_tdd` | TDD cycle driver — `op:testlist` → `red` → `green` → `refactor` → `done` |
+| `omt_q` | **Interrogative layer (feature_026)** — read-only answers: `op:state` (feature/session context), `op:plan` (which gates would block an edit), `op:drift` (stale projections); returns a JSON envelope with `as_of_commit` |
+| `omt_tdd` | TDD cycle driver — `op:testlist` → `red` → `green` → `refactor` → `done`; **toolchain-aware (feature_038)** — routes `.py`→pytest, `.ts/.tsx`→vitest from the resolved project root |
 | `omt_nav` | Navigate META HARNESS docs — `op:nav` · `list_sections` · `cross_ref` · `quick_ref` (feature_020) |
+| `omt_kb_nav` | Application Knowledge Base (AKB) navigation — `op:nav` · `list_sections` · `cross_ref` · `quick_ref` (TIER_CODE concept-altitude index) |
 | `omt_think` | Persistent inline `TA:` thought-tags — `op:add` · `list` · `remove` · `verify` · `suggest` (feature_021/022) |
 
 Command-line engines:
@@ -777,6 +784,32 @@ local_sessions/
 
 ---
 
+### 🖥️ Petri Net Studio (feature_034/035/036)
+
+A **standalone browser-based Petri net workbench** at [`tools/petri-net-studio/`](tools/petri-net-studio/) — a Vite + React + TypeScript app that is **independent of agentx at runtime** (zero agentx/harness imports; `shared/petri-net/` is the only coupling). Its TypeScript engine is an exact behavioral port of the Python model (`src/agentx/model/petri_net/`), with golden byte-parity on the canonical JSON format.
+
+Shipped in three roadmap stages (project [`petri_net_studio`](.projects/meta/petri_net_studio/)):
+
+| Stage | Feature | What shipped |
+|-------|---------|--------------|
+| **v1 — Editor** | feature_034 | TS engine port (`model`/`io`/`errors`, golden byte-parity), zustand store, React Flow **edit/simulate** UI (draw → set tokens/weights → click-to-fire with enabled highlighting → export/re-import identical canonical JSON), strict-JSON parser |
+| **v2 — Analysis** | feature_035 | Exact-parity **analysis engine** (`fraction.ts` exact rationals + `analysis.ts`: reachability, deadlock, bounds, liveness, SCC, P/T-invariants) + a no-overclaim `AnalysisPanel` with `maxStates` dial + a canonical **conformance-vector generator** (9 vectors @ `shared/petri-net/conformance/analysis-v1/`) |
+| **v3 — Graph** | feature_036 | **Reachability-graph explorer** (`GraphExplorer`) with elkjs auto-layout, SCC coloring, deadlock highlight, truncation banner; **firing-sequence animation** (Play/Step/Reset); liveness/SCC views; example **Gallery**; `npm run conformance` formalization |
+
+**Engine parity guarantees:** deterministic code-point ordering everywhere, hand-rolled `fraction.ts` (no floats in the algebra path), line-for-line port of the Python `_explore` reachability loop, and conformance vectors that are byte-identical across re-runs (pinned by `npm run conformance`).
+
+```bash
+cd tools/petri-net-studio
+npm install
+npm run dev       # launch the studio in the browser
+npm run test      # Vitest suite (274 tests across model/io/analysis/projection/store/conformance)
+npm run build     # typecheck (tsc) + static dist/ build
+npm run conformance  # regenerate conformance vectors + assert byte-identical + run suite
+npm run check-independence  # assert no cross-boundary src/ imports
+```
+
+---
+
 ### 🔌 LangChain & LangGraph Integration
 
 Full integration with the LangChain ecosystem:
@@ -1017,7 +1050,7 @@ agentx follows a strict **MVC++** (Model-View-Controller) architecture with depe
 
 ## 🧪 Testing
 
-agentx includes **1100+ comprehensive tests** covering all core modules:
+agentx includes **1900+ comprehensive tests** covering all core modules — **~1664 pytest** (agentx + meta harness) plus **274 Vitest** (Petri Net Studio TS engine/suite):
 
 ```bash
 # Run all tests
@@ -1037,6 +1070,9 @@ uv run scripts/omt/mvc_check.py
 
 # Run TDD enforcement status check
 uv run scripts/omt/tdd_check.py status
+
+# Petri Net Studio (TS) suite
+(cd tools/petri-net-studio && npm run test)
 
 # Run with coverage (if pytest-cov installed)
 uv run pytest tests/ --cov=agentx --cov-report=html
@@ -1058,6 +1094,7 @@ uv run pytest tests/ --cov=agentx --cov-report=html
 - ✅ Meta Harness navigation tools (feature_020: grep-based doc nav, plugin load safety)
 - ✅ Think Anywhere thought-tags (feature_021: inline `TA:` tags, think-gate decider, session digest)
 - ✅ Harness DSL & compiler (163 omt tests: `{@var.x}` interpolation, grammar vocab, budgets, TS/PY↔IR parity pins, gate driver, drift-tested projections)
+- ✅ Petri Net Studio engine (Vitest 274: model/io exact parity, fraction rationals, analysis 38-behavior port, graph projection, store, conformance vectors — byte-identical re-runs)
 
 **Characteristics:**
 - **Isolation**: All tests are isolated with mocking (no external dependencies)
@@ -1112,6 +1149,14 @@ Set `OPENROUTER_API_KEY` in your `.env` file to avoid the interactive prompt.
 - ✅ **feature_021/022**: Meta Harness Think Anywhere v1+v2 (persistent inline `TA:` thought-tags, consolidated `omt_think{op:…}`, per-file think-gate, compact session digest)
 - ✅ **feature_023**: Meta Harness improvement F14–F17 (production hook effects root-caused + tested)
 - ✅ **feature_024**: Console parity — all TUI features (react/coding/models/agent/fast-agent) available in `--no-tui` REPL via `IUIProvider` + streaming
+- ✅ **feature_026**: `omt_q` interrogative layer — read-only `op:state` / `op:plan` / `op:drift` answering resume questions without re-derivation (returns JSON envelope with `as_of_commit`)
+- ✅ **feature_031**: Petri Net library project — shared cross-language Petri net contract (`shared/petri-net/` FORMAT + examples)
+- ✅ **feature_032/033**: Petri net format + I/O (canonical JSON format, strict parser)
+- ✅ **feature_034**: Petri Net Studio v1 — standalone browser workbench (`tools/petri-net-studio/`): exact TS engine port, React Flow edit/simulate editor, import/export (golden byte-parity, 170 Vitest)
+- ✅ **feature_035**: Petri Net Studio v2 — exact-parity analysis engine (fraction.ts + analysis.ts) + no-overclaim AnalysisPanel + conformance-vector generator (9 vectors)
+- ✅ **feature_036**: Petri Net Studio v3 — reachability-graph explorer (elkjs layout, SCC/deadlock views), firing-sequence animation, example gallery, `npm run conformance` (274 Vitest)
+- ✅ **feature_037**: `omt_tdd` testlist prose fallback (`_parse_behaviors` — JSON array/string/bullets/numbered)
+- ✅ **feature_038**: `omt_tdd` toolchain-aware dispatch — routes `.py`→pytest, `.ts/.tsx`→vitest from resolved project root
 - ✅ **feature_tui_dark_mode**: Default dark theme, `k` toggles, `Ctrl+Shift+T` cycles 21 themes
 - ✅ **meta_harness_dsl (R0–R8)**: Harness as code — OMT-HDL single source (`.meta/META_HARNESS.omt`) compiled to AGENTS.md / opencode.jsonc / plugin-IR / nav-index projections with drift tests + size budgets; 64 KB ledger rotation; enforcer split (`lib/enforcer/` ×7)
 - ✅ **improvement006 (A–H)**: Token diet — 18→7 consolidated tools (`omt_tdd`/`omt_nav`/`omt_think` with `op=`), schemas 1484→775 B, WORK.md DONE-rotation (≤4 KiB), `@derive` + nav/IR budgets, HDL-2 `gate_driver` (IR-ordered gates), root-hygiene lint
@@ -1143,6 +1188,8 @@ For deep dives into architecture, design decisions, and development methodology:
 | `.meta/software_development_process/4.design/behavior/BEHAVIOR.md` | Runtime behavior specifications |
 | `.meta/software_development_process/2.requirements/features/feature_007.agentx_intelligent_agent_behaviour/` | Agent feature analysis, design & test artifacts |
 | `.meta/software_development_process/2.requirements/features/feature_016.tdd_enforcement/` | TDD enforcement feature artifacts |
+| `shared/petri-net/FORMAT.md` | Canonical cross-language Petri net JSON format (LOCKED v1) + example corpus |
+| `tools/petri-net-studio/` | Standalone TS Petri net workbench (engine port, analysis, graph explorer) — project `petri_net_studio` |
 | `AGENTS.md` | Enforcement rules for opencode agents |
 
 ---
