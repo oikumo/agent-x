@@ -2,8 +2,10 @@
 
 net↔reality bootstrap + resync (IDEA-002 v4 §5.1/§11 #6; consolidated design
 P6–P8 @ .sandbox/pause_2026-08-30c.md): first call materializes the supervisor
-skeleton (boundary ports feature_ready=1 / resource_token=1 / goal_satisfied=0,
-NO supervisor transitions in v1) behind the 9-vector conformance gate; every
+skeleton (boundary ports feature_ready=1 / resource_token=1 / goal_satisfied=0
++ the feature_041 resource catalog: agent_attention / src_edit_capacity /
+tests_capacity / harness_surface_round / e2e_receipt, all M0=1 — NO supervisor
+transitions in v1) behind the 9-vector conformance gate; every
 call then scans reality (feature dirs + WORK.md tasks/projects) and emits a
 deterministic PROPOSAL — never auto-applied (D4; the agent applies via splice).
 Hermetic via OMT_NET_DIR / OMT_LEDGER_PATH / OMT_NET_FEATURES_DIR /
@@ -98,17 +100,37 @@ class TestSyncBootstrap:
         assert out["revision"] == 0
         assert out["conformance"] == {"vectors": 9, "ok": True}
         st = _state().load(env / "net")
-        assert st.net.places == {"feature_ready", "resource_token", "goal_satisfied"}
+        assert st.net.places == {
+            "feature_ready",
+            "resource_token",
+            "goal_satisfied",
+            # feature_041 R1: resource catalog (all M0=1, IDEA-002 v4 §2.2)
+            "agent_attention",
+            "src_edit_capacity",
+            "tests_capacity",
+            "harness_surface_round",
+            "e2e_receipt",
+        }
         assert st.net.transitions == set()  # NO supervisor transitions in v1
         assert st.live_marking == {
             "feature_ready": 1,
             "resource_token": 1,
             "goal_satisfied": 0,
+            "agent_attention": 1,
+            "src_edit_capacity": 1,
+            "tests_capacity": 1,
+            "harness_surface_round": 1,
+            "e2e_receipt": 1,
         }
         assert st.overlay["supervisor"]["places"] == [
+            "agent_attention",
+            "e2e_receipt",
             "feature_ready",
             "goal_satisfied",
+            "harness_surface_round",
             "resource_token",
+            "src_edit_capacity",
+            "tests_capacity",
         ]
         rec = _ledger_records(env / "net")[-1]
         assert rec["kind"] == "net_sync"
@@ -158,8 +180,9 @@ class TestSyncScan:
         assert places2 == {"f002_pending": 0, "f002_active": 0, "f002_done": 1}
 
     def test_proposal_mutation_uses_subnet_template(self, env, capsys) -> None:
-        """P7 lifecycle chain: start(pending+feature_ready->active+feature_ready),
-        complete(active->done+goal_satisfied)."""
+        """P7 lifecycle chain (feature_041 R2 adds the agent_attention
+        claim/release): start(pending+feature_ready+agent_attention ->
+        active+feature_ready), complete(active -> done+goal_satisfied+agent_attention)."""
         cli = _cli()
         _, out = _sync(cli, capsys)
         mutation = out["proposal"]["add_subnets"][0]["mutation"]
@@ -167,11 +190,13 @@ class TestSyncScan:
         assert arcs == {
             ("f001_pending", "f001_start"),
             ("feature_ready", "f001_start"),
+            ("agent_attention", "f001_start"),  # feature_041 R2: claim
             ("f001_start", "f001_active"),
             ("f001_start", "feature_ready"),
             ("f001_active", "f001_complete"),
             ("f001_complete", "f001_done"),
             ("f001_complete", "goal_satisfied"),
+            ("f001_complete", "agent_attention"),  # feature_041 R2: release
         }
         names = {t["name"] for t in mutation["add_transitions"]}
         assert names == {"f001_start", "f001_complete"}
@@ -233,7 +258,16 @@ class TestSyncScan:
         code, out = _sync(cli, capsys)
         assert code == 0
         st = _state().load(env / "net")
-        assert st.net.places == {"feature_ready", "resource_token", "goal_satisfied"}
+        assert st.net.places == {
+            "feature_ready",
+            "resource_token",
+            "goal_satisfied",
+            "agent_attention",  # feature_041 R1 catalog (all M0=1)
+            "src_edit_capacity",
+            "tests_capacity",
+            "harness_surface_round",
+            "e2e_receipt",
+        }
         assert st.overlay["subnets"] == {}
         # agent approves + applies the proposal through the splice path
         mutation = out["proposal"]["add_subnets"][0]["mutation"]
@@ -247,5 +281,11 @@ class TestSyncScan:
         st = _state().load(env / "net")
         assert "f001_active" in st.net.places
         subnet = st.overlay["subnets"]["feature_001"]
-        assert subnet["ports"]["entry"] == ["feature_ready"]
-        assert subnet["ports"]["exit"] == ["feature_ready", "goal_satisfied"]
+        assert subnet["ports"]["entry"] == ["agent_attention", "feature_ready"]
+        assert subnet["ports"]["exit"] == [
+            "agent_attention",
+            "feature_ready",
+            "goal_satisfied",
+        ]
+        # feature_041 R3: ports.resources = (entry ∪ exit) ∩ RESOURCE_PLACES
+        assert subnet["ports"]["resources"] == ["agent_attention"]
