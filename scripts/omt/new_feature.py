@@ -117,13 +117,26 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"✅ created {feature_slug}/")
     for path in targets:
-        print(f"   {path.relative_to(REPO_ROOT)}")
+        try:
+            shown: Path | str = path.relative_to(REPO_ROOT)
+        except ValueError:  # hermetic tests: FEATURES_DIR outside the repo
+            shown = path
+        print(f"   {shown}")
     if args.project:
         import project as project_cli
         rc = project_cli.main(["link", feature_slug, args.project, "--origin", "scaffold"])
         if rc != 0:
             print(f"⚠️ project link to '{args.project}' failed (rc={rc}) — run: "
                   f"uv run scripts/omt/project.py link {feature_slug} {args.project} --origin scaffold")
+        else:
+            # feature_041 R6: net lifecycle auto-sync AFTER the link ledger
+            # append — lazy import + fail-open, proposal-only (D4).
+            try:
+                from net import state as net_state  # noqa: PLC0415
+
+                net_state.lifecycle_sync_hook("new_feature_link")
+            except Exception:  # noqa: BLE001 — fail-open by design (R6)
+                pass
     print(f"\nNext: declare your phase before editing src/  →  omt_phase{{task_type:'{args.type}'}}")
     print("Naming: analysis_NNN_<topic>.md, design_NNN_<topic>.md (no ad-hoc *_PROOF.md).")
     return 0

@@ -157,6 +157,9 @@ def _invariant(base: Path) -> tuple[dict[str, Any], int]:
         ],
         "live_marking_invariants_hold": hold,
         "drift": drift,
+        # feature_041 R4: additive capacity/conflict surfacing (D7 exit hook)
+        "resources": state.resource_report(st)["resources"],
+        "conflicts": state.resource_report(st)["conflicts"],
     }
     return envelope, 0
 

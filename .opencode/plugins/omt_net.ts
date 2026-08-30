@@ -40,6 +40,7 @@ function createNetTool() {
       for (const k of ["transition", "reasoning", "session", "mode", "mutation", "subnet", "feature"] as const) {
         let v: any = args?.[k]
         if (k === "session" && (v === undefined || v === null || v === "")) v = context?.sessionID
+// TA: gotcha: gotcha: this proxy appends --session (context.sessionID) to EVERY op's argv, but the CLI probe/invariant subparsers declare no --session arg → omt_net{op:probe|invariant} via the plugin ALWAYS fails 'unrecognized arguments: --session' (pre-existing feature_039 latent bug, surfaced by the feature_041 R4 dogfood 2026-08-30; the CLI path net_check.py is green). Fix = per-op arg whitelist + pin test (candidate bug_fix feature_046) — tracked @ .sandbox/pause_2026-08-30f.md
         if (v !== undefined && v !== null && v !== "")
           // Array guard: opencode SDK coerces JSON-array-looking strings fed to a
           // tool.schema.string() arg into actual JS arrays; String(v) collapses

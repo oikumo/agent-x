@@ -58,6 +58,15 @@ BOUNDARY_PORTS = ("feature_ready", "resource_token", "goal_satisfied")
 # TA: xref: feature_041 design (resume @ .sandbox/pause_2026-08-30d.md R1-R8): RESOURCE_PLACES catalog (agent_attention/src_edit_capacity/tests_capacity/harness_surface_round/e2e_receipt, ALL cap=1 per IDEA-002 v4 §2.2 — the IDEA-005 example's 2/3 is a sketch, not canonical) joins the sync() bootstrap skeleton + resync emits ONE add_resource_places proposal entry (missing places + retrofit arcs for existing subnets, D4 never auto-applied); _subnet_mutation wires agent_attention (f{N}_start claims, f{N}_complete releases → serial-mirror conflict trap, §2.3); derive_overlay ports.resources = sorted((entry∪exit) ∩ RESOURCE_PLACES) — stays a pure function of the net (P10).
 
 
+RESOURCE_PLACES = (
+    "agent_attention",
+    "src_edit_capacity",
+    "tests_capacity",
+    "harness_surface_round",
+    "e2e_receipt",
+)
+
+
 class NetNotBootstrappedError(PetriNetError):
     """The net bundle does not exist yet (IDEA-002 v4 §5.1 — sync is first-call)."""
 
@@ -141,7 +150,8 @@ def derive_overlay(net: PetriNet, disabled: list[str] | None = None) -> dict[str
     construction. Subnets are keyed `feature_{N}` from the `f{N}_` prefix;
     supervisor nodes are the unprefixed rest; per-subnet ports are the
     unprefixed places the subnet's transitions input from (entry) / output
-    to (exit). `resources` stays empty — feature_041 refines the subset."""
+    to (exit). `resources` = the (entry ∪ exit) ∩ RESOURCE_PLACES subset
+    (feature_041 R3 — still a pure function of the net, P10)."""
     supervisor_places: list[str] = []
     supervisor_transitions: list[str] = []
     subnets: dict[str, dict[str, Any]] = {}
@@ -176,7 +186,11 @@ def derive_overlay(net: PetriNet, disabled: list[str] | None = None) -> dict[str
             for p in net.outputs[t]:
                 if not SUBNET_PREFIX_RE.match(p):
                     exit_.add(p)
-        sub["ports"] = {"entry": sorted(entry), "exit": sorted(exit_), "resources": []}
+        sub["ports"] = {
+            "entry": sorted(entry),
+            "exit": sorted(exit_),
+            "resources": sorted((entry | exit_) & set(RESOURCE_PLACES)),
+        }
     return {
         "net_file": NET_FILENAME,
         "revision": 0,  # stamped by save()
@@ -963,8 +977,10 @@ def _scan_reality() -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
 
 def _subnet_mutation(n: str, m0: str) -> dict[str, Any]:
     """P7 deterministic lifecycle chain for feature N:
-    start(pending + feature_ready → active + feature_ready),
-    complete(active → done + goal_satisfied)."""
+    start(pending + feature_ready + agent_attention → active + feature_ready),
+    complete(active → done + goal_satisfied + agent_attention) — feature_041
+    R2: start claims agent_attention, complete releases it (IDEA-002 §2.3
+    serial-mirror conflict trap; claim/release appended last, 9 arcs)."""
     pending, active, done = f"f{n}_pending", f"f{n}_active", f"f{n}_done"
     start, complete = f"f{n}_start", f"f{n}_complete"
     return {
@@ -982,6 +998,9 @@ def _subnet_mutation(n: str, m0: str) -> dict[str, Any]:
             {"source": active, "target": complete, "weight": 1},
             {"source": complete, "target": done, "weight": 1},
             {"source": complete, "target": "goal_satisfied", "weight": 1},
+            # feature_041 R2: agent_attention claim (start) / release (complete)
+            {"source": "agent_attention", "target": start, "weight": 1},
+            {"source": complete, "target": "agent_attention", "weight": 1},
         ],
     }
 
@@ -1000,10 +1019,17 @@ def sync(base: Path, *, reasoning: str = "", session: str = "") -> tuple[NetStat
         net.add_place("feature_ready", 1)
         net.add_place("resource_token", 1)
         net.add_place("goal_satisfied", 0)
+        for resource in RESOURCE_PLACES:  # feature_041 R1 catalog (all M0=1)
+            net.add_place(resource, 1)
         st = NetState(
             net=net,
             layout=None,
-            live_marking={"feature_ready": 1, "resource_token": 1, "goal_satisfied": 0},
+            live_marking={
+                "feature_ready": 1,
+                "resource_token": 1,
+                "goal_satisfied": 0,
+                **{resource: 1 for resource in RESOURCE_PLACES},
+            },
             revision=0,
             overlay=default_overlay(0),
             updated_at=_utc_now(),
@@ -1033,7 +1059,43 @@ def sync(base: Path, *, reasoning: str = "", session: str = "") -> tuple[NetStat
         for key in sorted(existing)
         if key[len("feature_"):] not in features
     ]
-    proposal = {"add_subnets": add_subnets, "disable_subnets": disable_subnets}
+    # feature_041 R5: resync of pre-041 bundles proposes ONE
+    # add_resource_places entry (missing catalog places in catalog order +
+    # agent_attention retrofit arcs for existing subnets lacking the wiring)
+    # — D4: never auto-applied; apply BEFORE any pending add_subnets entry
+    # (the subnet template references agent_attention).
+    missing_resources = [p for p in RESOURCE_PLACES if p not in st.net.places]
+    retrofit_arcs: list[dict[str, Any]] = []
+    for key in sorted(existing):
+        prefix = f"f{key[len('feature_') :]}_"
+        start, complete = f"{prefix}start", f"{prefix}complete"
+        if start in st.net.transitions and "agent_attention" not in st.net.inputs.get(
+            start, {}
+        ):
+            retrofit_arcs.append(
+                {"source": "agent_attention", "target": start, "weight": 1}
+            )
+        if complete in st.net.transitions and "agent_attention" not in st.net.outputs.get(
+            complete, {}
+        ):
+            retrofit_arcs.append(
+                {"source": complete, "target": "agent_attention", "weight": 1}
+            )
+    add_resource_places = []
+    if missing_resources or retrofit_arcs:
+        add_resource_places.append({
+            "places": missing_resources,
+            "mutation": {
+                "add_places": [{"name": p, "tokens": 1} for p in missing_resources],
+                "add_transitions": [],
+                "add_arcs": retrofit_arcs,
+            },
+        })
+    proposal = {
+        "add_subnets": add_subnets,
+        "disable_subnets": disable_subnets,
+        "add_resource_places": add_resource_places,
+    }
     record: dict[str, Any] = {
         "kind": "net_sync",
         "bootstrap": bootstrap,
@@ -1042,8 +1104,100 @@ def sync(base: Path, *, reasoning: str = "", session: str = "") -> tuple[NetStat
         "session": session,
         "add_subnets": [e["subnet"] for e in add_subnets],
         "disable_subnets": [e["subnet"] for e in disable_subnets],
+        "add_resource_places": missing_resources,
+        "retrofit_arcs": len(retrofit_arcs),
     }
     if gate is not None:
         record["conformance"] = gate
     append_ledger(record)
     return st, {"bootstrap": bootstrap, "proposal": proposal, "conformance": gate}
+
+
+# ---------------------------------------------------------------------------
+# Resource reporting + lifecycle hook (feature_041 R4/R6 — IDEA-002 v4 §2.3)
+# ---------------------------------------------------------------------------
+
+def resource_report(st: NetState) -> dict[str, Any]:
+    """R4: per-catalog-place capacity view + structural conflicts.
+
+    resources[]: {place, capacity, live, capacity_ok, holders} for each
+    RESOURCE_PLACES member present in the net (capacity = M0; holders — for
+    agent_attention only — = subnets with f{N}_active marked; capacity_ok =
+    live + held == capacity, so a checkbox-seeded active that never claimed
+    surfaces as a violation — D16: drift visible, never silent).
+    conflicts[]: pending subnets (f{N}_pending marked) whose f{N}_start is
+    NOT enabled at the live marking; blocked_by = the empty UNPREFIXED input
+    places of start (sorted). Legacy bundles (no catalog) report []/[].
+    """
+    resources: list[dict[str, Any]] = []
+    for name in RESOURCE_PLACES:
+        if name not in st.net.places:
+            continue
+        capacity = st.net.initial_marking[name]
+        live = st.live_marking.get(name, 0)
+        holders: list[str] = []
+        if name == "agent_attention":
+            holders = sorted(
+                f"feature_{m.group(1)}"
+                for p in st.net.places
+                if (m := SUBNET_PREFIX_RE.match(p))
+                and p.endswith("_active")
+                and st.live_marking.get(p, 0) > 0
+            )
+        resources.append({
+            "place": name,
+            "capacity": capacity,
+            "live": live,
+            "capacity_ok": live + len(holders) == capacity,
+            "holders": holders,
+        })
+    live_tuple = tuple(st.live_marking.get(p, 0) for p in st.net.place_order)
+    conflicts: list[dict[str, Any]] = []
+    for key in sorted(st.overlay.get("subnets", {})):
+        prefix = f"f{key[len('feature_') :]}_"
+        pending, start = f"{prefix}pending", f"{prefix}start"
+        if pending not in st.net.places or start not in st.net.transitions:
+            continue
+        if st.live_marking.get(pending, 0) <= 0:
+            continue
+        if st.net.is_enabled_at(live_tuple, start):
+            continue
+        blocked_by = sorted(
+            p
+            for p in st.net.inputs.get(start, {})
+            if not SUBNET_PREFIX_RE.match(p) and st.live_marking.get(p, 0) == 0
+        )
+        conflicts.append({
+            "subnet": key,
+            "transition": start,
+            "blocked_by": blocked_by,
+        })
+    return {"resources": resources, "conflicts": conflicts}
+
+
+def lifecycle_sync_hook(event: str) -> None:
+    """R6: lifecycle auto-sync — re-sync the net on harness lifecycle events
+    (project create/link/close/archive/reopen, new_feature --project link).
+
+    Proposal-only (D4 — the agent applies via splice), ledger-audited by
+    sync() itself, FAIL-OPEN (net errors never block the lifecycle op), and
+    SILENT when the bundle is unbootstrapped (bootstrap stays an explicit
+    agent action — IDEA-002 v4 §5.1) or when the proposal is empty. Prints
+    exactly ONE stdout line when proposals are pending."""
+    base = net_dir()
+    if not is_bootstrapped(base):
+        return
+    try:
+        _, info = sync(base, reasoning=f"lifecycle auto-sync ({event})")
+    except Exception:  # noqa: BLE001 — fail-open by design (R6)
+        return
+    proposal = info.get("proposal", {})
+    pending = sum(
+        len(proposal.get(k, []))
+        for k in ("add_subnets", "disable_subnets", "add_resource_places")
+    )
+    if pending:
+        print(
+            f"omt_net auto-sync ({event}): {pending} proposal(s) pending — "
+            "apply via splice (D4)"
+        )

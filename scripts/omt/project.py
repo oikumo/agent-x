@@ -65,6 +65,18 @@ def _sync_all() -> list[str]:
     return flips
 
 
+def _net_auto_sync(event: str) -> None:
+    """feature_041 R6: net lifecycle auto-sync — lazy import + fail-open
+    (net errors never block the lifecycle op); the hook itself skips silently
+    when the bundle is unbootstrapped and never auto-applies (D4)."""
+    try:
+        from net import state as net_state  # noqa: PLC0415
+
+        net_state.lifecycle_sync_hook(event)
+    except Exception:  # noqa: BLE001 — fail-open by design (R6)
+        pass
+
+
 def cmd_new(args) -> int:
 # TA: xref: feature_041 (pause_2026-08-30d.md R6): lifecycle auto-sync hook — cmd_new/link/close/archive/reopen call net.state.lifecycle_sync_hook(event) via LAZY import in try/except (fail-open: net errors never block the lifecycle op; skip silently when the net bundle is unbootstrapped — bootstrap stays an explicit agent action per IDEA-002 §5.1); hook is proposal-only (D4) + ledger-audited; test_project_lifecycle.py must stay green (hook output to stdout is part of the contract — keep it one line).
     slug = args.slug or slugify(args.name)
@@ -78,6 +90,7 @@ def cmd_new(args) -> int:
     (home / "CURRENT_STATE.md").write_text(_render("current_state.md", mapping), encoding="utf-8")
     ps.write_record({"kind": "project", "op": "create", "project": slug})
     _sync_all()
+    _net_auto_sync("create")
     print(f"✅ created project home .projects/meta/{slug}/ (state: draft)")
     print("Next: iterate freely (non-gated); spawn features with "
           f"new_feature.py \"<name>\" --type <tt> --project {slug}")
@@ -98,6 +111,7 @@ def cmd_link(args) -> int:
         "feature": args.feature, "origin": args.origin,
     })
     _sync_all()
+    _net_auto_sync("link")
     print(f"✅ linked {args.feature} → {args.project} (origin: {args.origin})")
     return 0
 
@@ -161,6 +175,7 @@ def cmd_close(args) -> int:
     ps.write_record({"kind": "project", "op": "close", "project": args.slug})
     ps.sync_status_header(ps.projects_root() / args.slug / "PROJECT.md", "complete")
     _sync_all()
+    _net_auto_sync("close")
     print(f"✅ project {args.slug} closed (state: complete)")
     if args.archive:
         return cmd_archive(args)
@@ -181,6 +196,7 @@ def cmd_archive(args) -> int:
     ps.write_record({"kind": "project", "op": "archive", "project": args.slug,
                      "archived_to": f".projects/archive/{args.slug}"})
     _sync_all()
+    _net_auto_sync("archive")
     print(f"✅ project {args.slug} archived → .projects/archive/{args.slug}/")
     return 0
 
@@ -198,6 +214,7 @@ def cmd_reopen(args) -> int:
             shutil.move(str(src), str(ps.projects_root() / args.slug))
     ps.write_record({"kind": "project", "op": "reopen", "project": args.slug})
     _sync_all()
+    _net_auto_sync("reopen")
     print(f"✅ project {args.slug} reopened (state: "
           f"{ps.derive_state(args.slug, ps.read_ledger_all(), links)})")
     return 0
