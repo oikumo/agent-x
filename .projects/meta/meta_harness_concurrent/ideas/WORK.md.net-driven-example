@@ -38,7 +38,7 @@
 
 - [ ] `net_sync` — synchronize WORK.md ↔ net state (`omt_net{op:sync}`)
 - [ ] `net_invariant` — run full invariant check (`omt_net{op:invariant}`)
-- [ ] `net_drift_check` — reconcile net vs ledger (`omt_net{op:drift}`)
+- [ ] `net_drift_check` — reconcile net vs ledger (`omt_net{op:invariant}`)
 
 ### Project: meta_harness_concurrent (subnet f39-f41)
 

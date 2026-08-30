@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-08-30 (iter 7 — PROJECT.md v0.5: SSOT refinement per user directive + IDEA-005 renumber)
+
+### Done
+
+- **User directive locked as D16** — "the meta harness work must allow concurrency with state management driven by a single petri net; the net, in complement with other files, is the global state single source of truth":
+  - **PROJECT.md v0.5** — header/Quick-Start/Summary/Purpose reframed from "additive observability/guidance layer" to **single-Petri-net concurrency state management + global state SSOT**; new "SSOT = net + complement files" map (net file + sidecar + overlay = state · ledger = audit · WORK.md = projection · drift log = reconciliation)
+  - **Authority split (amends D3 wording, IDEA-003 §2.1):** the net owns **state**, gates keep **enforcement**, the ledger keeps **audit** — approval ≠ state. All D3/D5–D15 mechanics unchanged (no gate removed, analyzer blocks fires, drift check at every `omt_complete` exit). IDEA-003's category-error caution honored: enforcement never moves into the net; only state ownership does
+  - **D17 — WORK.md as deterministic projection** (IDEA-005 adopted): rendered net→md via `omt_net{op:sync}`; hand edits = proposals (md→net); phase-2 **feature_045**, first phase-2 pick, promote-to-core candidate at the feature_041 exit review
+  - **D18 — idea numbering collision fixed:** `git mv idea-004-work-md-net-driven-concurrency.md → idea-005-...` (duplicate IDEA-004 vs ledger-mined; both had also claimed slot feature_044 — WORK.md idea now feature_045); internal tags IDEA-004.D* → IDEA-005.D*, three feature_044 refs → feature_045, header renumber note added
+  - Roadmap table extended: 3 core (feature_039–041) + **4 optional phase-2** (feature_042 synthesis, feature_043 dashboard, feature_044 mined, feature_045 work-md); success criteria + in-scope updated for SSOT discipline + WORK.md projection surface
+  - Op-list conformance to IDEA-002 v4 canonical set (probe/fire/splice/sync/synthesize/invariant) in PROJECT.md summary/purpose/feasibility + `drift`→`invariant` in the WORK.md sketch (idea §3.1 + example file)
+- **No `src/` touch; no gate/FSM change** — D1/D2 intact; D3–D15 mechanics intact (authority labels only)
+
+### In progress / Blocked
+
+- _(nothing)_ — roadmap (3 core + 4 optional phase-2) pending user approval (draft → active flip)
+
+### Next
+
+- User approval of the **3-feature core roadmap** (feature_039.adaptive_net_engine, feature_040.net_composition_supervisor, feature_041.resource_places_concurrency), then scaffold:
+  `uv run scripts/omt/new_feature.py "adaptive net engine" --type minor_feature --project meta_harness_concurrent`
+- Open decision point deferred by design: promote feature_045 (WORK.md projection) into the core at the feature_041 exit review (D17)
+
+### Notes / context
+
+- The refinement is an **authority reframing, not a mechanics change**: every v0.4 design element (sidecar, overlay, ops, conformance, drift, sync hooks) carries over unchanged; what changed is *who owns state* — the net bundle is now declared the single state store, with WORK.md/ledger as projection/audit complements instead of competing state
+- `.projects/` changes uncommitted; the idea-file rename is staged (`git mv`), content edits unstaged
+
+---
+
 ## 2026-08-30 (iter 6 — IDEA-004 refined to v2, source-verified against the real ledger corpus)
 
 ### Done

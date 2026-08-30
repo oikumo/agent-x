@@ -1,8 +1,9 @@
-# IDEA-004 — Net-Driven WORK.md for Meta Harness Concurrency (Agent-Only Development Management)
+# IDEA-005 — Net-Driven WORK.md for Meta Harness Concurrency (Agent-Only Development Management)
 
 > Created 2026-08-30 · follows IDEA-001/002/003; builds on the additive Petri-net observability layer for the META HARNESS.
-> **Status:** candidate idea — proposes a **WORK.md evolution** that mirrors the net-of-nets state, enables mechanical conflict detection, and supports single-agent concurrent feature modeling.
-> **Project context:** meta_harness_concurrent draft v0.4 (D1: meta harness only, not agentx); roadmap slots 039-043 verified free; net-driven architecture locked via D5–D15.
+> **Renumbered 2026-08-30 (PROJECT.md D18):** created as a duplicate "IDEA-004" colliding with `idea-004-ledger-mined-behavioral-net` (both also claimed slot feature_044); renumbered **IDEA-005 / feature_045**. Content unchanged except numbering, the project-context line, and op-name conformance (`drift` → `invariant` per the IDEA-002 v4 canonical taxonomy).
+> **Status:** candidate idea — proposes a **WORK.md evolution** that mirrors the net-of-nets state, enables mechanical conflict detection, and supports single-agent concurrent feature modeling. **Promoted in intent by PROJECT.md v0.5 D16/D17:** under the single-Petri-net SSOT directive, WORK.md is a *deterministic projection* of the net (a complement file of the global state SSOT), making this the first phase-2 pick and a promote-to-core candidate at the feature_041 exit review.
+> **Project context:** meta_harness_concurrent draft v0.5 (D1: meta harness only, not agentx); roadmap slots 039–045 assigned; net-driven architecture locked via D5–D18.
 
 ---
 
@@ -86,7 +87,7 @@ This makes WORK.md **both a view and a control surface**, with the net as the au
 ### Supervisor Transitions (always visible)
 - [ ] `net_sync` — synchronize WORK.md ↔ net state (`omt_net{op:sync}`)
 - [ ] `net_invariant` — run full invariant check (`omt_net{op:invariant}`)
-- [ ] `net_drift_check` — reconcile net vs ledger (`omt_net{op:drift}`)
+- [ ] `net_drift_check` — reconcile net vs ledger (`omt_net{op:invariant}`)
 
 ### Project: meta_harness_concurrent (subnet f39-f41)
 #### feature_039.adaptive_net_engine (minor_feature) — phase: Programming
@@ -271,7 +272,7 @@ This idea maps to **one feature** under meta_harness_concurrent:
 
 | Feature | Slug | Type | Deliverable | Depends on |
 |---|---|---|---|---|
-| Net-driven WORK.md | `feature_044.work_md_net_driven` | minor_feature | `scripts/omt/net/sync.py` (render/parse/propose), `omt_net{op:sync}`, WORK.md template, conformance regression on sync logic | feature_039 (engine), feature_040 (composition), feature_041 (resources) |
+| Net-driven WORK.md | `feature_045.work_md_net_driven` | minor_feature | `scripts/omt/net/sync.py` (render/parse/propose), `omt_net{op:sync}`, WORK.md template, conformance regression on sync logic | feature_039 (engine), feature_040 (composition), feature_041 (resources) |
 
 **Note:** This is a **phase-2 feature** (after core 1-3 ship). It builds on the proven net engine + composition + resource places.
 
@@ -308,13 +309,13 @@ Generate from net-engine test suite:
 
 ## 9. Decision Log (This Idea)
 
-- **IDEA-004.D1 — WORK.md is a net projection, not independent state:** Render from `META_NET.petri.json` + `net_state.sidecar.json` via `omt_net_sync`.
-- **IDEA-004.D2 — Checkboxes map to net places:** `[ ]`/`[~]`/`[x]`/`[!]` = place marking states in supervisor/subnet net.
-- **IDEA-004.D3 — Resource capacities as complement places:** `agent_attention`, `src_edit_capacity`, etc. modeled structurally; analyzer enforces.
-- **IDEA-004.D4 — Sync at `omt_complete` exit + explicit `omt_net{op:sync}`:** Mirrors drift check protocol (IDEA-001 item 2, IDEA-002 §8, IDEA-003 D2).
-- **IDEA-004.D5 — Human edits are proposals, not commits:** `omt_net_sync --propose` → analyzer validates → agent fires. Net remains authority.
-- **IDEA-004.D6 — Phase-2 feature (feature_044):** Depends on core 1-3 (feature_039/040/041). Optional but high-value for agent-only management.
-- **IDEA-004.D7 — D1 compliance:** All work in `scripts/omt/net/` + `.meta/.omt/` + WORK.md; no `src/agentx/` edits.
+- **IDEA-005.D1 — WORK.md is a net projection, not independent state:** Render from `META_NET.petri.json` + `net_state.sidecar.json` via `omt_net_sync`.
+- **IDEA-005.D2 — Checkboxes map to net places:** `[ ]`/`[~]`/`[x]`/`[!]` = place marking states in supervisor/subnet net.
+- **IDEA-005.D3 — Resource capacities as complement places:** `agent_attention`, `src_edit_capacity`, etc. modeled structurally; analyzer enforces.
+- **IDEA-005.D4 — Sync at `omt_complete` exit + explicit `omt_net{op:sync}`:** Mirrors drift check protocol (IDEA-001 item 2, IDEA-002 §8, IDEA-003 D2).
+- **IDEA-005.D5 — Human edits are proposals, not commits:** `omt_net_sync --propose` → analyzer validates → agent fires. Net remains authority.
+- **IDEA-005.D6 — Phase-2 feature (feature_045):** Depends on core 1-3 (feature_039/040/041). Optional but high-value for agent-only management.
+- **IDEA-005.D7 — D1 compliance:** All work in `scripts/omt/net/` + `.meta/.omt/` + WORK.md; no `src/agentx/` edits.
 
 ---
 
@@ -333,12 +334,12 @@ Generate from net-engine test suite:
 
 ## 11. Next Actions (If Approved)
 
-1. **Lock this idea** as a project decision (update PROJECT.md with feature_044 in phase-2 roadmap)
+1. **Lock this idea** as a project decision (update PROJECT.md with feature_045 in phase-2 roadmap)
 2. **After core 1-3 ship** (feature_039/040/041), scaffold:  
    `uv run scripts/omt/new_feature.py "work md net driven" --type minor_feature --project meta_harness_concurrent`
-3. **Design doc** for feature_044 must include: WORK.md template, `sync.py` spec, `omt_net{op:sync}` contract, conformance vectors
+3. **Design doc** for feature_045 must include: WORK.md template, `sync.py` spec, `omt_net{op:sync}` contract, conformance vectors
 4. **Migration**: one-time `omt_net_sync --bootstrap` to initialize net from current WORK.md
 
 ---
 
-*End of IDEA-004*
+*End of IDEA-005*
