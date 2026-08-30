@@ -1,6 +1,6 @@
 # IDEA-004 — Net-Driven WORK.md for Meta Harness Concurrency (Agent-Only Development Management)
 
-> Created 2026-08-31 · follows IDEA-001/002/003; builds on the additive Petri-net observability layer for the META HARNESS.
+> Created 2026-08-30 · follows IDEA-001/002/003; builds on the additive Petri-net observability layer for the META HARNESS.
 > **Status:** candidate idea — proposes a **WORK.md evolution** that mirrors the net-of-nets state, enables mechanical conflict detection, and supports single-agent concurrent feature modeling.
 > **Project context:** meta_harness_concurrent draft v0.4 (D1: meta harness only, not agentx); roadmap slots 039-043 verified free; net-driven architecture locked via D5–D15.
 
