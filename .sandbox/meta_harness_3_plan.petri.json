@@ -1,0 +1,160 @@
+{
+  "format": "petri-net-json",
+  "version": 1,
+  "places": [
+    {
+      "name": "done",
+      "tokens": 0
+    },
+    {
+      "name": "p1_work",
+      "tokens": 3
+    },
+    {
+      "name": "p2_work",
+      "tokens": 0
+    },
+    {
+      "name": "p3_work",
+      "tokens": 0
+    },
+    {
+      "name": "p4_work",
+      "tokens": 0
+    }
+  ],
+  "transitions": [
+    {
+      "name": "arch_revisit"
+    },
+    {
+      "name": "budget_cleanup"
+    },
+    {
+      "name": "budget_tighten"
+    },
+    {
+      "name": "gate_reorder"
+    },
+    {
+      "name": "kb_scope"
+    },
+    {
+      "name": "nav_consolidate"
+    },
+    {
+      "name": "quickref_fastpath"
+    },
+    {
+      "name": "receipt_autotrack"
+    },
+    {
+      "name": "receipt_soften"
+    },
+    {
+      "name": "testlist_autoval"
+    }
+  ],
+  "arcs": [
+    {
+      "source": "arch_revisit",
+      "target": "done",
+      "weight": 1
+    },
+    {
+      "source": "budget_cleanup",
+      "target": "p2_work",
+      "weight": 1
+    },
+    {
+      "source": "budget_tighten",
+      "target": "p2_work",
+      "weight": 1
+    },
+    {
+      "source": "gate_reorder",
+      "target": "p4_work",
+      "weight": 1
+    },
+    {
+      "source": "kb_scope",
+      "target": "p3_work",
+      "weight": 1
+    },
+    {
+      "source": "nav_consolidate",
+      "target": "p4_work",
+      "weight": 1
+    },
+    {
+      "source": "p1_work",
+      "target": "budget_cleanup",
+      "weight": 1
+    },
+    {
+      "source": "p1_work",
+      "target": "budget_tighten",
+      "weight": 1
+    },
+    {
+      "source": "p1_work",
+      "target": "receipt_soften",
+      "weight": 1
+    },
+    {
+      "source": "p2_work",
+      "target": "kb_scope",
+      "weight": 1
+    },
+    {
+      "source": "p2_work",
+      "target": "quickref_fastpath",
+      "weight": 1
+    },
+    {
+      "source": "p2_work",
+      "target": "testlist_autoval",
+      "weight": 1
+    },
+    {
+      "source": "p3_work",
+      "target": "gate_reorder",
+      "weight": 1
+    },
+    {
+      "source": "p3_work",
+      "target": "nav_consolidate",
+      "weight": 1
+    },
+    {
+      "source": "p3_work",
+      "target": "receipt_autotrack",
+      "weight": 1
+    },
+    {
+      "source": "p4_work",
+      "target": "arch_revisit",
+      "weight": 1
+    },
+    {
+      "source": "quickref_fastpath",
+      "target": "p3_work",
+      "weight": 1
+    },
+    {
+      "source": "receipt_autotrack",
+      "target": "p4_work",
+      "weight": 1
+    },
+    {
+      "source": "receipt_soften",
+      "target": "p2_work",
+      "weight": 1
+    },
+    {
+      "source": "testlist_autoval",
+      "target": "p3_work",
+      "weight": 1
+    }
+  ]
+}
