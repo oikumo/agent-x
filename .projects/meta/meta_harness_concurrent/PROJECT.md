@@ -10,7 +10,7 @@
 
 > One line: A **meta-harness-scoped** design project — **concurrency state management driven by a single Petri net** (D16): ONE flat supervisor net composes per-project/per-feature subnets as partitions (`f{N}_` prefixes + boundary ports `feature_ready`/`resource_token`/`goal_satisfied`), resource places (`agent_attention`=1, `src_edit_capacity`, `tests_capacity`, `harness_surface_round`, `e2e_receipt`) make conflicts/deadlocks structural, and the net bundle (net file + sidecar + overlay) — **in complement with** the ledger (audit) and WORK.md (human projection) — is the **global state single source of truth**. Gates keep enforcement; the analyzer blocks invalid fires. **Meta harness only — NOT agentx (D1).**
 
-**Next:** approve the **3-feature core roadmap** (feature_039.adaptive_net_engine, feature_040.net_composition_supervisor, feature_041.resource_places_concurrency — feature_042/043/044/045 are optional phase-2), then scaffold: `uv run scripts/omt/new_feature.py "adaptive net engine" --type minor_feature --project meta_harness_concurrent`.
+**Next:** scaffold **feature_041.resource_places_concurrency** (core 3/3 — complement-place capacities: `agent_attention`=1, `src_edit_capacity`, `tests_capacity`, `harness_surface_round`, `e2e_receipt`; `ports.resources` refinement; `place_invariants()` verification; lifecycle auto-sync hooks): `uv run scripts/omt/new_feature.py "resource places concurrency" --type minor_feature --project meta_harness_concurrent`. Open decision (D17): promote feature_045 (WORK.md projection) into the core at the feature_041 exit review. Core 1/3 (feature_039) + 2/3 (feature_040) are DONE; the REAL SSOT is bootstrapped (`.meta/.omt/META_NET.petri.json` rev 0).
 
 ---
 
@@ -159,7 +159,10 @@ Proposed feature roadmap (each spawned via `new_feature.py`; numbers auto-assign
 - [x] Design locked via IDEA-001/002/003 + PROJECT.md v0.4 — decisions D5–D15; roadmap re-scoped 3 core + 2 optional (feature_039–041 core, 042–043 phase-2)
 - [x] Doc audit (v0.4 + iter 6) — factual corrections applied (library = 158 tests, not 99; slug convention aligned to `feature_0xx.`; IDEA-003 referenced)
 - [x] SSOT refinement (v0.5) — user directive locked as D16: single-Petri-net concurrency state management; net + complement files = global state SSOT; D3 authority framing amended (state/enforcement/audit split); IDEA-005 adopted as WORK.md projection (D17, feature_045); idea-numbering collision fixed (D18); roadmap now 3 core + 4 optional phase-2
-- [ ] First linked feature (header flips draft → active mechanically) — pending user approval of the roadmap proposal
+- [x] First linked feature (header flips draft → active mechanically) — feature_039 linked 2026-08-30
+- [x] feature_039.adaptive_net_engine DONE (core 1/3) — engine + three-file bundle + probe/fire/invariant ops
+- [x] feature_040.net_composition_supervisor DONE (core 2/3) — splice 5 modes + sync bootstrap/proposal + derived overlay + conformance gate + D7 drift hook; **REAL SSOT bootstrapped** (`.meta/.omt/META_NET.petri.json` rev 0, drift-free); sentinel 1736 passed
+- [ ] feature_041.resource_places_concurrency (core 3/3) — next scaffold; open decision D17: promote feature_045 (WORK.md projection) into the core at the feature_041 exit review
 
 ---
 

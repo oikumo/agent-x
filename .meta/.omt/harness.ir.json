@@ -7,8 +7,8 @@
     "meta_md": 6144,
     "nav_index": 64000,
     "nav_tip": 512,
-    "tool_args": 2048,
-    "tool_schemas": 1536,
+    "tool_args": 2304,
+    "tool_schemas": 1792,
     "work_md": 6144,
     "work_scratchpad": 3072
   },
@@ -476,8 +476,8 @@
       "tags": "CMD_NAV"
     },
     "omt_net": {
-      "args": "op,transition?,reasoning?,session?,max_states?",
-      "description": "Meta-harness concurrency net \u2014 single-net SSOT (IDEA-002 v4 \u00a75.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | invariant(invariants+net\u2194ledger drift) | splice|sync|synthesize reserved (feature_040+).",
+      "args": "op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?",
+      "description": "Meta-harness concurrency net \u2014 single-net SSOT (IDEA-002 v4 \u00a75.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net\u2194ledger drift) | synthesize reserved (feature_042+).",
       "perm": "allow",
       "tags": "CMD_NET"
     },

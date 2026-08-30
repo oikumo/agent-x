@@ -1,6 +1,6 @@
 # Feature 040: Net Composition Supervisor
 
-> **Status:** [~] In progress (2026-08-30)
+> **Status:** [x] Done (2026-08-30)
 > **Created:** 2026-08-30
 > **Project:** meta_harness_concurrent (core roadmap 2/3 — PROJECT.md D1–D18)
 > **WORK.md task:** feature_040.net_composition_supervisor
@@ -40,8 +40,8 @@ artifact as it is produced so WORK.md → this file → every phase doc stays na
 | Requirements | Use case | `2.requirements/.../feature_040.net_composition_supervisor/` | [x] |
 | Analysis | _declaration only (minor_feature)_ — design basis: IDEA-002 v4 §1.4/§3/§5/§11 (`.projects/meta/meta_harness_concurrent/ideas/`) | — | [x] |
 | Design | _declaration only (minor_feature)_ — canonical op taxonomy IDEA-002 v4 §5.0; overlay-as-derived-view; subnet lifecycle chain template | — | [x] |
-| Implementation | `scripts/omt/net/{state,cli}.py` + `scripts/omt/net_check.py` + `.opencode/plugins/omt_net.ts` + `.opencode/lib/enforcer/phase_gate.ts` (drift hook) | — | [ ] |
-| Testing | Test report | `6.testing/features/feature_040.net_composition_supervisor/` | [ ] |
+| Implementation | `scripts/omt/net/{state,cli}.py` + `scripts/omt/net_check.py` + `.opencode/plugins/omt_net.ts` + `.opencode/lib/enforcer/phase_gate.ts` (drift hook) | — | [x] |
+| Testing | Test report | `6.testing/features/feature_040.net_composition_supervisor/` | [x] |
 
 **Naming convention (enforced by `new_feature.py`):** phase docs are
 `analysis_NNN_<topic>.md`, `design_NNN_<topic>.md` — incrementing `NNN`, lower_snake topic.

@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-08-30 (auto — feature_040.net_composition_supervisor Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_040.net_composition_supervisor/test_report.md
+- **Core roadmap 2/3 DONE** — resumed from `.sandbox/pause_2026-08-30c.md` (design P1–P10): `state.splice` 5 modes (add validate-all-then-apply on deepcopy · remove REBUILD-from-survivors + forbid/reroute/drain token policies, deterministic drain · disable ≡ prefix-remove + `kind:"net_disable"` full-structure record + `overlay.disabled` archive · undo = inverse replay of latest structural ledger record · repair = sidecar↔overlay revision realign + missing-node validation) + `state.sync` (§5.1 first-call skeleton `feature_ready=1`/`resource_token=1`/`goal_satisfied=0`, NO supervisor transitions v1; reality scan feature dirs + WORK.md tasks/projects → deterministic PROPOSAL, never auto-applied D4) + **derived overlay at every save()** (P10 — drift impossible by construction) + 9-vector conformance gate pre-save on every structure-changing op + `omt_complete` D7 fail-open drift hook (phase_gate.ts); `RESERVED_OPS` → `("synthesize",)` → feature_042
+- Registration: `@tool omt_net` args mode/mutation/subnet/feature + budgets tool_schemas 1536→1792 / tool_args 2048→2304 (same-.omt-edit convention); harnessc build+check 0 err (253 records); e2e receipt refreshed; drift pins 12/12
+- **REAL SSOT bootstrapped (D16 dogfood):** `net_check.py sync` → `.meta/.omt/META_NET.petri.json` rev 0 + proposal for the real feature dirs (feature_001/002 pending …) — NOT auto-applied; probe/invariant green, drift-free (the omt_complete hook stayed silent at both exits)
+- Numbers: 42 splice/sync/CLI tests + 68 total net suite (feature_039 suites green under derived-overlay save) + 2 sentinel; full sentinel **1736 passed, 0 failed**; 3 manual red→green cycles (minor_feature, tdd_mode:false)
+- **Next:** feature_041.resource_places_concurrency (core 3/3) — complement-place capacities (agent_attention=1, src_edit_capacity, tests_capacity, harness_surface_round, e2e_receipt) + `ports.resources` refinement + place_invariants verification + lifecycle auto-sync hooks; scaffold via `new_feature.py "resource places concurrency" --type minor_feature --project meta_harness_concurrent`. Open decision (D17): promote feature_045 (WORK.md projection) into the core at the feature_041 exit review
+
+---
+
+
 ## 2026-08-30 (PAUSE — feature_040.net_composition_supervisor scaffolded + design locked, impl NOT started)
 
 - scaffold: `new_feature.py` → FEATURE.md filled (scope/deferred: synthesize→042, resources→041) + project_link; phases Analysis ✅ Design ✅ → **Programming active** (minor_feature, tdd_mode false → manual red→green)

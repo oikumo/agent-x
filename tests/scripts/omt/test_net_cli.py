@@ -1,8 +1,9 @@
-"""omt_net CLI ops — feature_039.adaptive_net_engine.
+"""omt_net CLI ops — feature_039.adaptive_net_engine (+ feature_040 update).
 
 Canonical op enum (IDEA-002 v4 §5.0, closed set): probe|fire|splice|sync|
-synthesize|invariant. feature_039 ships probe/fire/invariant; the rest are
-reserved → clean not_implemented envelopes (bootstrap ordering §5.1).
+synthesize|invariant. feature_039 ships probe/fire/invariant; feature_040
+ships splice/sync (spec @ test_net_splice.py / test_net_sync.py); synthesize
+stays reserved → clean not_implemented envelope (feature_042).
 """
 from __future__ import annotations
 
@@ -141,7 +142,7 @@ class TestInvariantOp:
 
 
 class TestReservedOps:
-    @pytest.mark.parametrize("op", ["splice", "sync", "synthesize"])
+    @pytest.mark.parametrize("op", ["synthesize"])
     def test_reserved_ops_not_implemented(self, bundle, capsys, op) -> None:
         cli = _cli()
         code, out = _run(cli, [op], capsys)
@@ -149,7 +150,7 @@ class TestReservedOps:
         assert out["ok"] is False
         assert out["error"] == "not_implemented"
         assert out["op"] == op
-        assert "feature_040" in out["message"]
+        assert "feature_042" in out["message"]
 
     def test_unknown_op_rejected(self, bundle, capsys) -> None:
         cli = _cli()

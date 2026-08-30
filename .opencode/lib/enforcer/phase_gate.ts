@@ -417,8 +417,18 @@ export function createPhaseTools(env: EnforcerEnv) {
       }
 
       // Auto-sync WORK.md
-// TA: todo: feature_040 D7 drift hook: at omt_complete exit (near syncWorkMdFromLedger) spawn `uv run scripts/omt/net_check.py invariant` FAIL-OPEN (quiet/nothrow/timeout — tdd_check call pattern above); ok && drift.drifted → append ⚠️ line to result; net_not_bootstrapped → silent. Harness surface — one edit per e2e receipt.
       try { await syncWorkMdFromLedger() } catch { /* ignore */ }
+
+      // feature_040 D7: net-vs-ledger drift check at every omt_complete exit —
+      // FAIL-OPEN (net_not_bootstrapped → silent; the invariant op itself logs
+      // drift rows to harness.net.drift.jsonl).
+      try {
+        const netRes = await $`uv run scripts/omt/net_check.py invariant`.cwd(directory).quiet().nothrow()
+        const netData = JSON.parse(netRes.stdout.toString() || '{"ok":false}')
+        if (netData.ok && netData.drift?.drifted) {
+          result += `\n⚠️ Net drift: net revision ${netData.drift.net_revision} != ledger revision ${netData.drift.ledger_revision} (harness.net.drift.jsonl)`
+        }
+      } catch { /* fail-open: the net layer never blocks a phase exit */ }
 
       // feature_030: mirror the ship into the owning project home (D2) —
       // TERMINAL completions only (Testing/Done): an Analysis/Design/Programming

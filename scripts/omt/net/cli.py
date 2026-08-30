@@ -1,17 +1,20 @@
-"""omt_net CLI — feature_039.adaptive_net_engine.
+"""omt_net CLI — feature_039.adaptive_net_engine + feature_040.net_composition_supervisor.
 
 Single tool, closed op enum (IDEA-002 v4 §5.0, PROJECT.md D10):
 
-    probe|fire|invariant      implemented here
-    splice|sync|synthesize    reserved → clean not_implemented (feature_040+)
+    probe|fire|invariant   feature_039 (observe / marking-only fire / drift)
+    splice|sync            feature_040 (structural transactions + net↔reality)
+    synthesize             reserved → clean not_implemented (feature_042)
 
-Contract (tests/scripts/omt/test_net_cli.py IS the spec): one JSON envelope
-on stdout, exit 0 ok / 1 error; bootstrap ordering §5.1 — probe/fire/
-invariant fail clean with net_not_bootstrapped until the bundle exists
-(sync is the first-call entry point, feature_040). `fire` is marking-only
-(no conformance regression, §5.0 matrix); `invariant` folds the old `drift`
-op — net-vs-ledger revision drift is surfaced (exit stays 0) and logged to
-harness.net.drift.jsonl (D7).
+Contract (tests/scripts/omt/test_net_{cli,splice,sync}.py ARE the spec): one
+JSON envelope on stdout, exit 0 ok / 1 error; bootstrap ordering §5.1 —
+probe/fire/invariant fail clean with net_not_bootstrapped until the bundle
+exists (sync is the first-call entry point). `fire` is marking-only (no
+conformance regression, §5.0 matrix); splice (all modes) + sync bootstrap run
+the 9-vector conformance gate pre-save; proposal-only sync stays read-only
+(D4 — the agent applies proposals via splice). `invariant` folds the old
+`drift` op — net-vs-ledger revision drift is surfaced (exit stays 0) and
+logged to harness.net.drift.jsonl (D7).
 """
 from __future__ import annotations
 
@@ -29,7 +32,7 @@ from .errors import (
     UnknownTransitionError,
 )
 
-RESERVED_OPS = ("splice", "sync", "synthesize")
+RESERVED_OPS = ("synthesize",)
 # TA: xref: feature_040 (pause_2026-08-30c.md): splice args --mode add|remove|disable|undo|repair --mutation '<json>' --subnet --reasoning; sync bootstraps supervisor skeleton (feature_ready=1, resource_token=1, goal_satisfied=0, NO supervisor transitions v1) then emits PROPOSAL only (D4 — agent applies via splice); RESERVED_OPS shrinks to ("synthesize",) → feature_042.
 DEFAULT_MAX_STATES = 1000
 
@@ -81,6 +84,41 @@ def _fire(base: Path, transition: str, reasoning: str, session: str) -> tuple[di
         "revision": st.revision,
         "marking": st.live_marking,
     }
+    return envelope, 0
+
+
+def _splice(base: Path, args: argparse.Namespace, mutation: Any) -> tuple[dict[str, Any], int]:
+    st, info = state.splice(
+        base,
+        args.mode,
+        mutation=mutation,
+        subnet=args.subnet,
+        reasoning=args.reasoning,
+        session=args.session,
+        feature=args.feature,
+    )
+    envelope = {
+        "ok": True,
+        "op": "splice",
+        "mode": args.mode,
+        "revision": st.revision,
+        "marking": st.live_marking,
+        **info,
+    }
+    return envelope, 0
+
+
+def _sync(base: Path, args: argparse.Namespace) -> tuple[dict[str, Any], int]:
+    st, info = state.sync(base, reasoning=args.reasoning, session=args.session)
+    envelope: dict[str, Any] = {
+        "ok": True,
+        "op": "sync",
+        "bootstrap": info["bootstrap"],
+        "revision": st.revision,
+        "proposal": info["proposal"],
+    }
+    if info.get("conformance") is not None:
+        envelope["conformance"] = info["conformance"]
     return envelope, 0
 
 
@@ -137,10 +175,28 @@ def _build_parser() -> argparse.ArgumentParser:
     p_fire.add_argument("--reasoning", required=True)
     p_fire.add_argument("--session", default="")
 
+    p_splice = sub.add_parser(
+        "splice", help="Atomic structural transaction (conformance-gated, §3)."
+    )
+    p_splice.add_argument(
+        "--mode", required=True, choices=["add", "remove", "disable", "undo", "repair"]
+    )
+    p_splice.add_argument("--mutation", default="", help="JSON mutation object.")
+    p_splice.add_argument("--subnet", default="", help="Subnet key (disable mode).")
+    p_splice.add_argument("--reasoning", required=True)
+    p_splice.add_argument("--session", default="")
+    p_splice.add_argument("--feature", default="")
+
+    p_sync = sub.add_parser(
+        "sync", help="net↔reality bootstrap + resync (proposal-only, D4)."
+    )
+    p_sync.add_argument("--reasoning", default="")
+    p_sync.add_argument("--session", default="")
+
     sub.add_parser("invariant", help="Invariants + net-vs-ledger drift (D7).")
 
     for op in RESERVED_OPS:
-        sub.add_parser(op, help="Reserved — feature_040+.")
+        sub.add_parser(op, help="Reserved — feature_042+.")
 
     return parser
 
@@ -153,8 +209,8 @@ def main(argv: list[str] | None = None) -> int:
         return _emit(*_error(
             "not_implemented",
             op,
-            f"omt_net{{op:{op}}} is reserved for feature_040 "
-            "(net_composition_supervisor) — IDEA-002 v4 §5.0",
+            f"omt_net{{op:{op}}} is reserved for feature_042 "
+            "(goal_net_synthesis) — IDEA-002 v4 §5.0",
         ))
 
     base = state.net_dir()
@@ -163,8 +219,22 @@ def main(argv: list[str] | None = None) -> int:
             return _emit(*_probe(base, args.max_states))
         if op == "fire":
             return _emit(*_fire(base, args.transition, args.reasoning, args.session))
+        if op == "splice":
+            mutation = None
+            if args.mutation:
+                try:
+                    mutation = json.loads(args.mutation)
+                except json.JSONDecodeError as exc:
+                    return _emit(*_error(
+                        "invalid_mutation", op, f"--mutation is not valid JSON: {exc}"
+                    ))
+            return _emit(*_splice(base, args, mutation))
+        if op == "sync":
+            return _emit(*_sync(base, args))
         if op == "invariant":
             return _emit(*_invariant(base))
+    except state.SpliceError as exc:
+        return _emit(*_error(exc.code, op, str(exc)))
     except state.NetNotBootstrappedError as exc:
         return _emit(*_error("net_not_bootstrapped", op, str(exc)))
     except state.RevisionMismatchError as exc:
