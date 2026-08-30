@@ -244,12 +244,12 @@
 # BUDGET — compile-enforced token budgets (R7 T5/T8 → build errors; F32/F33)
 # ============================================================
 @budget agents_md max=2816 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers, 5120→2560; 2026-08-08: 2560→2816 to add .projects/ component line mirroring .workflows/)
-@budget work_md max=5632 : WORK.md bytes — read at every session startup (feature_kb_akb: +1 task entry pushed 4096→5120; feature_038/meta_harness_5: +1 active feature row pushed 5120→5632)
+@budget work_md max=6144 : WORK.md bytes — read at every session startup (feature_kb_akb: +1 task entry pushed 4096→5120; feature_038/meta_harness_5: +1 active feature row pushed 5120→5632; feature_039/meta_harness_concurrent: session pause line + project-link row pushed 5632→6144)
 @budget work_scratchpad max=3072 : WORK.md Agent Scratchpad section bytes (T2: CURRENT/RECURRING only; shrunk 6144→3072 in improvement002/OPT-B after gotcha relocation to @doc gotcha.*)
 @budget nav_tip max=512 : session-bootstrap nav-tip bytes (C5, conversation-resident, re-paid per turn F32)
 @budget digest_cap max=1024 : TA digest hard cap (C4, conversation-resident, re-paid per turn F32)
-@budget tool_schemas max=1280 : sum of @tool one-line descriptions (C11, rides the system prompt every turn F33; OPT-A diet 1484→1174, OPT-H consolidation 18→7 ≈760; feature_026: +1 tool omt_q pushed 1024→1085→1280)
-@budget tool_args max=1792 : live TS arg describe() bytes, irToolDescription-region only (feature_kb_akb: +1 tool pushed budget 1536→1792)
+@budget tool_schemas max=1536 : sum of @tool one-line descriptions (C11, rides the system prompt every turn F33; OPT-A diet 1484→1174, OPT-H consolidation 18→7 ≈760; feature_026: +1 tool omt_q pushed 1024→1085→1280; feature_039/meta_harness_concurrent: +1 tool omt_net pushed 1280→1536)
+@budget tool_args max=2048 : live TS arg describe() bytes, irToolDescription-region only (feature_kb_akb: +1 tool pushed budget 1536→1792; feature_039/meta_harness_concurrent: +1 tool omt_net pushed 1792→2048)
 @budget nav_index max=64000 : nav.index.jsonl bytes — on-demand nav answers (improvement006/OPT-D: the largest projection was unchecked)
 @budget ir_json max=20480 : harness.ir.json bytes — plugin-internal (improvement006/OPT-D: previously unchecked)
 @budget meta_harness_md max=2048 : .meta/META_HARNESS.md stub bytes — on-demand (improvement007/OPT-B: state-note rotation 5526→1366; only the latest note inline, older → git history)
@@ -267,6 +267,7 @@
 @tool omt_think perm=allow args="op,path?,thought?,line?,after?,symbol?,category?,query?,top?" tags="CMD_THINK" : TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?).
 @tool omt_kb_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_KB_NAV" : App Knowledge Base nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).
 @tool omt_q perm=allow args="op,feature?,session?,path?,tool?,as_of?,verbose?" tags="CMD_Q" : TA: Interrogative layer — read-only. op=state(feature?,session?,as_of?,verbose?) | plan(path,tool?,session?,as_of?) | drift(as_of?). state default ≤2KB summary; verbose:true = full dump. Returns JSON envelope with as_of_commit=HEAD-sha.
+@tool omt_net perm=allow args="op,transition?,reasoning?,session?,max_states?" tags="CMD_NET" : Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | invariant(invariants+net↔ledger drift) | splice|sync|synthesize reserved (feature_040+).
 
 # ============================================================
 # FLOW — QUICK_ workflows (start_*/tdd_* derived from @fsm/@phase/@hat — hand copies = duplicate-id error)

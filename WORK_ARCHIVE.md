@@ -4,6 +4,10 @@
 > keeps pending + last 5 DONE inline; older DONE lands here. NEVER auto-read
 > (not in startup, not nav-indexed); consult only when archaeology is needed.
 
+## 2026-08-30 rotation (feature_039.adaptive_net_engine round)
+
+- [x] **feature_034.studio_v1_editor** — DONE 2026-08-23: `tools/petri-net-studio/` (petri_net_studio #3): Vite+React+TS studio — TS engine port (model+io, golden byte-parity), zustand store, React Flow edit/simulate UI, import/export, independence lint, static build; Vitest 170/170 + tsc clean; 4 manual red→green cycles (A11) + pytest sentinel. Details @ FEATURE.md + test_report.md.
+
 ## 2026-08-29 rotation (feature_035.studio_v2_analysis round)
 
 - [x] **feature_033.petri_net_io** — DONE 2026-08-23: `src/agentx/model/petri_net/io.py` (petri_net_studio #2): net_to_json/net_from_json/document_from_json — L1+V1–V6 validation, typed errors, canonical bytes, layout verbatim; stdlib-only, library untouched. 59 tests @ `tests/model/petri_net/test_io.py`.

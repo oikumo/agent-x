@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-08-30 (PAUSE — feature_040.net_composition_supervisor scaffolded + design locked, impl NOT started)
+
+- scaffold: `new_feature.py` → FEATURE.md filled (scope/deferred: synthesize→042, resources→041) + project_link; phases Analysis ✅ Design ✅ → **Programming active** (minor_feature, tdd_mode false → manual red→green)
+- **design consolidated P1–P10** (splice 5 modes incl. REBUILD-remove + token policies · sync bootstrap-skeleton + proposal-only D4 · derived overlay · conformance gate · omt_complete drift hook · subnet lifecycle-chain template) — lives in `.sandbox/pause_2026-08-30c.md` §4 + 4 TA tags (state.py:185, cli.py:33, omt_net.ts:15, phase_gate.ts:420)
+- no impl code, no tests yet; e2e receipt refreshed at pause (clean for resume); WORK.md row = paused pointer
+- **Next (resume):** omt_phase Programming → omt_skip{scope:"tests"} (canary, GOTCHA_TESTS_CANARY_SHADOW order) → RED `test_net_splice.py`+`test_net_sync.py` (+ test_net_cli reserved-set update: synthesize→feature_042) → GREEN state.py/cli.py → TS/.omt round → harnessc build → e2e → sentinel → test report → Done
+
+---
+
+## 2026-08-30 (auto — feature_039.adaptive_net_engine Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_039.adaptive_net_engine/test_report.md
+- **Core roadmap 1/3 DONE** — harness-owned net engine `scripts/omt/net/` (parity clones of the shipped library, D2 zero src/ import; 9-vector conformance byte-parity) + `state.py` three-file bundle (META_NET.petri.json v1 + sidecar live marking/revision + overlay; atomic 3-file save w/ rollback; name rebase D12; `net_fire` ledger) + `cli.py` omt_net ops `probe`/`fire`/`invariant` (IDEA-002 v4 §5.0 closed enum; `splice`/`sync`/`synthesize` reserved→feature_040 not_implemented envelopes; §5.1 bootstrap ordering = clean `net_not_bootstrapped`) + `net_check.py` shim + `.opencode/plugins/omt_net.ts` proxy
+- Registration: `@tool omt_net` (tags CMD_NET) + budgets tool_schemas 1280→1536 / tool_args 1792→2048 (same-.omt-edit convention); harnessc build+check 0 err (253 records; AGENTS.md tools 9→10); e2e HARNESS_FILES +10; drift pin WORK_BUDGET synced 5632→6144 (stale from iter-6 bump)
+- Numbers: 37 net tests + 2 sentinel (subprocess bridge — module-local fixtures block plain re-export); full sentinel **1703 passed, 0 failed**; cycles 1/2a/2b manual red→green (minor_feature, tdd_mode:false)
+- **Next:** feature_040.net_composition_supervisor (roadmap 2/3) — splice/sync ops + overlay population (f{N}_ prefixes, boundary ports) + omt_complete-exit drift hook; scaffold via `new_feature.py "net composition supervisor" --type minor_feature --project meta_harness_concurrent`
+
+---
+
+
 ## 2026-08-30 (iter 7 — PROJECT.md v0.5: SSOT refinement per user directive + IDEA-005 renumber)
 
 ### Done

@@ -7,9 +7,9 @@
     "meta_md": 6144,
     "nav_index": 64000,
     "nav_tip": 512,
-    "tool_args": 1792,
-    "tool_schemas": 1280,
-    "work_md": 5632,
+    "tool_args": 2048,
+    "tool_schemas": 1536,
+    "work_md": 6144,
     "work_scratchpad": 3072
   },
   "deny": [
@@ -474,6 +474,12 @@
       "description": "Harness doc nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).",
       "perm": "allow",
       "tags": "CMD_NAV"
+    },
+    "omt_net": {
+      "args": "op,transition?,reasoning?,session?,max_states?",
+      "description": "Meta-harness concurrency net \u2014 single-net SSOT (IDEA-002 v4 \u00a75.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | invariant(invariants+net\u2194ledger drift) | splice|sync|synthesize reserved (feature_040+).",
+      "perm": "allow",
+      "tags": "CMD_NET"
     },
     "omt_phase": {
       "args": "task_type,scope,phase?,feature?,design_doc?,tdd?",

@@ -59,6 +59,18 @@ HARNESS_FILES = [
     "scripts/omt/tdd/ast_checks.py",
     "scripts/omt/tdd/gates.py",
     "scripts/omt/tdd/cli.py",
+    # feature_039.meta_harness_concurrent: the net package behind the
+    # net_check.py shim + its plugin proxy.
+    "scripts/omt/net/__init__.py",
+    "scripts/omt/net/errors.py",
+    "scripts/omt/net/model.py",
+    "scripts/omt/net/analysis.py",
+    "scripts/omt/net/io.py",
+    "scripts/omt/net/conformance.py",
+    "scripts/omt/net/state.py",
+    "scripts/omt/net/cli.py",
+    "scripts/omt/net_check.py",
+    ".opencode/plugins/omt_net.ts",
     "tests/scripts/omt/test_omt_harness_e2e.py",
 ]
 

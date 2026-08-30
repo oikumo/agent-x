@@ -25,13 +25,13 @@
 
 - [x] **feature_035.studio_v2_analysis** — DONE 2026-08-29: `tools/petri-net-studio/` v2 (petri_net_studio #4): TS analysis port — fraction.ts exact rationals + analysis.ts (reachability/deadlocks/bounds/liveness/SCC/P-T-invariants; B2/B3 exact parity, B6 deterministic ordering) + conformance-vector generator (9 vectors @ `shared/petri-net/conformance/analysis-v1/`, byte-identical re-runs; D8 re-lock) + no-overclaim AnalysisPanel & store maxStates/analysisVisible (D10/B12); 4 manual red→green cycles (B11). Vitest 245/245, tsc clean, build + independence OK (15 files/43 imports) + preview smoke 200s; sentinel + pytest 1638 passed (2 known). Details @ FEATURE.md + test_report.md.
 - [x] **feature_036.studio_v3_graph** — DONE 2026-08-29: major_feature studio v3 graph completed (7 cycles: markingFromKey export + analysis additive, projection 7/7, animation 8/8, store+gallery 56/56+8/8, UI styles.css §9 + build + preview smoke 200×3, conformance runner regenerate+byte-identical+10/10 Vitest suite, sentinel green); Vitest 274/274, tsc clean, build green, independence OK.
-- [x] **feature_034.studio_v1_editor** — DONE 2026-08-23: `tools/petri-net-studio/` (petri_net_studio #3): Vite+React+TS studio — TS engine port (model+io, golden byte-parity), zustand store, React Flow edit/simulate UI, import/export, independence lint, static build; Vitest 170/170 + tsc clean; 4 manual red→green cycles (A11) + pytest sentinel. Details @ FEATURE.md + test_report.md.
 - [x] **feature_037.tdd_testlist_prose_fallback** — DONE 2026-08-29: minor_feature (meta_harness_4): `_parse_behaviors` prose fallback in tdd/cli.py (JSON array/string/bullets/numbered) + TestParseBehaviors ×10; sentinel 1658 passed, harnessc 0 err, e2e refreshed. Details @ FEATURE.md.
 - [x] **feature_038.tdd_toolchain_aware** — DONE 2026-08-29: minor_feature (meta_harness_5): omt_tdd toolchain-aware dispatch — `run_test` routes `.py`→pytest `.ts/.tsx`→vitest from resolved project root (`_find_vitest_root`; whole-file supersedes A11/B11 workaround) + `TestRunTestDispatch`×6 + GOTCHA_TDD_TOOLCHAIN; sentinel 1664 passed, harnessc 0 err. Details @ FEATURE.md + test_report.md.
+- [x] **feature_039.adaptive_net_engine** — DONE 2026-08-30: minor_feature (meta_harness_concurrent core 1/3): harness-owned net engine `scripts/omt/net/` (parity clones, D2 no-src-import, 9-vector conformance byte-parity) + `state.py` three-file bundle (sidecar+overlay, atomic saves w/ rollback, name rebase, `net_fire` ledger) + `cli.py` omt_net ops probe/fire/invariant (IDEA-002 v4 §5.0 closed enum; splice/sync/synthesize reserved→feature_040; §5.1 bootstrap ordering) + `net_check.py` shim + `@tool omt_net` registered (budgets 1536/2048) + `omt_net.ts` proxy; 37 net tests + 2 sentinel, full sentinel 1703 passed, harnessc 0 err, drift pins 12/12. Details @ FEATURE.md + test_report.md.
+- [~] **feature_040.net_composition_supervisor** — PAUSED (core 2/3 splice+sync; design locked); resume @ .sandbox/pause_2026-08-30c.md.
 - [ ] **feature_001.session_user_objectives_driven_by_Petri_Net**
 - [ ] **feature_002.rag_retrieval_augmented_generation**
 ---
-Session pause 2026-08-30: designing meta_harness_concurrent architecture deep-dive (adaptive Petri net net-of-nets controlling concurrent projects/features); pointer: .sandbox/pause_2026-08-30.md
 
 
 ## Projects (synced by `uv run scripts/omt/project.py sync` — do not hand-edit)
@@ -43,7 +43,7 @@ Session pause 2026-08-30: designing meta_harness_concurrent architecture deep-di
 | meta_harness_3 | active | feature_028.feature_scoped_gating |
 | meta_harness_4 | complete | feature_037.tdd_testlist_prose_fallback |
 | meta_harness_5 | active | feature_038.tdd_toolchain_aware |
-| meta_harness_concurrent | draft | — |
+| meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor |
 | petri_net_library | active | feature_031.petri_net_library |
 | petri_net_studio | active | feature_032.petri_net_format, feature_033.petri_net_io, feature_034.studio_v1_editor, feature_035.studio_v2_analysis, feature_036.studio_v3_graph |
 | project_lifecycle | active | feature_030.project_lifecycle |

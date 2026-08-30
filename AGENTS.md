@@ -20,7 +20,7 @@
 ## Process (full rules on demand via nav)
 - **§12 artifacts:** `bug_fix` `minor_feature` `refactor` `test` → declaration only · `major_feature` `new_screen` → + design doc on disk (`new_feature.py`) · `docs` → none
 - **TDD (feature_016):** `major_feature`/`new_screen` @Programming auto-activates `omt_tdd{op: testlist → red → green → refactor → done}` — two-hats: RED tests/ only · GREEN/REFACTOR src/ only (auto-revert on break)
-- **Tools:** 9 `omt_*` — catalog `omt_nav{query:"CMD_", tag_type:"CMD"}` · workflows `omt_quick_ref`
+- **Tools:** 10 `omt_*` — catalog `omt_nav{query:"CMD_", tag_type:"CMD"}` · workflows `omt_quick_ref`
 - **Workflows (.workflows/):** .workflows/ operational workflow catalog — triggered procedures the agent loads on demand (markdown recipes, NOT a runtime). Sits ABOVE the harness: each workflow's `# Rules` line 1 declares follow-vs-override OMT. Two-level discovery read: .workflows/META.md → matched subject META → matched file. Mandatory approval gate (no auto-fix). Detail: @doc comp.workflows + .workflows/META.md.
 - **Projects home (.projects/):** .projects/ per-feature design & project home — non-gated; PROJECT.md (canonical) + CURRENT_STATE.md (session log); companion to @phase design_doc. Lifecycle CLI: uv run scripts/omt/project.py (new|link|close|sync); manifest .projects/meta/META.md (GENERATED); WORK.md `## Projects` (synced). Detail: @doc comp.projects + .projects/meta/.
 - **Nav gate (feature_020):** nav tools before grep/glob on docs (read + src/non-doc exempt) · **Think gate (feature_021):** TA: files need `omt_think{op:list}` consult (NOT skip-bypassable)

@@ -417,6 +417,7 @@ export function createPhaseTools(env: EnforcerEnv) {
       }
 
       // Auto-sync WORK.md
+// TA: todo: feature_040 D7 drift hook: at omt_complete exit (near syncWorkMdFromLedger) spawn `uv run scripts/omt/net_check.py invariant` FAIL-OPEN (quiet/nothrow/timeout — tdd_check call pattern above); ok && drift.drifted → append ⚠️ line to result; net_not_bootstrapped → silent. Harness surface — one edit per e2e receipt.
       try { await syncWorkMdFromLedger() } catch { /* ignore */ }
 
       // feature_030: mirror the ship into the owning project home (D2) —
