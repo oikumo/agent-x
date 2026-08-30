@@ -86,7 +86,7 @@
 # TDD — two-hats state machine (feature_016)
 # ============================================================
 @fsm tdd states="TESTLIST,RED,GREEN,REFACTOR,DONE" initial="TESTLIST" auto_on="major_feature@Programming,new_screen@Programming" : TDD cycle omt_testlist → omt_red → omt_green → omt_refactor → omt_done
-@hat tdd.testlist allow="" : no edits — behavior list only (JSON array)
+@hat tdd.testlist allow="" : no edits — behavior list (JSON array canonical; prose auto-split)
 @hat tdd.red allow="tests/" revert_on="" : tests/ edits ALLOWED, src/ BLOCKED (fail verified true-RED: imports target, fails on missing behavior)
 @hat tdd.green allow="src/" revert_on="" : tests/ BLOCKED, src/ ALLOWED (pass verified)
 @hat tdd.refactor allow="src/" revert_on="tests_break" : src/ ALLOWED, auto-revert if tests break
@@ -218,7 +218,7 @@
 @doc gotcha.loader_exports tags="GOTCHA_LOADER_EXPORTS" : opencode plugin loader requires ALL named exports of a plugin .ts be functions (tool objects aren't) → plugins export ONLY `export default async () => ({tool:{...}})`; guard test pins omt_think only.
 @doc gotcha.done_reachable tags="GOTCHA_DONE_REACHABLE" : omt_tdd{op:done} reachable post-R4 (opencode_live excluded + KNOWN_SUITE_FAILURES allowlist); default phase exit stays omt_complete{advance_to:Testing→Done}.
 @doc gotcha.think_gated tags="GOTCHA_THINK_GATED" : omt_think.ts + lib/enforcer/think_gate.ts are THINK-GATED (carry TA: thoughts) — omt_think{op:list,path:...} before editing clears the gate; NOT skip-bypassable.
-@doc gotcha.testlist_json tags="GOTCHA_TESTLIST_JSON" : omt_tdd{op:testlist} behaviors MUST be a JSON array (tdd cli.py json.loads) — prose fails 'Expecting value: line 1 column 1'.
+@doc gotcha.testlist_json tags="GOTCHA_TESTLIST_JSON" : omt_tdd{op:testlist} behaviors: JSON array is canonical; newline/bullet prose is auto-split by tdd/cli.py _parse_behaviors — no re-format required.
 @doc gotcha.sdk_contract tags="GOTCHA_SDK_CONTRACT" : tool.execute.after has args on input, NOT output (output={title,output,metadata} only); the BEFORE hook is the OPPOSITE (args on output) — applying the after-fix to both silently kills all before-hook guards; pinned by test_omt_enforcer_guard_source_pins.py.
 @doc gotcha.live_binary tags="GOTCHA_LIVE_BINARY" : runner fixtures can't catch contract/path drift — only real-binary tests: `opencode run --format json "<prompt>"` + jq tool_use events (--pure = A/B control); assert FILE-STATE byte-identical, snapshot+restore probes; opencode loads .opencode/plugins/*.ts directly (dist/ unused).
 @doc gotcha.receipt_second_edit tags="GOTCHA_RECEIPT_SECOND_EDIT" : e2e receipt guard = SECOND-EDIT guard (git-dirty + mtime vs receipt) — first edit of a CLEAN harness file allowed BY DESIGN; each edit bumps mtime > receipt → next edit of THAT file blocked until e2e rerun.
@@ -232,6 +232,7 @@
 @doc gotcha.tdd_node tags="GOTCHA_TDD_NODE" : record red/green/refactor at the SAME test_node — red at f.py::C::t + green at f.py leaves latest=red blocking omt_tdd{op:done} (recovery: omt_tdd{op:green} at the exact red node); KNOWN_SUITE_FAILURES is shape-pinned (test_ledger_rotation.py) — grow it + pin in the same session (both harness-surface → round-robin).
 @doc gotcha.ts_no_reload tags="GOTCHA_TS_NO_RELOAD" : TS plugin edits do NOT hot-reload; gates shelling out to Python re-read it live every call → in-session gate changes go in the Python side; coverage gate scans ONLY tests/features/<feature>/ + counts abstract methods — READ gates.py/ast_checks.py/phase_gate.ts before writing make-work tests.
 @doc gotcha.tests_canary_shadow tags="GOTCHA_TESTS_CANARY_SHADOW" : tests/ canary unlock (guardTestsPath) reads the LATEST phase/skip record for the session — omt_phase AFTER omt_skip{scope:tests} shadows the approval (a record without tests_approved wins) → declare the phase FIRST, then re-issue omt_skip{scope:"tests"} immediately before the tests/ edit.
+@doc gotcha.tdd_toolchain tags="GOTCHA_TDD_TOOLCHAIN" : omt_tdd red|green|refactor is toolchain-aware—`.py` runs pytest, `.ts/.tsx` runs `npx vitest run <file>` from the vitest PROJECT ROOT (upward package.json-with-vitest-dep / vitest.config.* search), so polyglot features (petri_net_studio 034/035/036) get REAL two-hats enforcement instead of the old A11/B11 manual red→green workaround. Vitest runs the WHOLE file (no `-t` filter—vitest treats `-t` as regex and an unmatched name returns exit 0 = FALSE green/red). Declared RED/GREEN at the same test_node. (feature_038)
 
 # ============================================================
 # CONV — standing conventions (agent-behavior knowledge)
@@ -243,7 +244,7 @@
 # BUDGET — compile-enforced token budgets (R7 T5/T8 → build errors; F32/F33)
 # ============================================================
 @budget agents_md max=2816 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers, 5120→2560; 2026-08-08: 2560→2816 to add .projects/ component line mirroring .workflows/)
-@budget work_md max=5120 : WORK.md bytes — read at every session startup (feature_kb_akb: +1 task entry pushed 4096→5120)
+@budget work_md max=5632 : WORK.md bytes — read at every session startup (feature_kb_akb: +1 task entry pushed 4096→5120; feature_038/meta_harness_5: +1 active feature row pushed 5120→5632)
 @budget work_scratchpad max=3072 : WORK.md Agent Scratchpad section bytes (T2: CURRENT/RECURRING only; shrunk 6144→3072 in improvement002/OPT-B after gotcha relocation to @doc gotcha.*)
 @budget nav_tip max=512 : session-bootstrap nav-tip bytes (C5, conversation-resident, re-paid per turn F32)
 @budget digest_cap max=1024 : TA digest hard cap (C4, conversation-resident, re-paid per turn F32)
@@ -261,7 +262,7 @@
 @tool omt_skip perm=allow args="reason,scope?" tags="CMD_OMT_SKIP" : Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all (default all).
 @tool omt_complete perm=allow args="feature,advance_to?" tags="CMD_OMT_COMPLETE" : Verify phase artifacts; optionally advance (Design|Programming|Testing|Done).
 @tool omt_status perm=allow args="include_ledger?" tags="CMD_STATUS" : Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task.
-@tool omt_tdd perm=allow args="op,behaviors?,feature?,test_node?,target_src?" tags="CMD_TDD" : TDD cycle driver. op=testlist(behaviors,feature) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature).
+@tool omt_tdd perm=allow args="op,behaviors?,feature?,test_node?,target_src?" tags="CMD_TDD" : TDD cycle driver. op=testlist(behaviors,feature; JSON array or prose) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature). Toolchain-aware: .py→pytest, .ts/.tsx→vitest (GOTCHA_TDD_TOOLCHAIN).
 @tool omt_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_NAV" : Harness doc nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).
 @tool omt_think perm=allow args="op,path?,thought?,line?,after?,symbol?,category?,query?,top?" tags="CMD_THINK" : TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?).
 @tool omt_kb_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_KB_NAV" : App Knowledge Base nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).

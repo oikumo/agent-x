@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import re
 import sys
 
 from .ast_checks import (
@@ -53,6 +54,7 @@ from .state import (
     read_ledger,
     run_full_suite,
     run_pytest,
+    run_test,
     snapshot_feature_baseline,
     snapshot_source,
     suite_failures,
@@ -64,8 +66,41 @@ from .state import (
 # Subcommand implementations (cycle verbs; gate verbs live in gates.py)
 # ---------------------------------------------------------------------------
 
+_BULLET_RE = re.compile(r"^\s*(?:[-•*]|\d+[.)])\s*(.*)$")
+
+
+def _parse_behaviors(raw: str | None) -> list[str]:
+    """Behaviors from a JSON array, a JSON string, or line-separated prose.
+
+    Accepts (feature_037 prose fallback — GOTCHA_TESTLIST_JSON):
+        omt_tdd testlist --behaviors '["Write a test", "Fix bug"]'
+        omt_tdd testlist --behaviors '"Write a test"'
+        omt_tdd testlist --behaviors "Write a test\n- Fix bug"
+        omt_tdd testlist --behaviors "1. Write a test\n2. Fix bug"
+    Empty input => [] (same as today; argparse default is "[]").
+    JSON scalars (123) fall through to the prose path -> ["123"].
+    """
+    if not raw or not raw.strip():
+        return []
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, str):
+            return [parsed]          # '"Write a test"' -> ["Write a test"]
+    except (json.JSONDecodeError, ValueError):
+        pass
+    behaviors = []
+    for line in raw.splitlines():
+        m = _BULLET_RE.match(line)
+        stripped = (m.group(1) if m else line).strip()
+        if stripped:
+            behaviors.append(stripped)
+    return behaviors
+
+
 def cmd_testlist(args) -> dict:
-    behaviors = json.loads(args.behaviors) if args.behaviors else []
+    behaviors = _parse_behaviors(args.behaviors)
     write_ledger({
         "kind": "tdd_testlist", "session": args.session,
         "behaviors": behaviors, "remaining": behaviors, "feature": args.feature,
@@ -101,8 +136,8 @@ def cmd_start(args) -> dict:
             if src_path.exists():
                 snapshot_feature_baseline(args.feature, src_path)
 
-    # Run pytest
-    exit_code, _stdout, stderr = run_pytest(test_node, timeout=30)
+    # Run the test (pytest for .py, vitest for .ts/.tsx — feature_038)
+    exit_code, _stdout, stderr = run_test(test_node, timeout=30)
 
     if exit_code == 0:
         write_ledger({
@@ -119,7 +154,7 @@ def cmd_start(args) -> dict:
     if exit_code in (2, 3, 4):
         return {
             "ok": False, "state": "red", "verified": False, "exit_code": exit_code,
-            "message": f"❌ pytest error (exit {exit_code}). Check the test node ID.\n{stderr[:500]}",
+            "message": f"❌ test error (exit {exit_code}). Check the test node ID.\n{stderr[:500]}",
         }
 
     # RED verified (exit 1 = fail, exit 5 = no tests collected, -1 = timeout)
@@ -127,7 +162,11 @@ def cmd_start(args) -> dict:
     test_summary = None
     warnings: list[str] = []
 
-    if test_path.exists():
+    # Python-AST analysis applies only to `.py` test/source files. For
+    # Vitest (`.ts/.tsx`) targets the AST-based true-red / summary /
+    # anti-pattern checks are skipped; a non-zero exit already verified RED,
+    # listed as a valid bug-fix-style RED. (feature_038)
+    if test_path.exists() and test_path.suffix.lower() == ".py":
         src_paths = [_resolve_src_path(t) for t in targets if _resolve_src_path(t).exists()]
         if src_paths:
             true_red = verify_true_red(test_path, test_name, src_paths)
@@ -168,7 +207,7 @@ def cmd_start(args) -> dict:
 
 def cmd_green(args) -> dict:
     test_node = args.test_node
-    exit_code, _stdout, stderr = run_pytest(test_node, timeout=30)
+    exit_code, _stdout, stderr = run_test(test_node, timeout=30)
 
     if exit_code != 0:
         details = "\n".join(stderr.strip().split("\n")[-10:]) if stderr else ""
@@ -205,7 +244,7 @@ def cmd_green(args) -> dict:
 
 def cmd_refactor(args) -> dict:
     test_node = args.test_node
-    exit_code, _stdout, stderr = run_pytest(test_node, timeout=30)
+    exit_code, _stdout, stderr = run_test(test_node, timeout=30)
 
     if exit_code != 0:
         return {

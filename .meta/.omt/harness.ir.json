@@ -9,7 +9,7 @@
     "nav_tip": 512,
     "tool_args": 1792,
     "tool_schemas": 1280,
-    "work_md": 5120,
+    "work_md": 5632,
     "work_scratchpad": 3072
   },
   "deny": [
@@ -501,7 +501,7 @@
     },
     "omt_tdd": {
       "args": "op,behaviors?,feature?,test_node?,target_src?",
-      "description": "TDD cycle driver. op=testlist(behaviors,feature) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature).",
+      "description": "TDD cycle driver. op=testlist(behaviors,feature; JSON array or prose) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature). Toolchain-aware: .py\u2192pytest, .ts/.tsx\u2192vitest (GOTCHA_TDD_TOOLCHAIN).",
       "perm": "allow",
       "tags": "CMD_TDD"
     },

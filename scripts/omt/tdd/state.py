@@ -310,6 +310,80 @@ def run_pytest(test_node: str, timeout: int = 30) -> tuple[int, str, str]:
         return -1, "", str(e)
 
 
+def _find_vitest_root(test_path: Path) -> Path:
+    """Walk up from a test file toward the vitest project root.
+
+    Feature_038 (toolchain-aware TDD): a `.ts` test like
+    `tools/petri-net-studio/tests/engine/analysis.test.ts` must run vitest
+    from the project root (`tools/petri-net-studio/`), NOT from
+    `tests/engine/` — a wrong cwd makes vitest config/root not found and
+    returns a bogus exit 1 / "no tests matched" that breaks RED/GREEN truth.
+    The root is the nearest ancestor that either contains a `package.json`
+    declaring a `vitest` dep or a `vitest.config.*` marker. Falls back to
+    the test file's parent (prior behavior) if nothing is found up to the
+    repo root.
+    """
+    cur = test_path.parent
+    root_marker = REPO_ROOT.resolve()
+    while True:
+        pkg = cur / "package.json"
+        if pkg.exists():
+            try:
+                data = json.loads(pkg.read_text(encoding="utf-8"))
+                deps = {**(data.get("dependencies") or {}),
+                        **(data.get("devDependencies") or {})}
+                if "vitest" in deps:
+                    return cur
+            except (json.JSONDecodeError, OSError):
+                pass
+        for cfg in ("vitest.config.ts", "vitest.config.js",
+                    "vitest.config.mts", "vitest.config.mjs"):
+            if (cur / cfg).exists():
+                return cur
+        if cur == root_marker or cur.parent == cur:
+            break
+        cur = cur.parent
+    return test_path.parent
+
+
+def run_test(test_node: str, timeout: int = 30) -> tuple[int, str, str]:
+    """Runner that dispatches on the test file's suffix.
+
+    Feature_038 (toolchain-aware TDD): pytest for `.py` test files; Vitest
+    (`npx vitest run <file> [-t <name>]`) for `.ts`/`.tsx`. The `::` node
+    separator is shared by both (vitest `-t` filters by test name). Unknown
+    suffixes fall back to pytest, preserving prior behavior. The repo is
+    polyglot (Python agentx + TypeScript petri_net_studio), so a pytest-only
+    runner hard-fails (exit 4 "file not found") on Vitest test nodes and
+    forced the documented A11/B11 manual red→green workaround across
+    features_034/035/036. Runs vitest from the resolved project root
+    (`_find_vitest_root`) so config/test discovery is correct.
+    """
+    test_path = _resolve_test_path(test_node)
+    suffix = test_path.suffix.lower()
+    if suffix in (".ts", ".tsx") and test_path.exists():
+        # NOTE: no `-t <name>` filter. Vitest treats `-t` as a regex and a
+        # name that matches nothing (regex-special chars, or an unknown
+        # `::Class::method` segment — the Python class names don't exist in
+        # vitest) returns exit 0 ("N skipped") = a FALSE GREEN/RED. The
+        # established studio RED/GREEN practice (features 034/035/036 A11/B11/
+        # C10) already runs the WHOLE file (`npx vitest run <file>`), so the
+        # whole-file run is both safer and backward-compatible with precedent.
+        cmd = ["npx", "vitest", "run", str(test_path)]
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=timeout,
+                cwd=str(_find_vitest_root(test_path)),
+            )
+            return result.returncode, result.stdout, result.stderr
+        except subprocess.TimeoutExpired:
+            return -1, "", f"vitest timed out after {timeout}s"
+        except Exception as e:
+            return -1, "", str(e)
+    # pytest path (default)
+    return run_pytest(test_node, timeout=timeout)
+
+
 def run_full_suite(timeout: int = 120) -> tuple[int, str, str]:
     try:
         result = subprocess.run(

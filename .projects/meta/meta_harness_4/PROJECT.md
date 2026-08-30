@@ -1,6 +1,6 @@
 # PROJECT: meta_harness_4 — TDD testlist prose fallback (Meta Harness 3 single improvement)
 
-> Status: **draft** · **v0.1 (2026-08-29)** — declared from the analysis `.sandbox/meta_harness_3_idea.md` (review of META HARNESS @ HEAD `5789125`). **DECLARATION ONLY — not executed.** Created by `project.py new`. Iterate freely (non-gated); spawn features with `new_feature.py "<name>" --type <tt> --project meta_harness_4`; log sessions in CURRENT_STATE.md (newest on top).
+> Status: **complete** · **v0.1 (2026-08-29)** — declared from the analysis `.sandbox/meta_harness_3_idea.md` (review of META HARNESS @ HEAD `5789125`). **DECLARATION ONLY — not executed.** Created by `project.py new`. Iterate freely (non-gated); spawn features with `new_feature.py "<name>" --type <tt> --project meta_harness_4`; log sessions in CURRENT_STATE.md (newest on top).
 
 ---
 
@@ -63,8 +63,8 @@
 
 ## Status
 
-- [ ] First linked feature (header flips draft → active mechanically) — pending: declare via `new_feature.py "tdd_testlist_prose_fallback" --type minor_feature --project meta_harness_4`
-- [ ] Implementation executed (NOT yet — declaration only per user instruction)
+- [x] First linked feature (header flips draft → active mechanically) — `feature_037.tdd_testlist_prose_fallback` linked via `new_feature.py` (draft → active)
+- [x] Implementation executed — `_parse_behaviors` prose fallback in `scripts/omt/tdd/cli.py` + `TestParseBehaviors` unit tests (43 file / 51 tdd-filtered passed) + doc sync (`.omt` ×3 records, TS fallback seed, WORK.md) — completed 2026-08-29, e2e receipt refreshed, full sentinel green, WORK.md row `[x]` DONE
 
 ---
 

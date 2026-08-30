@@ -30,7 +30,7 @@ from .state import (
     load_feature_baseline,
     load_snapshot,
     read_ledger,
-    run_pytest,
+    run_test,
     snapshot_source,
 )
 
@@ -125,7 +125,7 @@ def cmd_after_edit(args) -> dict:
     if HAT_REVERT_ON.get(state) == "tests_break":
         test_node = get_current_test_node(args.session)
         if test_node:
-            exit_code, _stdout, stderr = run_pytest(test_node, timeout=30)
+            exit_code, _stdout, stderr = run_test(test_node, timeout=30)
             if exit_code != 0:
                 return {
                     "action": "revert_needed",

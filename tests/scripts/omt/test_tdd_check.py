@@ -21,6 +21,8 @@ SCRIPTS_DIR = Path(__file__).parent.parent.parent.parent / "scripts" / "omt"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import tdd_check
+from tdd import state as tdd_state
+from tdd.cli import _parse_behaviors
 
 
 # ---------------------------------------------------------------------------
@@ -346,9 +348,138 @@ class TestHatFallbackIrSyncPin:
         assert gates.cmd_after_edit(_Args())["action"] == "ok"
         monkeypatch.setattr(gates, "HAT_REVERT_ON", {"refactor": "tests_break"})
         monkeypatch.setattr(gates, "get_current_test_node", lambda _s: "t.py::t")
-        monkeypatch.setattr(gates, "run_pytest",
+        monkeypatch.setattr(gates, "run_test",
                             lambda _n, timeout=30: (1, "", "boom"))
         assert gates.cmd_after_edit(_Args())["action"] == "revert_needed"
+
+
+class TestParseBehaviors:
+    """feature_037: _parse_behaviors prose fallback for omt_tdd testlist
+    (GOTCHA_TESTLIST_JSON) — JSON array/string/bullets/numbered prose.
+    Covers the idea-doc Before/After table (.sandbox/meta_harness_3_idea.md)."""
+
+    @pytest.mark.parametrize("raw,expected", [
+        ('["Write a test", "Fix bug"]', ["Write a test", "Fix bug"]),  # JSON array (canonical, unchanged)
+        ("Write a test", ["Write a test"]),                            # bare prose
+        ("- Write a test\n- Fix bug", ["Write a test", "Fix bug"]),    # hyphen bullets
+        ("• Task 1\n• Task 2", ["Task 1", "Task 2"]),                  # bullet chars
+        ("1. Write a test\n2. Fix bug", ["Write a test", "Fix bug"]),  # numbered list
+        ('"Write a test"', ["Write a test"]),                          # JSON string (no quotes kept)
+        ("123", ["123"]),                                              # JSON scalar falls to prose
+        ("", []),                                                      # empty/omitted
+        ("[]", []),                                                    # empty array (argparse default)
+        ("- \n1. ", []),                                               # empty marker lines skipped
+    ])
+    def test_parse_behaviors_table(self, raw, expected):
+        assert _parse_behaviors(raw) == expected
+
+
+class TestRunTestDispatch:
+    """feature_038 (toolchain-aware TDD): run_test dispatches on test-file
+    suffix — `.py` -> pytest (unchanged), `.ts/.tsx` -> vitest from the
+    project root. Verifies the command + subprocess cwd via a mocked
+    subprocess.run; keeps prior behavior for unknown suffixes.
+
+    Uses a temp REPO_ROOT so _resolve_test_path maps relative nodes under
+    tmp_path, letting us create real .ts/.tsx test files that pass
+    test_path.exists() and real package.json markers for root discovery."""
+
+    @pytest.fixture
+    def fake_repo(self, tmp_path, monkeypatch):
+        # Redirect the module-level constants used by state.py resolution so
+        # temp files under tmp_path behave like real repo files.
+        monkeypatch.setattr(tdd_state, "REPO_ROOT", tmp_path)
+        calls = {}
+
+        def fake_run(cmd, capture_output=None, text=None, timeout=None, cwd=None):
+            calls["cmd"] = cmd
+            calls["cwd"] = cwd
+            return _FakeResult(0, "", "")
+        monkeypatch.setattr(tdd_state.subprocess, "run", fake_run)
+        return tmp_path, calls
+
+    def test_py_suffix_runs_pytest(self, fake_repo):
+        tmp_path, calls = fake_repo
+        f = tmp_path / "test_foo.py"
+        f.write_text("def test_x(): pass\n", encoding="utf-8")
+        code, _o, _e = tdd_state.run_test("test_foo.py", timeout=30)
+        assert code == 0
+        assert calls["cmd"][0:3] == [sys.executable, "-m", "pytest"]
+        assert "test_foo.py" in str(calls["cmd"][3:])
+
+    def test_ts_suffix_runs_vitest_from_project_root(self, fake_repo):
+        tmp_path, calls = fake_repo
+        proj = tmp_path / "tools" / "studio" / "tests" / "engine"
+        proj.mkdir(parents=True)
+        (tmp_path / "tools" / "studio" / "package.json").write_text(
+            json.dumps({"name": "studio", "devDependencies": {"vitest": "^2.0.0"}}),
+            encoding="utf-8")
+        (proj / "analysis.test.ts").write_text(
+            'import { it } from "vitest"; it("x", () => {});\n', encoding="utf-8")
+        # relative node under REPO_ROOT (tmp_path)
+        code, _o, _e = tdd_state.run_test(
+            "tools/studio/tests/engine/analysis.test.ts", timeout=30)
+        assert code == 0
+        assert calls["cmd"][0:2] == ["npx", "vitest"]
+        # cwd must be the project root, NOT the test file's dir (the OPEN ITEM)
+        assert calls["cwd"] == str(tmp_path / "tools" / "studio")
+
+    def test_tsx_suffix_runs_vitest(self, fake_repo):
+        tmp_path, calls = fake_repo
+        proj = tmp_path / "tools" / "ui"
+        proj.mkdir(parents=True)
+        (proj / "package.json").write_text(
+            json.dumps({"name": "ui", "devDependencies": {"vitest": "^2.0.0"}}),
+            encoding="utf-8")
+        (proj / "tests").mkdir(exist_ok=True)
+        (proj / "tests" / "widget.test.tsx").write_text("export {};\n", encoding="utf-8")
+        code, _o, _e = tdd_state.run_test("tools/ui/tests/widget.test.tsx", timeout=30)
+        assert code == 0
+        assert calls["cmd"][0:2] == ["npx", "vitest"]
+        assert "widget.test.tsx" in str(calls["cmd"])
+        assert calls["cwd"] == str(proj)
+
+    def test_unknown_suffix_falls_back_to_pytest(self, fake_repo):
+        tmp_path, calls = fake_repo
+        f = tmp_path / "run.js"
+        f.write_text(";", encoding="utf-8")
+        code, _o, _e = tdd_state.run_test("run.js", timeout=30)
+        assert code == 0
+        assert calls["cmd"][0:3] == [sys.executable, "-m", "pytest"]
+
+    def test_find_vitest_root_skips_non_vitest_pkg(self, fake_repo):
+        tmp_path, _calls = fake_repo
+        proj = tmp_path / "tools" / "nonvitest"
+        proj.mkdir(parents=True)
+        # package.json WITHOUT a vitest dep -> NOT the root
+        (proj / "package.json").write_text(
+            json.dumps({"name": "plain", "dependencies": {"react": "^18.0.0"}}),
+            encoding="utf-8")
+        # a parent WITH vitest -> that becomes the root
+        (tmp_path / "package.json").write_text(
+            json.dumps({"name": "root", "devDependencies": {"vitest": "^2.0.0"}}),
+            encoding="utf-8")
+        test_file = proj / "tests" / "x.test.ts"
+        test_file.parent.mkdir(parents=True)
+        test_file.write_text("export {};\n", encoding="utf-8")
+        root = tdd_state._find_vitest_root(test_file)
+        # nearest ancestor with a vitest dep is REPO_ROOT (tmp_path)
+        assert root == tmp_path
+
+    def test_find_vitest_root_falls_back_to_parent(self, fake_repo):
+        tmp_path, _calls = fake_repo
+        # no package.json / vitest marker anywhere up to REPO_ROOT
+        f = tmp_path / "tests" / "x.test.ts"
+        f.parent.mkdir(parents=True)
+        f.write_text("export {};\n", encoding="utf-8")
+        assert tdd_state._find_vitest_root(f) == f.parent
+
+
+class _FakeResult:
+    def __init__(self, returncode, stdout, stderr):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
 
 
 # ---------------------------------------------------------------------------

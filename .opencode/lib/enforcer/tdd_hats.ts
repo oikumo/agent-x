@@ -22,7 +22,7 @@ const TDD_SUBCMD: Record<string, string> = {
 
 export function createTddTools(env: EnforcerEnv) {
   const omt_tdd = tool({
-    description: irToolDescription("omt_tdd", "TDD cycle driver. op=testlist(behaviors,feature) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature)."),
+    description: irToolDescription("omt_tdd", "TDD cycle driver. op=testlist(behaviors,feature; JSON array or prose) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature). Toolchain-aware: .py→pytest, .ts/.tsx→vitest (GOTCHA_TDD_TOOLCHAIN)."),
     args: {
       op: tool.schema.string().describe("testlist|red|green|refactor|done"),
       behaviors: tool.schema.string().optional().describe("testlist: JSON array of behaviors"),
