@@ -28,6 +28,7 @@
 - [x] **feature_038.tdd_toolchain_aware** — DONE 2026-08-29: minor_feature (meta_harness_5): omt_tdd toolchain-aware dispatch — `run_test` routes `.py`→pytest `.ts/.tsx`→vitest from resolved project root (`_find_vitest_root`; whole-file supersedes A11/B11 workaround) + `TestRunTestDispatch`×6 + GOTCHA_TDD_TOOLCHAIN; sentinel 1664 passed, harnessc 0 err. Details @ FEATURE.md + test_report.md.
 - [x] **feature_039.adaptive_net_engine** — DONE 2026-08-30: minor_feature (meta_harness_concurrent core 1/3): harness-owned net engine `scripts/omt/net/` (parity clones, D2 no-src-import, 9-vector conformance byte-parity) + `state.py` three-file bundle (sidecar+overlay, atomic saves w/ rollback, name rebase, `net_fire` ledger) + `cli.py` omt_net ops probe/fire/invariant (IDEA-002 v4 §5.0 closed enum; splice/sync/synthesize reserved→feature_040; §5.1 bootstrap ordering) + `net_check.py` shim + `@tool omt_net` registered (budgets 1536/2048) + `omt_net.ts` proxy; 37 net tests + 2 sentinel, full sentinel 1703 passed, harnessc 0 err, drift pins 12/12. Details @ FEATURE.md + test_report.md.
 - [x] **feature_040.net_composition_supervisor** — DONE 2026-08-30: minor_feature (meta_harness_concurrent core 2/3): omt_net splice (add validate-all-then-apply · remove REBUILD + forbid/reroute/drain token policies · disable≡prefix-remove + overlay archive · undo ledger inverse-replay · repair realign) + sync (§5.1 bootstrap skeleton + deterministic proposal, never auto-applied D4) + derived overlay at every save (P10) + 9-vector conformance gate + omt_complete D7 fail-open drift hook; synthesize reserved→feature_042; budgets 1536→1792/2048→2304; REAL SSOT bootstrapped (rev 0, drift-free). 42 splice/sync/CLI + 68 net suite, sentinel 1736 passed, harnessc 0 err, pins 12/12. Details @ FEATURE.md + test_report.md.
+- [~] **feature_041.resource_places_concurrency** — PAUSED 2026-08-30: minor_feature (meta_harness_concurrent core 3/3): scaffolded + FEATURE.md filled + Analysis ✅ + Design ✅ (R1–R8 locked: 5 capacity places cap=1 in bootstrap · agent_attention claim/release wiring · ports.resources refinement · invariant resources/conflicts report · add_resource_places resync proposal · lifecycle auto-sync hooks) — Programming active, NO code/tests yet; e2e receipt fresh, net suite 68/68, harnessc 0 err. Resume @ .sandbox/pause_2026-08-30d.md.
 - [ ] **feature_001.session_user_objectives_driven_by_Petri_Net**
 - [ ] **feature_002.rag_retrieval_augmented_generation**
 ---
@@ -42,7 +43,7 @@
 | meta_harness_3 | active | feature_028.feature_scoped_gating |
 | meta_harness_4 | complete | feature_037.tdd_testlist_prose_fallback |
 | meta_harness_5 | active | feature_038.tdd_toolchain_aware |
-| meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor |
+| meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor, feature_041.resource_places_concurrency |
 | petri_net_library | active | feature_031.petri_net_library |
 | petri_net_studio | active | feature_032.petri_net_format, feature_033.petri_net_io, feature_034.studio_v1_editor, feature_035.studio_v2_analysis, feature_036.studio_v3_graph |
 | project_lifecycle | active | feature_030.project_lifecycle |

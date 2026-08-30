@@ -66,6 +66,7 @@ def _sync_all() -> list[str]:
 
 
 def cmd_new(args) -> int:
+# TA: xref: feature_041 (pause_2026-08-30d.md R6): lifecycle auto-sync hook — cmd_new/link/close/archive/reopen call net.state.lifecycle_sync_hook(event) via LAZY import in try/except (fail-open: net errors never block the lifecycle op; skip silently when the net bundle is unbootstrapped — bootstrap stays an explicit agent action per IDEA-002 §5.1); hook is proposal-only (D4) + ledger-audited; test_project_lifecycle.py must stay green (hook output to stdout is part of the contract — keep it one line).
     slug = args.slug or slugify(args.name)
     home = ps.projects_root() / slug
     if home.exists():

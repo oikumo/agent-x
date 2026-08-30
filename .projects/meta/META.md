@@ -12,7 +12,7 @@
 | meta_harness_3 | active | feature_028.feature_scoped_gating | 2026-08-22 | 2026-08-22 |
 | meta_harness_4 | complete | feature_037.tdd_testlist_prose_fallback | 2026-08-30 | 2026-08-30 |
 | meta_harness_5 | active | feature_038.tdd_toolchain_aware | 2026-08-30 | 2026-08-30 |
-| meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor | 2026-08-30 | 2026-08-30 |
+| meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor, feature_041.resource_places_concurrency | 2026-08-30 | 2026-08-30 |
 | petri_net_library | active | feature_031.petri_net_library | 2026-08-22 | 2026-08-22 |
 | petri_net_studio | active | feature_032.petri_net_format, feature_033.petri_net_io, feature_034.studio_v1_editor, feature_035.studio_v2_analysis, feature_036.studio_v3_graph | 2026-08-23 | 2026-08-23 |
 | project_lifecycle | active | feature_030.project_lifecycle | 2026-08-22 | 2026-08-22 |

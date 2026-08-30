@@ -55,6 +55,7 @@ _TASK_ROW_RE = re.compile(r"^- \[([ xX~!])\] \*\*feature_(\d+)")
 _CHECKBOX_M0 = {" ": "pending", "~": "active", "!": "active", "x": "done", "X": "done"}
 
 BOUNDARY_PORTS = ("feature_ready", "resource_token", "goal_satisfied")
+# TA: xref: feature_041 design (resume @ .sandbox/pause_2026-08-30d.md R1-R8): RESOURCE_PLACES catalog (agent_attention/src_edit_capacity/tests_capacity/harness_surface_round/e2e_receipt, ALL cap=1 per IDEA-002 v4 §2.2 — the IDEA-005 example's 2/3 is a sketch, not canonical) joins the sync() bootstrap skeleton + resync emits ONE add_resource_places proposal entry (missing places + retrofit arcs for existing subnets, D4 never auto-applied); _subnet_mutation wires agent_attention (f{N}_start claims, f{N}_complete releases → serial-mirror conflict trap, §2.3); derive_overlay ports.resources = sorted((entry∪exit) ∩ RESOURCE_PLACES) — stays a pure function of the net (P10).
 
 
 class NetNotBootstrappedError(PetriNetError):

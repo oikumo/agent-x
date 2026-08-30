@@ -33,6 +33,7 @@ from .errors import (
 )
 
 RESERVED_OPS = ("synthesize",)
+# TA: xref: feature_041 (pause_2026-08-30d.md R4): _invariant envelope gains ADDITIVE resources[] (per catalog place: capacity/live/capacity_ok/holders — holders for agent_attention = subnets with f{N}_active marked) + conflicts[] (pending subnets whose f{N}_start is not enabled, blocked_by = empty unprefixed input places) via state.resource_report(st) — the D7 omt_complete exit hook then surfaces capacity conflicts mechanically; additive keys only (test_net_cli.py exact-shape risk), RESERVED_OPS stays ("synthesize",) → feature_042.
 # TA: xref: feature_040 (pause_2026-08-30c.md): splice args --mode add|remove|disable|undo|repair --mutation '<json>' --subnet --reasoning; sync bootstraps supervisor skeleton (feature_ready=1, resource_token=1, goal_satisfied=0, NO supervisor transitions v1) then emits PROPOSAL only (D4 — agent applies via splice); RESERVED_OPS shrinks to ("synthesize",) → feature_042.
 DEFAULT_MAX_STATES = 1000
 

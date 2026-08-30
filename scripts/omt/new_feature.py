@@ -67,6 +67,7 @@ def build_plan_stub(num_str: str, title: str, slug: str, ttype: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+# TA: xref: feature_041 (pause_2026-08-30d.md R6): --project link path triggers the same net.state.lifecycle_sync_hook("new_feature_link") as project.py lifecycle ops — lazy import + try/except fail-open, skip when unbootstrapped, proposal-only D4; wire AFTER the link ledger append so the resync scan already sees the new feature dir.
     parser = argparse.ArgumentParser(description="Scaffold a new OMT++ feature")
     parser.add_argument("name", help="human-readable feature name, e.g. 'modern ui'")
     parser.add_argument("--type", default="minor_feature", choices=sorted(VALID_TYPES))

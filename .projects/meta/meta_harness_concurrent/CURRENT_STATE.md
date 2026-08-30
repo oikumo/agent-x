@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-08-30 (PAUSE — feature_041.resource_places_concurrency scaffolded + design locked, impl NOT started)
+
+- scaffold: `new_feature.py` → FEATURE.md filled (scope/deferred: synthesize→042, WORK.md projection→045) + project_link (WORK.md/META.md Projects rows synced); phases Analysis ✅ Design ✅ → **Programming active** (minor_feature, tdd_mode false → manual red→green); tests canary skip issued (session-scoped)
+- **design consolidated R1–R8** (5 capacity places all cap=1 per IDEA-002 v4 §2.2 · agent_attention claim/release in `_subnet_mutation` · `ports.resources` = (entry∪exit)∩RESOURCE_PLACES pure-derived P10 · `resource_report` + additive invariant `resources[]`/`conflicts[]` · ONE `add_resource_places` resync proposal D4 · `lifecycle_sync_hook` fail-open in project.py/new_feature.py · no op/budget churn · one e2e round) — lives in `.sandbox/pause_2026-08-30d.md` + 4 TA xrefs (state.py:58, cli.py:36, project.py:69, new_feature.py:70)
+- blast radius pinned: test_net_sync.py ×3 pins (bootstrap place-set :101/:236, template arcs :160-176, ports :250-251); splice/cli pins survive
+- no impl code, no tests yet; e2e receipt refreshed post-TA (clean for resume); green-at-pause: e2e 1/1, net suite 68/68, harnessc 0 err; WORK.md row = paused pointer
+- **Next (resume):** omt_phase Programming → omt_skip{scope:"tests"} (GOTCHA_TESTS_CANARY_SHADOW order) → RED `test_net_resources.py` + sentinel bridge + test_net_sync pin updates → GREEN state.py/cli.py/project.py/new_feature.py → e2e round → harnessc → full sentinel → dogfood `add_resource_places` on REAL SSOT (rev 0→1) → test report → Done. **Open decision (D17, USER): promote feature_045 into the core at the exit review**
+
+---
+
 ## 2026-08-30 (auto — feature_040.net_composition_supervisor Done)
 
 - shipped: minor_feature · test report @ 6.testing/features/feature_040.net_composition_supervisor/test_report.md
