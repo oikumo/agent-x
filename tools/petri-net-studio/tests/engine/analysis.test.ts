@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { PetriNetAnalyzer, markingKey } from "../../src/engine/analysis.js";
+import { PetriNetAnalyzer, markingFromKey, markingKey } from "../../src/engine/analysis.js";
 import { PetriNet } from "../../src/engine/model.js";
 
 // ---------------------------------------------------------------------------
@@ -509,5 +509,28 @@ describe("TestDeterminism", () => {
       [0, 0],
       [0, 1],
     ]); // sorted tuple (§29)
+  });
+});
+
+// ---------------------------------------------------------------------------
+// feature_036 §10.5 — markingFromKey (additive export; design C2)
+// ---------------------------------------------------------------------------
+
+describe("markingFromKey", () => {
+  it("round-trips markingKey for non-empty markings", () => {
+    for (const marking of [
+      [1, 0],
+      [0, 1],
+      [2, 5, 0],
+      [0, 0, 0],
+      [42],
+    ]) {
+      expect(markingFromKey(markingKey(marking))).toEqual(marking);
+    }
+  });
+
+  it("empty marking maps to [] (empty-marking gotcha)", () => {
+    expect(markingFromKey("")).toEqual([]);
+    expect(markingFromKey(markingKey([]))).toEqual([]);
   });
 });

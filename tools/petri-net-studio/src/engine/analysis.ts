@@ -27,7 +27,7 @@ export function markingKey(m: Marking): string {
 }
 
 /** Key → marking (complement of markingKey; empty marking ⇒ []). */
-function markingFromKey(key: string): number[] {
+export function markingFromKey(key: string): number[] {
 // TA: gotcha: gotcha: markingFromKey must special-case the empty marking — markingKey([]) = "" and "".split(",") would yield [""] → [0] (wrong). The empty net's single SCC component must be [[]] not [[0]].
   return key === "" ? [] : key.split(",").map(Number);
 }
