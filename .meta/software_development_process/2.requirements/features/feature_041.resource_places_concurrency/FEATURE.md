@@ -1,6 +1,6 @@
 # Feature 041: Resource Places Concurrency
 
-> **Status:** [~] In progress
+> **Status:** [x] Done (2026-08-30)
 > **Created:** 2026-08-30
 > **WORK.md task:** core 3/3 of `meta_harness_concurrent` (see `.projects/meta/meta_harness_concurrent/PROJECT.md` roadmap)
 
@@ -38,11 +38,11 @@ artifact as it is produced so WORK.md → this file → every phase doc stays na
 
 | Phase | Artifact | Path | Status |
 |-------|----------|------|--------|
-| Requirements | Use case | `2.requirements/.../feature_041.resource_places_concurrency/` | [ ] |
-| Analysis | Analysis doc | `3.analysis/features/feature_041.resource_places_concurrency/analysis_001_*.md` | [ ] |
-| Design | Design doc | `4.design/features/feature_041.resource_places_concurrency/design_001_*.md` | [ ] |
-| Implementation | Impl notes | `5.implementation/features/feature_041.resource_places_concurrency/` | [ ] |
-| Testing | Test report | `6.testing/features/feature_041.resource_places_concurrency/` | [ ] |
+| Requirements | Use case | `2.requirements/.../feature_041.resource_places_concurrency/` | [x] |
+| Analysis | _declaration only (minor_feature)_ — design basis: IDEA-002 v4 §2.2/§2.3/§5.1 (`.projects/meta/meta_harness_concurrent/ideas/`) | — | [x] |
+| Design | _declaration only (minor_feature)_ — R1–R8 locked @ `.sandbox/pause_2026-08-30d.md`; TA xrefs in the 4 source files | — | [x] |
+| Implementation | `scripts/omt/net/{state,cli}.py` + `scripts/omt/project.py` + `scripts/omt/new_feature.py` (lifecycle auto-sync hooks) | — | [x] |
+| Testing | Test report | `6.testing/features/feature_041.resource_places_concurrency/` | [x] |
 
 **Naming convention (enforced by `new_feature.py`):** phase docs are
 `analysis_NNN_<topic>.md`, `design_NNN_<topic>.md` — incrementing `NNN`, lower_snake topic.

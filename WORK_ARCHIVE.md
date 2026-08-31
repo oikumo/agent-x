@@ -4,6 +4,14 @@
 > keeps pending + last 5 DONE inline; older DONE lands here. NEVER auto-read
 > (not in startup, not nav-indexed); consult only when archaeology is needed.
 
+## 2026-08-30 rotation (feature_046.omt_net_session_arg_whitelist round)
+
+- [x] **feature_037.tdd_testlist_prose_fallback** — DONE 2026-08-29: minor_feature (meta_harness_4): `_parse_behaviors` prose fallback in tdd/cli.py (JSON array/string/bullets/numbered) + TestParseBehaviors ×10; sentinel 1658 passed, harnessc 0 err, e2e refreshed. Details @ FEATURE.md.
+
+## 2026-08-30 rotation (feature_041.resource_places_concurrency round)
+
+- [x] **feature_036.studio_v3_graph** — DONE 2026-08-29: major_feature studio v3 graph completed (7 cycles: markingFromKey export + analysis additive, projection 7/7, animation 8/8, store+gallery 56/56+8/8, UI styles.css §9 + build + preview smoke 200×3, conformance runner regenerate+byte-identical+10/10 Vitest suite, sentinel green); Vitest 274/274, tsc clean, build green, independence OK. Details @ FEATURE.md + test_report.md.
+
 ## 2026-08-30 rotation (feature_039.adaptive_net_engine round)
 
 - [x] **feature_034.studio_v1_editor** — DONE 2026-08-23: `tools/petri-net-studio/` (petri_net_studio #3): Vite+React+TS studio — TS engine port (model+io, golden byte-parity), zustand store, React Flow edit/simulate UI, import/export, independence lint, static build; Vitest 170/170 + tsc clean; 4 manual red→green cycles (A11) + pytest sentinel. Details @ FEATURE.md + test_report.md.

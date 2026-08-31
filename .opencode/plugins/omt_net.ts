@@ -14,6 +14,17 @@ import { initOmtShared, repoRoot, irToolDescription } from "../lib/omt_shared"
 
 const OPS = ["probe", "fire", "invariant", "splice", "sync", "synthesize"]
 
+// Per-op argv whitelist mirroring the cli.py subparser declarations
+// (cross-source pinned @ tests/scripts/omt/test_omt_net_plugin_args.py).
+const OP_ARGS: Record<string, readonly string[]> = {
+  probe: [],
+  fire: ["transition", "reasoning", "session"],
+  splice: ["mode", "mutation", "subnet", "reasoning", "session", "feature"],
+  sync: ["reasoning", "session"],
+  invariant: [],
+  synthesize: [],
+}
+
 function createNetTool() {
   return tool({
     description: irToolDescription("omt_net", "Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize reserved (feature_042+)."),
@@ -37,17 +48,22 @@ function createNetTool() {
         })
       }
       const argv = ["run", "scripts/omt/net_check.py", op]
-      for (const k of ["transition", "reasoning", "session", "mode", "mutation", "subnet", "feature"] as const) {
-        let v: any = args?.[k]
+      // TA: why: argv is built from the PER-OP OP_ARGS whitelist mirroring cli.py's
+      // subparser flags — the pre-feature_046 fixed list appended --session to EVERY
+      // op, and probe/invariant/synthesize declare no --session → argparse exit 2
+      // (feature_039 latent bug, surfaced by the feature_041 R4 dogfood 2026-08-30).
+      // The session fallback stays scoped INSIDE the whitelist loop; max_states is
+      // probe-only and gated below. Pinned cross-source @ test_omt_net_plugin_args.py.
+      for (const k of OP_ARGS[op]) {
+        let v: any = (args as any)?.[k]
         if (k === "session" && (v === undefined || v === null || v === "")) v = context?.sessionID
-// TA: gotcha: gotcha: this proxy appends --session (context.sessionID) to EVERY op's argv, but the CLI probe/invariant subparsers declare no --session arg → omt_net{op:probe|invariant} via the plugin ALWAYS fails 'unrecognized arguments: --session' (pre-existing feature_039 latent bug, surfaced by the feature_041 R4 dogfood 2026-08-30; the CLI path net_check.py is green). Fix = per-op arg whitelist + pin test (candidate bug_fix feature_046) — tracked @ .sandbox/pause_2026-08-30f.md
         if (v !== undefined && v !== null && v !== "")
           // Array guard: opencode SDK coerces JSON-array-looking strings fed to a
           // tool.schema.string() arg into actual JS arrays; String(v) collapses
           // to "a,b". Re-serialize arrays back to valid JSON (feature_027 fix).
           argv.push(`--${k}`, Array.isArray(v) ? JSON.stringify(v) : String(v))
       }
-      if (args?.max_states !== undefined && args?.max_states !== null)
+      if (op === "probe" && args?.max_states !== undefined && args?.max_states !== null)
         argv.push("--max-states", String(args.max_states))
       try {
         const out = execFileSync("uv", argv, {

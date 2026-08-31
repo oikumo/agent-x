@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-08-31 (auto — feature_046.omt_net_session_arg_whitelist Done)
+
+- shipped: bug_fix · test report @ 6.testing/features/feature_046.omt_net_session_arg_whitelist/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-08-30 (auto — feature_041.resource_places_concurrency Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_041.resource_places_concurrency/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+- Session paused: feature_041 wrapped DONE; exit-review decisions executed (41 subnets applied rev 2; 042-046 scaffolded; D17 resolved=045 promoted); feature_046 RED confirmed (5/5 pins), fix spec locked. Resume @ .sandbox/pause_2026-08-30g.md
+- feature_046.omt_net_session_arg_whitelist DONE (bug_fix): omt_net.ts per-op OP_ARGS argv whitelist mirroring cli.py subparsers (probe/invariant/synthesize no --session; max_states probe-gated) + TA gotcha->why-note + 6 cross-source pins @ tests/scripts/omt/test_omt_net_plugin_args.py; sentinel 1756->1762, harnessc 0 err, e2e refreshed. D17 bookkeeping done (core=039/040/041/045). 042-046 subnets applied via sync->merged splice (15p/10t/45a) -> REAL SSOT rev 3, drift-free, invariant green, 5/5 capacity_ok. Live plugin check lands next-session (cached plugin ran pre-fix code; simulated argv probe+invariant green). NEXT: feature_045.work_md_net_driven (core 4/4, IDEA-005).
+
+---
+
+
 ## 2026-08-30 (PAUSE — feature_041.resource_places_concurrency scaffolded + design locked, impl NOT started)
 
 - scaffold: `new_feature.py` → FEATURE.md filled (scope/deferred: synthesize→042, WORK.md projection→045) + project_link (WORK.md/META.md Projects rows synced); phases Analysis ✅ Design ✅ → **Programming active** (minor_feature, tdd_mode false → manual red→green); tests canary skip issued (session-scoped)
@@ -12,6 +30,7 @@
 - blast radius pinned: test_net_sync.py ×3 pins (bootstrap place-set :101/:236, template arcs :160-176, ports :250-251); splice/cli pins survive
 - no impl code, no tests yet; e2e receipt refreshed post-TA (clean for resume); green-at-pause: e2e 1/1, net suite 68/68, harnessc 0 err; WORK.md row = paused pointer
 - **Next (resume):** omt_phase Programming → omt_skip{scope:"tests"} (GOTCHA_TESTS_CANARY_SHADOW order) → RED `test_net_resources.py` + sentinel bridge + test_net_sync pin updates → GREEN state.py/cli.py/project.py/new_feature.py → e2e round → harnessc → full sentinel → dogfood `add_resource_places` on REAL SSOT (rev 0→1) → test report → Done. **Open decision (D17, USER): promote feature_045 into the core at the exit review**
+- feature_041.resource_places_concurrency DONE (core 3/3): R1-R8 resource places shipped (5-place catalog cap=1, attention claim/release, ports.resources, resource_report+conflicts, resync proposal, lifecycle hooks) + dogfood REAL SSOT rev 0->1; sentinel 1756, drift 12/12, harnessc 0 err. CORE COMPLETE (039-041). Open: D17 feature_045 promotion + omt_net.ts --session bug (feature_046?) - user decisions.
 
 ---
 
