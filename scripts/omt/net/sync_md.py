@@ -66,8 +66,12 @@ def render_tasks_block(
     slugs = slugs or {}
     actual = _actual_states(net, live_marking)
     live_tuple = tuple(live_marking.get(p, 0) for p in net.place_order)
+    pool_mode = is_pool_net(net)
     enabled = sorted(
-        (t for t in net.enabled_transitions_at(live_tuple) if t.endswith("_start")),
+        (
+            t for t in net.enabled_transitions_at(live_tuple)
+            if t.endswith("_start") or (pool_mode and t == "work_complete")
+        ),
         key=_start_num,
     )
     blocked = sorted(c["transition"] for c in conflicts)
@@ -194,14 +198,26 @@ def menu_lines(
     resources: list[dict[str, Any]],
     conflicts: list[dict[str, Any]],
     revision: int,
+    pool: dict[str, Any] | None = None,
 ) -> list[str]:
-    """D19 session-start menu: ordered starts + resources + rev stamp."""
+    """D19 session-start menu: ordered starts + resources + rev stamp.
+
+    feature_049: pool-aware — when pool counts are supplied (D20 pool nets),
+    include the `Pool: pending/active/done (places N/CAP)` line so the
+    STARTUP menu shows WIP without per-feature rows (which pool nets omit).
+    """
     ordered = sorted(enabled, key=_start_num)
     blocked = sorted(c.get("transition", c.get("subnet", "")) for c in conflicts)
-    return [
+    lines = [
         f"NEXT: {ordered[0]} (recommended)" if ordered else "NEXT: none",
         f"Other enabled: {', '.join(ordered[1:]) or 'none'}",
         f"Blocked: {', '.join(blocked) or 'none'}",
         _resources_line(resources),
-        f"(net rev {revision})",
     ]
+    if pool is not None:
+        lines.append(
+            f"Pool: pending={pool.get('pending', 0)} active={pool.get('active', 0)} "
+            f"done={pool.get('done', 0)} (places {pool.get('places', 0)}/{pool.get('cap', POOL_CAP)})"
+        )
+    lines.append(f"(net rev {revision})")
+    return lines

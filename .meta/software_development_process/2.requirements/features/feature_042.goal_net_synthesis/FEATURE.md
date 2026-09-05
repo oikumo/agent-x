@@ -1,22 +1,25 @@
 # Feature 042: Goal Net Synthesis
 
-> **Status:** [ ] Not started
+> **Status:** [x] Done 2026-09-05 (minor_feature, meta_harness_concurrent phase-2 1/3)
 > **Created:** 2026-08-30
-> **WORK.md task:** <!-- link the matching line in WORK.md -->
+> **WORK.md task:** `feature_042.goal_net_synthesis` row (net-rendered Tasks block)
 
 ---
 
 ## Summary
 
-<!-- One paragraph: what this feature is and why it exists. -->
+Deterministic goal→net template synthesis (IDEA-002 §4, bounded F4): structured
+goal bullets compose into a splice-ready fragment (task→chain, dependency→arc,
+resource→capacity arc, acceptance→verified place) via `omt_net{op:synthesize}`,
+proposal-only on pool nets (D4/D20 15-cap), never auto-applied.
 
 ## Scope (one sentence — what "done" looks like)
 
-<!-- If you cannot fill this in, you are still in Analysis. -->
+`synthesize --mutation '<goal-json>'` returns a deterministic splice fragment + cap analysis, read-only on pool nets, live on pre-pool nets behind the conformance gate.
 
 ## Task type
 
-<!-- bug_fix | minor_feature | major_feature | new_screen | refactor -->
+minor_feature
 
 ---
 
@@ -27,11 +30,11 @@ artifact as it is produced so WORK.md → this file → every phase doc stays na
 
 | Phase | Artifact | Path | Status |
 |-------|----------|------|--------|
-| Requirements | Use case | `2.requirements/.../feature_042.goal_net_synthesis/` | [ ] |
-| Analysis | Analysis doc | `3.analysis/features/feature_042.goal_net_synthesis/analysis_001_*.md` | [ ] |
-| Design | Design doc | `4.design/features/feature_042.goal_net_synthesis/design_001_*.md` | [ ] |
-| Implementation | Impl notes | `5.implementation/features/feature_042.goal_net_synthesis/` | [ ] |
-| Testing | Test report | `6.testing/features/feature_042.goal_net_synthesis/` | [ ] |
+| Requirements | Use case | `2.requirements/.../feature_042.goal_net_synthesis/` | [x] |
+| Analysis | Analysis doc | minor_feature declaration only (§12) — scope locked in Design | [x] |
+| Design | Design doc | minor_feature declaration only (§12) — pool-aware proposal design in test_report | [x] |
+| Implementation | Impl notes | `scripts/omt/net/state.py` (`build_goal_fragment` + `synthesize`) + `cli.py` | [x] |
+| Testing | Test report | `6.testing/features/feature_042.goal_net_synthesis/test_report.md` | [x] |
 
 **Naming convention (enforced by `new_feature.py`):** phase docs are
 `analysis_NNN_<topic>.md`, `design_NNN_<topic>.md` — incrementing `NNN`, lower_snake topic.

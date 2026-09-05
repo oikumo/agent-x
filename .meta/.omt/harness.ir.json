@@ -1,6 +1,6 @@
 {
   "budgets": {
-    "agents_md": 2816,
+    "agents_md": 2944,
     "digest_cap": 1024,
     "ir_json": 20480,
     "meta_harness_md": 2048,
@@ -477,7 +477,7 @@
     },
     "omt_net": {
       "args": "op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?",
-      "description": "Meta-harness concurrency net \u2014 single-net SSOT (IDEA-002 v4 \u00a75.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net\u2194ledger drift) | synthesize reserved (feature_042+).",
+      "description": "Meta-harness concurrency net \u2014 single-net SSOT (IDEA-002 v4 \u00a75.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net\u2194ledger drift) | synthesize(template\u2192splice proposal, D4) | mine(ledger\u2192net draft, D4).",
       "perm": "allow",
       "tags": "CMD_NET"
     },

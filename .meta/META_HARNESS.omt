@@ -160,7 +160,7 @@
 # ============================================================
 # DOC — harness knowledge corpus (nav-indexed; app-doc tags are scraped at build)
 # ============================================================
-@doc startup tags="STARTUP" : Read `WORK.md` (only) at session start; summarize current state in ≤ 15 lines (in-progress / blocked / next). All other docs on demand via `omt_nav` (op=nav|list_sections|cross_ref|quick_ref).
+@doc startup tags="STARTUP" : Read `WORK.md` (only) at session start; summarize current state in ≤ 15 lines (in-progress / blocked / next). Present the Tasks menu (NEXT/Other/Blocked/Resources) in order; no invented options (D19). All other docs on demand via `omt_nav` (op=nav|list_sections|cross_ref|quick_ref).
 @doc runtime tags="RUNTIME" : `uv` only (no bare `python`/`pip`/`pytest`). `src/` edits → `omt_phase` first.
 @doc enforcement tags="ENF" : mechanical via .opencode/plugins/omt_enforcer.ts + lib/enforcer ×7 + opencode.jsonc; reference = .meta/META_HARNESS.omt (query: omt_nav)
 @doc rule.r1 tags="RULE_R1" : src/ edit REQUIRES omt_phase{task_type,phase,scope} — task_type: bug_fix|minor_feature|major_feature|new_screen|refactor|test|docs; phase: Analysis|Design|Programming|Testing; scope: one-sentence done definition
@@ -243,7 +243,7 @@
 # ============================================================
 # BUDGET — compile-enforced token budgets (R7 T5/T8 → build errors; F32/F33)
 # ============================================================
-@budget agents_md max=2816 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers, 5120→2560; 2026-08-08: 2560→2816 to add .projects/ component line mirroring .workflows/)
+@budget agents_md max=2944 : GENERATED AGENTS.md bytes — rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers, 5120→2560; 2026-08-08: 2560→2816 to add .projects/ component line mirroring .workflows/)
 @budget work_md max=8192 : WORK.md bytes — read at every session startup (feature_kb_akb: +1 task entry pushed 4096→5120; feature_038/meta_harness_5: +1 active feature row pushed 5120→5632; feature_039/meta_harness_concurrent: session pause line + project-link row pushed 5632→6144; feature_041/meta_harness_concurrent: paused task row pushed 6144→7168 — two deliberate +512 steps at once, DONE-row replacement needs the headroom; feature_045/meta_harness_concurrent: DONE-row detail pushed 7168→7680; feature_048/meta_harness_concurrent: WIP-pool active row + duplicate-link project row pushed 7680→8192)
 @budget work_scratchpad max=3072 : WORK.md Agent Scratchpad section bytes (T2: CURRENT/RECURRING only; shrunk 6144→3072 in improvement002/OPT-B after gotcha relocation to @doc gotcha.*)
 @budget nav_tip max=512 : session-bootstrap nav-tip bytes (C5, conversation-resident, re-paid per turn F32)
@@ -267,7 +267,7 @@
 @tool omt_think perm=allow args="op,path?,thought?,line?,after?,symbol?,category?,query?,top?" tags="CMD_THINK" : TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?).
 @tool omt_kb_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_KB_NAV" : App Knowledge Base nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).
 @tool omt_q perm=allow args="op,feature?,session?,path?,tool?,as_of?,verbose?" tags="CMD_Q" : TA: Interrogative layer — read-only. op=state(feature?,session?,as_of?,verbose?) | plan(path,tool?,session?,as_of?) | drift(as_of?). state default ≤2KB summary; verbose:true = full dump. Returns JSON envelope with as_of_commit=HEAD-sha.
-@tool omt_net perm=allow args="op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?" tags="CMD_NET" : Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize reserved (feature_042+).
+@tool omt_net perm=allow args="op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?" tags="CMD_NET" : Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize(template→splice proposal, D4) | mine(ledger→net draft, D4).
 
 # ============================================================
 # FLOW — QUICK_ workflows (start_*/tdd_* derived from @fsm/@phase/@hat — hand copies = duplicate-id error)

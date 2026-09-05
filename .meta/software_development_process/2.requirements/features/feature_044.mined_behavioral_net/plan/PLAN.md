@@ -4,13 +4,13 @@
 
 ## Objective
 
-<!-- one sentence: what done looks like -->
+`omt_net{op:mine}` mines the ledger store into an observed-net draft + drift report, read-only, live-dogfooded.
 
 ## Steps
 
-- [ ] Analysis
-- [ ] Design
-- [ ] Implementation
+- [x] Analysis
+- [x] Design (IDEA-004 v2 is the design; minor_feature declaration-only per §12)
+- [x] Implementation
 - [ ] Testing
 
 ## Artifacts produced

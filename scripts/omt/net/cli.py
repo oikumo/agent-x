@@ -1,20 +1,25 @@
-"""omt_net CLI — feature_039.adaptive_net_engine + feature_040.net_composition_supervisor.
+"""omt_net CLI — feature_039.adaptive_net_engine + feature_040.net_composition_supervisor
++ feature_042.goal_net_synthesis + feature_044.mined_behavioral_net.
 
-Single tool, closed op enum (IDEA-002 v4 §5.0, PROJECT.md D10):
+Single tool, closed op enum (IDEA-002 v4 §5.0, PROJECT.md D10 + D7-gated
+phase-2 extension at 044):
 
     probe|fire|invariant   feature_039 (observe / marking-only fire / drift)
     splice|sync            feature_040 (structural transactions + net↔reality)
-    synthesize             reserved → clean not_implemented (feature_042)
+    synthesize             feature_042 (goal→net template proposal, D4)
+    mine                   feature_044 (ledger→net behavioral draft, D4)
 
-Contract (tests/scripts/omt/test_net_{cli,splice,sync}.py ARE the spec): one
-JSON envelope on stdout, exit 0 ok / 1 error; bootstrap ordering §5.1 —
-probe/fire/invariant fail clean with net_not_bootstrapped until the bundle
-exists (sync is the first-call entry point). `fire` is marking-only (no
-conformance regression, §5.0 matrix); splice (all modes) + sync bootstrap run
-the 9-vector conformance gate pre-save; proposal-only sync stays read-only
-(D4 — the agent applies proposals via splice). `invariant` folds the old
-`drift` op — net-vs-ledger revision drift is surfaced (exit stays 0) and
-logged to harness.net.drift.jsonl (D7).
+Contract (tests/scripts/omt/test_net_{cli,splice,sync,synthesize}.py ARE the
+spec): one JSON envelope on stdout, exit 0 ok / 1 error; bootstrap ordering
+§5.1 — probe/fire/invariant/synthesize fail clean with net_not_bootstrapped
+until the bundle exists (sync is the first-call entry point). `fire` is
+marking-only (no conformance regression, §5.0 matrix); splice (all modes) +
+sync bootstrap run the 9-vector conformance gate pre-save; proposal-only sync
+stays read-only (D4 — the agent applies proposals via splice). `synthesize`
+is proposal-only (D4 — the agent applies the fragment via splice, which runs
+the gate + D20 cap check). `invariant` folds the old `drift` op — net-vs-ledger
+revision drift is surfaced (exit stays 0) and logged to
+harness.net.drift.jsonl (D7).
 """
 from __future__ import annotations
 
@@ -32,9 +37,11 @@ from .errors import (
     UnknownTransitionError,
 )
 
-RESERVED_OPS = ("synthesize",)
-# TA: xref: feature_041 (pause_2026-08-30d.md R4): _invariant envelope gains ADDITIVE resources[] (per catalog place: capacity/live/capacity_ok/holders — holders for agent_attention = subnets with f{N}_active marked) + conflicts[] (pending subnets whose f{N}_start is not enabled, blocked_by = empty unprefixed input places) via state.resource_report(st) — the D7 omt_complete exit hook then surfaces capacity conflicts mechanically; additive keys only (test_net_cli.py exact-shape risk), RESERVED_OPS stays ("synthesize",) → feature_042.
-# TA: xref: feature_040 (pause_2026-08-30c.md): splice args --mode add|remove|disable|undo|repair --mutation '<json>' --subnet --reasoning; sync bootstraps supervisor skeleton (feature_ready=1, resource_token=1, goal_satisfied=0, NO supervisor transitions v1) then emits PROPOSAL only (D4 — agent applies via splice); RESERVED_OPS shrinks to ("synthesize",) → feature_042.
+RESERVED_OPS: tuple[str, ...] = ()
+# TA: xref: feature_042 (goal_net_synthesis): RESERVED_OPS emptied — synthesize
+# is live (template proposal, D4/D20 pool-aware, reuses --mutation/--feature).
+# TA: xref: feature_041 (pause_2026-08-30d.md R4): _invariant envelope gains ADDITIVE resources[] (per catalog place: capacity/live/capacity_ok/holders — holders for agent_attention = subnets with f{N}_active marked) + conflicts[] (pending subnets whose f{N}_start is not enabled, blocked_by = empty unprefixed input places) via state.resource_report(st) — the D7 omt_complete exit hook then surfaces capacity conflicts mechanically; additive keys only (test_net_cli.py exact-shape risk).
+# TA: xref: feature_040 (pause_2026-08-30c.md): splice args --mode add|remove|disable|undo|repair --mutation '<json>' --subnet --reasoning; sync bootstraps supervisor skeleton (feature_ready=1, resource_token=1, goal_satisfied=0, NO supervisor transitions v1) then emits PROPOSAL only (D4 — agent applies via splice).
 DEFAULT_MAX_STATES = 1000
 
 
@@ -77,8 +84,8 @@ def _probe(base: Path, max_states: int) -> tuple[dict[str, Any], int]:
     return envelope, 0
 
 
-def _fire(base: Path, transition: str, reasoning: str, session: str) -> tuple[dict[str, Any], int]:
-    st = state.fire(base, transition, reasoning=reasoning, session=session)
+def _fire(base: Path, transition: str, reasoning: str, session: str, expected_revision: int | None = None) -> tuple[dict[str, Any], int]:
+    st = state.fire(base, transition, reasoning=reasoning, session=session, expected_revision=expected_revision)
     envelope = {
         "ok": True,
         "op": "fire",
@@ -138,6 +145,55 @@ def _sync(base: Path, args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     return envelope, 0
 
 
+def _synthesize(base: Path, args: argparse.Namespace, goal: Any) -> tuple[dict[str, Any], int]:
+    st, info = state.synthesize(
+        base,
+        goal,
+        reasoning=args.reasoning,
+        session=args.session,
+        feature=args.feature,
+    )
+    envelope: dict[str, Any] = {
+        "ok": True,
+        "op": "synthesize",
+        "revision": st.revision,
+        "applied": info["applied"],
+        "pool_net": info["pool_net"],
+        "prefix": info["prefix"],
+        "fragment": info["fragment"],
+        "places_after": info["places_after"],
+        "would_exceed_cap": info["would_exceed_cap"],
+    }
+    return envelope, 0
+
+
+def _mine(base: Path, args: argparse.Namespace, params: Any) -> tuple[dict[str, Any], int]:
+    st, info = state.mine(
+        base,
+        params,
+        reasoning=args.reasoning,
+        session=args.session,
+        feature=args.feature,
+    )
+    envelope: dict[str, Any] = {
+        "ok": True,
+        "op": "mine",
+        "revision": st.revision,
+        "applied": info["applied"],
+        "pool_net": info["pool_net"],
+        "prefix": info["prefix"],
+        "fragment": info["fragment"],
+        "places_after": info["places_after"],
+        "would_exceed_cap": info["would_exceed_cap"],
+        "mining": info["mining"],
+        "relations": info["relations"],
+        "drift": info["drift"],
+        "empirical": info["empirical"],
+        "manifest": info["manifest"],
+    }
+    return envelope, 0
+
+
 def _invariant(base: Path) -> tuple[dict[str, Any], int]:
     st = state.load(base)
     analyzer = PetriNetAnalyzer(st.net)
@@ -193,6 +249,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_fire.add_argument("--transition", required=True)
     p_fire.add_argument("--reasoning", required=True)
     p_fire.add_argument("--session", default="")
+    p_fire.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="D19 stale-rev guard.")
 
     p_splice = sub.add_parser(
         "splice", help="Atomic structural transaction (conformance-gated, §3)."
@@ -220,8 +277,24 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("invariant", help="Invariants + net-vs-ledger drift (D7).")
 
+    p_synth = sub.add_parser(
+        "synthesize", help="Goal→net template proposal (D4, feature_042)."
+    )
+    p_synth.add_argument("--mutation", default="", help="JSON goal object.")
+    p_synth.add_argument("--reasoning", required=True)
+    p_synth.add_argument("--session", default="")
+    p_synth.add_argument("--feature", default="")
+
+    p_mine = sub.add_parser(
+        "mine", help="Ledger→net behavioral mining (read-only draft, D4, feature_044)."
+    )
+    p_mine.add_argument("--mutation", default="", help="JSON mine params object.")
+    p_mine.add_argument("--reasoning", required=True)
+    p_mine.add_argument("--session", default="")
+    p_mine.add_argument("--feature", default="")
+
     for op in RESERVED_OPS:
-        sub.add_parser(op, help="Reserved — feature_042+.")
+        sub.add_parser(op, help="Reserved — future.")
 
     return parser
 
@@ -234,8 +307,7 @@ def main(argv: list[str] | None = None) -> int:
         return _emit(*_error(
             "not_implemented",
             op,
-            f"omt_net{{op:{op}}} is reserved for feature_042 "
-            "(goal_net_synthesis) — IDEA-002 v4 §5.0",
+            f"omt_net{{op:{op}}} is reserved — IDEA-002 v4 §5.0",
         ))
 
     base = state.net_dir()
@@ -243,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
         if op == "probe":
             return _emit(*_probe(base, args.max_states))
         if op == "fire":
-            return _emit(*_fire(base, args.transition, args.reasoning, args.session))
+            return _emit(*_fire(base, args.transition, args.reasoning, args.session, getattr(args, "expected_revision", None)))
         if op == "splice":
             mutation = None
             if args.mutation:
@@ -256,6 +328,26 @@ def main(argv: list[str] | None = None) -> int:
             return _emit(*_splice(base, args, mutation))
         if op == "sync":
             return _emit(*_sync(base, args))
+        if op == "synthesize":
+            goal = None
+            if args.mutation:
+                try:
+                    goal = json.loads(args.mutation)
+                except json.JSONDecodeError as exc:
+                    return _emit(*_error(
+                        "invalid_mutation", op, f"--mutation is not valid JSON: {exc}"
+                    ))
+            return _emit(*_synthesize(base, args, goal))
+        if op == "mine":
+            params = None
+            if args.mutation:
+                try:
+                    params = json.loads(args.mutation)
+                except json.JSONDecodeError as exc:
+                    return _emit(*_error(
+                        "invalid_mutation", op, f"--mutation is not valid JSON: {exc}"
+                    ))
+            return _emit(*_mine(base, args, params))
         if op == "invariant":
             return _emit(*_invariant(base))
     except state.SpliceError as exc:

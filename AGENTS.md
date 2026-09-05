@@ -2,7 +2,7 @@
 
 > GENERATED from .meta/META_HARNESS.omt — DO NOT EDIT; edit the source, then `uv run scripts/omt/harnessc.py build`.
 
-> **STARTUP:** Read `WORK.md` (only) at session start; summarize current state in ≤ 15 lines (in-progress / blocked / next). All other docs on demand via `omt_nav` (op=nav|list_sections|cross_ref|quick_ref).
+> **STARTUP:** Read `WORK.md` (only) at session start; summarize current state in ≤ 15 lines (in-progress / blocked / next). Present the Tasks menu (NEXT/Other/Blocked/Resources) in order; no invented options (D19). All other docs on demand via `omt_nav` (op=nav|list_sections|cross_ref|quick_ref).
 > **RUNTIME:** `uv` only (no bare `python`/`pip`/`pytest`). `src/` edits → `omt_phase` first.
 
 ## Enforcement

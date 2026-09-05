@@ -182,6 +182,7 @@ Proposed feature roadmap (each spawned via `new_feature.py`; numbers auto-assign
 - [x] feature_046.omt_net_session_arg_whitelist DONE (bug_fix) — omt_net.ts per-op `OP_ARGS` argv whitelist mirroring cli.py subparsers (probe/invariant/synthesize get no `--session`; `max_states` probe-gated) + TA gotcha→why-note + 6 cross-source pins (`tests/scripts/omt/test_omt_net_plugin_args.py`); sentinel 1756→**1762**, harnessc 0 err; live plugin check lands on next-session plugin reload (session-cached plugin ran pre-fix code; simulated argv probe+invariant green)
 - [x] feature_045.work_md_net_driven DONE 2026-09-05 (core 4/4 — CORE COMPLETE) — `sync_md.py` render/parse/propose + `omt_net{op:sync}` md directions + rev-stamped Tasks block (D19 menu); net 98 green, sentinel 1767+1 flake, harnessc 0 err; dogfood SSOT rev 43 dry-run (NEXT f001_start, 6 pending, 5/5 free)
 - [x] feature_048.wip_limited_pool DONE 2026-09-05 (D20) — pool-aware net (sync empty + pool info on pool nets, 15-cap guard, pool holders/conflicts, Pool render line) + test_net_pool.py×10; live rev45 12 places drift-free; omt 364 green, sentinel 1778, harnessc 0 err
+- [x] feature_049.session_start_menu DONE 2026-09-05 (D19 on pool net, rescaffolded — 047 is tombstone) — menu_lines pool-aware + render NEXT work_complete when active + fire --expected-revision stale guard + STARTUP Tasks-menu line (agents_md→2944); test_net_menu.py×6; omt 370 green, harnessc 0 err; live rev46 5/1/1 drift-free NEXT work_complete
 
 ---
 

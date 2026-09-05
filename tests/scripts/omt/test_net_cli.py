@@ -1,9 +1,9 @@
-"""omt_net CLI ops — feature_039.adaptive_net_engine (+ feature_040 update).
+"""omt_net CLI ops — feature_039.adaptive_net_engine (+ feature_040/042 updates).
 
 Canonical op enum (IDEA-002 v4 §5.0, closed set): probe|fire|splice|sync|
 synthesize|invariant. feature_039 ships probe/fire/invariant; feature_040
-ships splice/sync (spec @ test_net_splice.py / test_net_sync.py); synthesize
-stays reserved → clean not_implemented envelope (feature_042).
+ships splice/sync (spec @ test_net_splice.py / test_net_sync.py); feature_042
+ships synthesize (spec @ test_net_synthesize.py — template proposal, D4).
 """
 from __future__ import annotations
 
@@ -141,16 +141,19 @@ class TestInvariantOp:
         assert rec["net_revision"] == 7
 
 
-class TestReservedOps:
-    @pytest.mark.parametrize("op", ["synthesize"])
-    def test_reserved_ops_not_implemented(self, bundle, capsys, op) -> None:
+class TestSynthesizeLive:
+    def test_synthesize_no_longer_reserved(self, bundle, capsys) -> None:
         cli = _cli()
-        code, out = _run(cli, [op], capsys)
-        assert code == 1
-        assert out["ok"] is False
-        assert out["error"] == "not_implemented"
-        assert out["op"] == op
-        assert "feature_042" in out["message"]
+        code, out = _run(
+            cli,
+            ["synthesize", "--mutation", '{"tasks": [{"id": "X"}]}',
+             "--reasoning", "042 live", "--feature", "feature_042.x"],
+            capsys,
+        )
+        assert code == 0
+        assert out["ok"] is True
+        assert out["op"] == "synthesize"
+        assert out["applied"] is False
 
     def test_unknown_op_rejected(self, bundle, capsys) -> None:
         cli = _cli()

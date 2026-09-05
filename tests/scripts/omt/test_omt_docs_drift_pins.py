@@ -167,7 +167,7 @@ def test_omt_tool_set_is_in_sync_everywhere() -> None:
 
 # --- 6. R7 T5 token budget pins (F32) ---------------------------------------
 
-AGENTS_BUDGET = 2816             # rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers — .omt @budget agents_md=2816 is the source of truth; 2026-08-08: 2560→2816 to add .projects/ component line)
+AGENTS_BUDGET = 2944             # rides the system prompt EVERY turn (F33; improvement004/OPT-A: §12/TDD/NAV/THINK/QuickRef tables → nav pointers — .omt @budget agents_md=2944 is the source of truth; 2026-08-08: 2560→2816 to add .projects/ component line; feature_049/session_start_menu: 2816→2944 for STARTUP Tasks-menu line D19)
 # TA: why: meta.projects_harness_surface: AGENTS_BUDGET 2560→2816 to admit the `**Projects home (.projects/):**` line mirroring `.workflows/`. AGENTS.md now 2626 B (190 B headroom). Each similar future line costs ~250-300 B — grow the budget deliberately in the same .omt commit per the existing convention.
 WORK_BUDGET = 8192          # read at every session startup (feature_kb_akb: +1 task → 5120; feature_038 active row → 5632; feature_039 pause line + project-link row → 6144; feature_041 paused task row → 7168, two +512 steps at once; feature_045 DONE-row detail → 7680; feature_048 WIP-pool row + duplicate-link project row → 8192 — .omt @budget work_md=8192 is the source of truth)
 SCRATCHPAD_BUDGET = 3 * 1024    # T2: CURRENT/RECURRING only (improvement002/OPT-B: gotchas relocated to @doc gotcha.* — .omt @budget work_scratchpad=3072 is the source of truth)

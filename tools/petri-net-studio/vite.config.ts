@@ -6,6 +6,16 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   base: "./",
+  build: {
+    // feature_043: second static page (dashboard.html + dashboard-main.tsx).
+    // Editor entry (index.html) byte-identical; both pages emit to dist/.
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        dashboard: path.resolve(__dirname, "dashboard.html"),
+      },
+    },
+  },
   server: {
     // Allow Vite to serve the repo-level shared/ data files (?raw imports of the
     // canonical petri-net-json examples — the ONLY coupling, project D5).

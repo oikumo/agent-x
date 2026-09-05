@@ -1,9 +1,11 @@
 // OMT++ omt_net — meta-harness concurrency net (feature_039.adaptive_net_engine
-// + feature_040.net_composition_supervisor)
+// + feature_040.net_composition_supervisor + feature_042.goal_net_synthesis
+// + feature_044.mined_behavioral_net)
 // Thin proxy around scripts/omt/net_check.py (the state machine lives in
 // Python, scripts/omt/net/; D2 — no src/ import). One registered tool, closed
-// op enum per IDEA-002 v4 §5.0 (probe|fire|splice|sync|invariant live;
-// synthesize reserved → clean not_implemented from the CLI, feature_042+).
+// op enum per IDEA-002 v4 §5.0 (probe|fire|splice|sync|synthesize|invariant;
+// synthesize live since feature_042: goal→net template proposal, D4;
+// mine live since feature_044: ledger→net behavioral draft, D4, D7-gated).
 // R8 (OMT-HDL-1): the tool is built inside createNetTool() so its description
 // resolves from the compiled IR AFTER initOmtShared ran (module-level tool()
 // would read the IR under the pre-init cwd — F2/F17).
@@ -12,22 +14,23 @@ import { tool } from "@opencode-ai/plugin"
 import { execFileSync } from "node:child_process"
 import { initOmtShared, repoRoot, irToolDescription } from "../lib/omt_shared"
 
-const OPS = ["probe", "fire", "invariant", "splice", "sync", "synthesize"]
+const OPS = ["probe", "fire", "invariant", "splice", "sync", "synthesize", "mine"]
 
 // Per-op argv whitelist mirroring the cli.py subparser declarations
 // (cross-source pinned @ tests/scripts/omt/test_omt_net_plugin_args.py).
 const OP_ARGS: Record<string, readonly string[]> = {
   probe: [],
-  fire: ["transition", "reasoning", "session"],
+  fire: ["transition", "reasoning", "session", "expected_revision"],
   splice: ["mode", "mutation", "subnet", "reasoning", "session", "feature"],
   sync: ["reasoning", "session", "direction"],
   invariant: [],
-  synthesize: [],
+  synthesize: ["mutation", "reasoning", "session", "feature"],
+  mine: ["mutation", "reasoning", "session", "feature"],
 }
 
 function createNetTool() {
   return tool({
-    description: irToolDescription("omt_net", "Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize reserved (feature_042+)."),
+    description: irToolDescription("omt_net", "Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize(template→splice proposal, D4) | mine(ledger→net draft, D4)."),
     args: {
       op: tool.schema.string().describe("probe|fire|splice|sync|invariant|synthesize"),
       transition: tool.schema.string().optional().describe("fire: transition name"),

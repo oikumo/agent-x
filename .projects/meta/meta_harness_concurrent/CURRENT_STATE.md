@@ -5,6 +5,49 @@
 
 ---
 
+## 2026-09-05 (auto — feature_044.mined_behavioral_net Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_044.mined_behavioral_net/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-05 (auto — feature_043.meta_net_dashboard Done)
+
+- shipped: major_feature · test report @ 6.testing/features/feature_043.meta_net_dashboard/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-05 (auto — feature_042.goal_net_synthesis Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_042.goal_net_synthesis/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-05 (auto — feature_049.session_start_menu Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_049.session_start_menu/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-05 (resume — feature_049.session_start_menu DONE, D19 on pool net)
+
+- user approved: Fire + 047 menu (049 rescaffold — 047 is tombstone, next free 049)
+- fired work_start rev45→46 (5/1/1, attention held by pool); stale fire rev45 refused live
+- shipped: minor_feature · test report @ 6.testing/features/feature_049.session_start_menu/test_report.md
+- menu_lines pool-aware + render NEXT work_complete when active + fire --expected-revision stale guard + STARTUP Tasks-menu line (agents_md 2816→2944 + pin)
+- verified: test_net_menu 6/6, omt 370/370, harnessc 0 err, e2e 1/1 (×2 rounds), live rev46 drift-free NEXT work_complete
+- NEXT: omt_complete Done → fire work_complete (active 1→0 done 1→2) · then 042–044 optionals · 001/002 still unscoped (D1)
+
+---
+
 ## 2026-09-05 (auto — feature_048.wip_limited_pool Done)
 
 - shipped: minor_feature · test report @ 6.testing/features/feature_048.wip_limited_pool/test_report.md

@@ -97,16 +97,17 @@ class TestWhitelistMirrorsCli:
                 f"declares only {sorted(cli.get(op, set()))}"
             )
 
-    def test_probe_invariant_synthesize_get_no_session(self):
-        """The concrete regression: probe/invariant (and reserved synthesize)
-        must never receive --session — their subparsers reject it."""
+    def test_probe_invariant_get_no_session(self):
+        """The concrete regression: probe/invariant must never receive
+        --session — their subparsers reject it. (feature_042: synthesize
+        declares --session like fire/splice/sync — audit records key on it.)"""
         wl = _plugin_whitelist()
-        for op in ("probe", "invariant", "synthesize"):
+        for op in ("probe", "invariant"):
             assert "session" not in wl.get(op, []), op
 
     def test_session_accepting_ops_keep_session(self):
-        """fire/splice/sync DO declare --session — the whitelist must not
-        over-trim (their audit records key on it)."""
+        """fire/splice/sync/synthesize/mine DO declare --session — the whitelist
+        must not over-trim (their audit records key on it)."""
         wl = _plugin_whitelist()
-        for op in ("fire", "splice", "sync"):
+        for op in ("fire", "splice", "sync", "synthesize", "mine"):
             assert "session" in wl.get(op, []), op

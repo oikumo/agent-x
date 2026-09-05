@@ -1,6 +1,6 @@
 # Feature 044: Mined Behavioral Net
 
-> **Status:** [ ] Not started
+> **Status:** [x] Done 2026-09-05 (minor_feature, meta_harness_concurrent phase-2 3/3)
 > **Created:** 2026-08-30
 > **WORK.md task:** <!-- link the matching line in WORK.md -->
 
@@ -8,15 +8,21 @@
 
 ## Summary
 
-<!-- One paragraph: what this feature is and why it exists. -->
+Ledger-mined behavioral net (IDEA-004 v2, the upward complement to synthesis):
+the ledger STORE (hot + all rotated archives) is read as an event log and an
+observed P/T net is discovered with a simplified α-variant (`miner.py`, stdlib-only)
+via `omt_net{op:mine}` — the single D7-gated extension of the closed op enum —
+so intended-vs-observed behavioral drift, empirical invariants, and next-event
+frequencies are mechanical reports, proposal-only (D4), never auto-applied.
 
 ## Scope (one sentence — what "done" looks like)
 
-<!-- If you cannot fill this in, you are still in Analysis. -->
+`mine` returns an observed-net draft (fragment + drift + empirical invariants +
+manifest) over 61 live cases, read-only on the pool net, ledger-audited.
 
 ## Task type
 
-<!-- bug_fix | minor_feature | major_feature | new_screen | refactor -->
+minor_feature
 
 ---
 

@@ -371,11 +371,23 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     ]
 
 
-def fire(base: Path, transition: str, *, reasoning: str, session: str) -> NetState:
+def fire(base: Path, transition: str, *, reasoning: str, session: str, expected_revision: int | None = None) -> NetState:
     """Validate enablement at the live marking, apply, persist atomically,
     ledger `kind:"net_fire"` (IDEA-002 §5.0 — marking-only; no conformance
-    regression). Disabled/unknown transitions raise before any write."""
+    regression). Disabled/unknown transitions raise before any write.
+
+    feature_049 (D19 stale-rev guard): when expected_revision is supplied
+    (the rev stamped in the WORK.md Tasks menu the user picked from), refuse
+    with SpliceError("stale_revision") when it differs from the loaded
+    revision — the caller re-renders (sync net_to_md) first (D4, never silent).
+    """
     st = load(base)
+    if expected_revision is not None and expected_revision != st.revision:
+        raise SpliceError(
+            "stale_revision",
+            f"D19 stale menu: expected rev {expected_revision} != live rev "
+            f"{st.revision} — re-render (sync net_to_md) before firing",
+        )
     successor = st.net.fire_marking(
         tuple(st.live_marking[p] for p in st.net.place_order), transition
     )  # TransitionNotEnabledError / UnknownTransitionError raised here, pre-write
@@ -1323,6 +1335,161 @@ def resource_report(st: NetState) -> dict[str, Any]:
     return {"resources": resources, "conflicts": conflicts}
 
 
+# ---------------------------------------------------------------------------
+# Goal synthesis (feature_042.goal_net_synthesis — IDEA-002 §4, F4-bounded)
+# ---------------------------------------------------------------------------
+
+_GOAL_ID_RE = re.compile(r"^[A-Za-z0-9_]+$")
+_SYNTH_MAX_TASKS = 16
+
+
+def _prefix_for_feature(feature: str) -> str:
+    """Collision-safe prefix for a goal fragment (subnet convention f{N}_)."""
+    m = _FEATURE_DIR_RE.match((feature or "").strip())
+    if m:
+        return f"f{m.group(1)}_"
+    return "g_"
+
+
+def build_goal_fragment(goal: Any, prefix: str) -> dict[str, Any]:
+    """Deterministic template composition (IDEA-002 §4.2, templates only).
+
+    task→chain ({id}_ready → do_{id} → {id}_done), dependency→arc
+    ({dep}_done → do_{id}), resource→capacity borrow arcs (r ⇄ do_{id}
+    self-loop preserves the token), acceptance→verified place
+    (do_{id} → {id}_verified). Tasks sorted by id — same goal →
+    byte-identical fragment. Raises SpliceError("invalid_goal", ...) on
+    malformed goals (free prose is explicitly out, F4)."""
+    if not isinstance(goal, dict) or not isinstance(goal.get("tasks"), list):
+        raise SpliceError("invalid_goal", "goal needs a 'tasks' array")
+    tasks = goal["tasks"]
+    if not 1 <= len(tasks) <= _SYNTH_MAX_TASKS:
+        raise SpliceError(
+            "invalid_goal",
+            f"goal needs 1..{_SYNTH_MAX_TASKS} tasks, got {len(tasks)}",
+        )
+    by_id: dict[str, dict[str, Any]] = {}
+    for entry in tasks:
+        if not isinstance(entry, dict) or not isinstance(entry.get("id"), str):
+            raise SpliceError("invalid_goal", f"each task needs a string id: {entry!r}")
+        tid = entry["id"]
+        if not tid or not _GOAL_ID_RE.match(tid):
+            raise SpliceError("invalid_goal", f"bad task id: {tid!r}")
+        if tid in by_id:
+            raise SpliceError("invalid_goal", f"duplicate task id: {tid!r}")
+        needs = entry.get("needs", [])
+        if not isinstance(needs, list) or len(set(map(str, needs))) != len(needs):
+            raise SpliceError("invalid_goal", f"bad needs for {tid!r}")
+        for resource in needs:
+            if resource not in RESOURCE_PLACES:
+                raise SpliceError("invalid_goal", f"unknown resource {resource!r}")
+        after = entry.get("after", [])
+        if not isinstance(after, list) or len(set(map(str, after))) != len(after):
+            raise SpliceError("invalid_goal", f"bad after for {tid!r}")
+        for dep in after:
+            if dep == tid:
+                raise SpliceError("invalid_goal", f"self-dependency {tid!r}")
+        acceptance = entry.get("acceptance")
+        if acceptance is not None and (
+            not isinstance(acceptance, str) or not acceptance.strip()
+        ):
+            raise SpliceError("invalid_goal", f"bad acceptance for {tid!r}")
+        by_id[tid] = entry
+    for tid, entry in by_id.items():
+        for dep in entry.get("after", []):
+            if dep not in by_id:
+                raise SpliceError("invalid_goal", f"unknown after {dep!r} for {tid!r}")
+    add_places: list[dict[str, Any]] = []
+    add_transitions: list[dict[str, Any]] = []
+    add_arcs: list[dict[str, Any]] = []
+    for tid in sorted(by_id):
+        entry = by_id[tid]
+        ready, done, do = f"{prefix}{tid}_ready", f"{prefix}{tid}_done", f"{prefix}do_{tid}"
+        add_places.append({"name": ready, "tokens": 0})
+        add_places.append({"name": done, "tokens": 0})
+        verified = f"{prefix}{tid}_verified" if entry.get("acceptance") else ""
+        if verified:
+            add_places.append({"name": verified, "tokens": 0})
+        add_transitions.append({"name": do})
+        add_arcs.append({"source": ready, "target": do, "weight": 1})
+        for resource in sorted(entry.get("needs", [])):
+            add_arcs.append({"source": resource, "target": do, "weight": 1})
+        for dep in sorted(entry.get("after", [])):
+            add_arcs.append({"source": f"{prefix}{dep}_done", "target": do, "weight": 1})
+        add_arcs.append({"source": do, "target": done, "weight": 1})
+        for resource in sorted(entry.get("needs", [])):
+            add_arcs.append({"source": do, "target": resource, "weight": 1})
+        if verified:
+            add_arcs.append({"source": do, "target": verified, "weight": 1})
+    place_names = [p["name"] for p in add_places]
+    trans_names = [t["name"] for t in add_transitions]
+    if len(set(place_names)) != len(place_names) or len(set(trans_names)) != len(
+        trans_names
+    ):
+        raise SpliceError("invalid_goal", "fragment name collision")
+    if set(place_names) & set(trans_names):
+        raise SpliceError("invalid_goal", "fragment place/transition collision")
+    return {
+        "add_places": add_places,
+        "add_transitions": add_transitions,
+        "add_arcs": add_arcs,
+    }
+
+
+def synthesize(
+    base: Path,
+    goal: Any,
+    *,
+    reasoning: str,
+    session: str = "",
+    feature: str = "",
+) -> tuple[NetState, dict[str, Any]]:
+    """Goal→net template proposal (IDEA-002 §4.3 steps 1–3; step 4 stays manual).
+
+    Proposal-only (D4 — the agent applies the fragment via splice, which runs
+    the conformance gate + D20 cap check): read-only on state (no revision
+    bump, like sync resync), ledger-audited (kind net_synthesize). Pool nets
+    (D20) never materialize per-goal subnets — the fragment is returned for
+    overlay/ledger bookkeeping, not structural apply."""
+    if isinstance(goal, str):
+        try:
+            goal = json.loads(goal)
+        except json.JSONDecodeError as exc:
+            raise SpliceError("invalid_mutation", f"--mutation is not valid JSON: {exc}")
+    prefix = _prefix_for_feature(feature)
+    fragment = build_goal_fragment(goal, prefix)
+    st = load(base)
+    pool_mode = is_pool_net(st.net)
+    existing = set(st.net.places)
+    new_places = [p["name"] for p in fragment["add_places"] if p["name"] not in existing]
+    places_after = len(st.net.places) + len(new_places)
+    would_exceed = places_after > MAX_PLACES
+    append_ledger({
+        "kind": "net_synthesize",
+        "revision": st.revision,
+        "reasoning": reasoning,
+        "session": session,
+        "feature": feature,
+        "prefix": prefix,
+        "tasks": len(goal["tasks"]),
+        "places": len(fragment["add_places"]),
+        "transitions": len(fragment["add_transitions"]),
+        "arcs": len(fragment["add_arcs"]),
+        "pool_net": pool_mode,
+        "would_exceed_cap": would_exceed,
+        "applied": False,
+    })
+    info: dict[str, Any] = {
+        "applied": False,
+        "pool_net": pool_mode,
+        "prefix": prefix,
+        "fragment": fragment,
+        "places_after": places_after,
+        "would_exceed_cap": would_exceed,
+    }
+    return st, info
+
+
 def lifecycle_sync_hook(event: str) -> None:
     """R6: lifecycle auto-sync — re-sync the net on harness lifecycle events
     (project create/link/close/archive/reopen, new_feature --project link).
@@ -1349,3 +1516,227 @@ def lifecycle_sync_hook(event: str) -> None:
             f"omt_net auto-sync ({event}): {pending} proposal(s) pending — "
             "apply via splice (D4)"
         )
+
+
+# ---------------------------------------------------------------------------
+# Mine op (feature_044.mined_behavioral_net — IDEA-004 v2; the single gated
+# extension of the IDEA-002 v4 §5.0 closed op enum at phase-2 slot 044, D7)
+# ---------------------------------------------------------------------------
+
+_MINE_CASES = ("feature", "session", "project")
+_MINE_VIEWS = ("phase-flow", "probe-friction")
+
+
+def _parse_mine_params(params: Any) -> dict[str, Any]:
+    """Validate the mine --mutation JSON object (all keys optional, D4
+    zero-churn args reuse like synthesize): window (corpus | last:N),
+    min_support (positive int), case (feature | session | project),
+    activity_view (phase-flow | probe-friction)."""
+    if params is None or params == "":
+        params = {}
+    if isinstance(params, str):
+        try:
+            params = json.loads(params)
+        except json.JSONDecodeError as exc:
+            raise SpliceError(
+                "invalid_mine_params", f"--mutation is not valid JSON: {exc}"
+            )
+    if not isinstance(params, dict):
+        raise SpliceError(
+            "invalid_mine_params",
+            f"mine params must be a JSON object, got {type(params).__name__}",
+        )
+    unknown = set(params) - {"window", "min_support", "case", "activity_view"}
+    if unknown:
+        raise SpliceError(
+            "invalid_mine_params", f"mine params has unknown member(s): {sorted(unknown)}"
+        )
+    window = params.get("window", "corpus")
+    if not isinstance(window, str) or (
+        window != "corpus" and not re.fullmatch(r"last:\d+", window.strip())
+    ):
+        raise SpliceError("invalid_mine_params", f"bad window: {window!r}")
+    if window.startswith("last:") and int(window.split(":")[1]) < 1:
+        raise SpliceError("invalid_mine_params", f"bad window: {window!r}")
+    min_support = params.get("min_support", 3)
+    if (
+        not isinstance(min_support, int)
+        or isinstance(min_support, bool)
+        or min_support < 1
+    ):
+        raise SpliceError("invalid_mine_params", f"bad min_support: {min_support!r}")
+    case = params.get("case", "feature")
+    if case not in _MINE_CASES:
+        raise SpliceError("invalid_mine_params", f"bad case: {case!r}")
+    view = params.get("activity_view", "phase-flow")
+    if view not in _MINE_VIEWS:
+        raise SpliceError("invalid_mine_params", f"bad activity_view: {view!r}")
+    return {
+        "window": window,
+        "min_support": min_support,
+        "case": case,
+        "activity_view": view,
+    }
+
+
+def mine(
+    base: Path,
+    params: Any,
+    *,
+    reasoning: str,
+    session: str = "",
+    feature: str = "",
+) -> tuple[NetState, dict[str, Any]]:
+    """Ledger→net behavioral mining (IDEA-004 v2: EXTRACT → α-mine → drift).
+
+    Proposal-only (D4 — a mined draft materializes only via splice, which runs
+    the conformance gate + D20 cap check): read-only on the supervised net (no
+    revision bump, like sync resync / synthesize). Ledger-audited (kind
+    net_mine). Draft artifacts (observed net + sidecar + manifest, D14 runtime
+    state) are written beside the bundle for replay. Pool nets (D20) mine the
+    same way — the observed phase-flow net lives at a different modeling
+    level than the pool, so drift reports the level gap honestly instead of a
+    forced structural diff."""
+    from . import miner  # noqa: PLC0415 (call-time lookup — tests patch)
+    from .analysis import PetriNetAnalyzer  # noqa: PLC0415 (same)
+
+    cfg = _parse_mine_params(params)
+    st = load(base)
+    files = miner.store_files()
+    records: list[dict[str, Any]] = []
+    for path in files:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                records.append(json.loads(line))
+    traces, stats = miner.extract_traces(
+        records, case=cfg["case"], activity_view=cfg["activity_view"]
+    )
+    try:
+        traces = miner.select_window(traces, stats, cfg["window"])
+    except ValueError as exc:
+        raise SpliceError("invalid_mine_params", str(exc)) from exc
+    relations = miner.mine_relations(traces, min_support=cfg["min_support"])
+    fragment = miner.build_observed_fragment(relations, traces)
+
+    observed = PetriNet()
+    try:
+        _apply_add(
+            observed,
+            fragment["add_places"],
+            fragment["add_transitions"],
+            fragment["add_arcs"],
+        )
+    except SpliceError as exc:
+        raise SpliceError("miner_error", f"observed net failed to build: {exc}") from exc
+    analyzer = PetriNetAnalyzer(observed)
+    empirical = [list(v) for v in analyzer.place_invariants()]
+
+    activities = sorted({act for trace in traces.values() for act in trace})
+    intended = sorted(st.net.transitions)
+    intended_set, mined_set = set(intended), set(activities)
+    pool_mode = is_pool_net(st.net)
+    causal_ranked = sorted(
+        relations["causal"], key=lambda item: (-item["support"], item["edge"])
+    )
+    drift = {
+        "intended_level": "pool" if pool_mode else "partitioned",
+        "intended_transitions": intended,
+        "mined_activities": activities,
+        "shared": sorted(intended_set & mined_set),
+        "mined_only_activities": sorted(mined_set - intended_set),
+        "top_paths": [
+            {"path": item["edge"], "support": item["support"]}
+            for item in causal_ranked[:10]
+        ],
+        "note": (
+            "pool net models WIP counts while mining observes phase flow — "
+            "levels differ, no forced structural diff"
+            if pool_mode
+            else "partitioned net vs observed phase flow — shared names align"
+        ),
+    }
+
+    existing = set(st.net.places)
+    new_places = [p["name"] for p in fragment["add_places"] if p["name"] not in existing]
+    places_after = len(st.net.places) + len(new_places)
+    would_exceed = places_after > MAX_PLACES
+
+    draft_revision = (
+        sum(1 for r in read_ledger_net_records() if r.get("kind") == "net_mine") + 1
+    )
+    manifest = {
+        "draft_revision": draft_revision,
+        "ledger_files": [p.name for p in files],
+        "case": cfg["case"],
+        "attribution": cfg["case"] == "feature",
+        "activity_view": cfg["activity_view"],
+        "window": {"mode": cfg["window"]},
+        "min_support": cfg["min_support"],
+        "records_total": stats["records_total"],
+        "records_used": stats["records_used"],
+        "records_skipped": stats["records_skipped"],
+        "skipped_reasons": stats["skipped_reasons"],
+    }
+    from .io import net_to_json  # noqa: PLC0415 (call-time lookup — tests patch)
+
+    (base / miner.MINED_FILENAME).write_text(
+        net_to_json(observed), encoding="utf-8"
+    )
+    (base / miner.MINED_SIDECAR_FILENAME).write_text(
+        json.dumps(
+            {
+                "observed_marking": {
+                    p["name"]: p.get("tokens", 0) for p in fragment["add_places"]
+                },
+                "draft_revision": draft_revision,
+                "updated_at": _utc_now(),
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (base / miner.MINE_MANIFEST_FILENAME).write_text(
+        json.dumps(manifest, ensure_ascii=False), encoding="utf-8"
+    )
+
+    append_ledger({
+        "kind": "net_mine",
+        "revision": st.revision,
+        "reasoning": reasoning,
+        "session": session,
+        "feature": feature,
+        "cases": len(traces),
+        "activities": len(activities),
+        "causal_edges": len(relations["causal"]),
+        "pruned_edges": len(relations["pruned"]),
+        "pool_net": pool_mode,
+        "would_exceed_cap": would_exceed,
+        "applied": False,
+    })
+    info: dict[str, Any] = {
+        "applied": False,
+        "pool_net": pool_mode,
+        "prefix": "m_",
+        "fragment": fragment,
+        "places_after": places_after,
+        "would_exceed_cap": would_exceed,
+        "mining": {
+            "cases": len(traces),
+            "records_used": stats["records_used"],
+            "records_skipped": stats["records_skipped"],
+            "skipped_reasons": stats["skipped_reasons"],
+            "attributed_support": stats["attributed_support"],
+            "min_support": cfg["min_support"],
+            "case": cfg["case"],
+            "activity_view": cfg["activity_view"],
+            "window": cfg["window"],
+        },
+        "relations": relations,
+        "drift": drift,
+        "empirical": {
+            "place_invariants": empirical,
+            "place_invariant_count": len(empirical),
+        },
+        "manifest": manifest,
+    }
+    return st, info

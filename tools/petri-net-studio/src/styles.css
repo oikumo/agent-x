@@ -189,6 +189,13 @@ button.armed {
   opacity: 0.55;
 }
 
+/* feature_043 dashboard: blocked-place highlight (additive — editor untouched).
+   The Dashboard wraps blocked places in `.blocked`; the circle glows amber. */
+.blocked .place-circle {
+  border-color: var(--warn);
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
 .react-flow__handle {
   width: 8px;
   height: 8px;
