@@ -9,7 +9,7 @@
     "nav_tip": 512,
     "tool_args": 2304,
     "tool_schemas": 1792,
-    "work_md": 7168,
+    "work_md": 8192,
     "work_scratchpad": 3072
   },
   "deny": [

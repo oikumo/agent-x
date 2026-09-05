@@ -20,7 +20,7 @@ const OP_ARGS: Record<string, readonly string[]> = {
   probe: [],
   fire: ["transition", "reasoning", "session"],
   splice: ["mode", "mutation", "subnet", "reasoning", "session", "feature"],
-  sync: ["reasoning", "session"],
+  sync: ["reasoning", "session", "direction"],
   invariant: [],
   synthesize: [],
 }
@@ -38,6 +38,8 @@ function createNetTool() {
       mutation: tool.schema.string().optional().describe("splice: JSON mutation string (add_places/add_transitions/add_arcs | remove_places/remove_transitions/token_policy/reroute)"),
       subnet: tool.schema.string().optional().describe("splice disable: subnet key, e.g. feature_039"),
       feature: tool.schema.string().optional().describe("splice: owning feature slug (audit)"),
+      direction: tool.schema.string().optional().describe("sync: proposal|net_to_md|md_to_net_propose"),
+      dry_run: tool.schema.boolean().optional().describe("sync: dry-run render/propose without writing"),
     },
     async execute(args, context) {
       const op = String(args?.op ?? "")
@@ -65,6 +67,7 @@ function createNetTool() {
       }
       if (op === "probe" && args?.max_states !== undefined && args?.max_states !== null)
         argv.push("--max-states", String(args.max_states))
+      if (op === "sync" && (args as any)?.dry_run === true) argv.push("--dry-run")
       try {
         const out = execFileSync("uv", argv, {
           cwd: repoRoot(), encoding: "utf8", timeout: 30000,

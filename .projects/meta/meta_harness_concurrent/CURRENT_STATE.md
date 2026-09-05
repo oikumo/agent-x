@@ -5,6 +5,47 @@
 
 ---
 
+## 2026-09-05 (auto — feature_048.wip_limited_pool Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_048.wip_limited_pool/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-05 (resume — feature_048.wip_limited_pool DONE)
+
+- resumed from `.sandbox/pause_2026-09-05.md` (rev45 12-place pool, known-open: sync 7 stale adds, resource_report fN_-only, sync_md fN_-only)
+- shipped: minor_feature · test report @ 6.testing/features/feature_048.wip_limited_pool/test_report.md
+- pool-aware code: `state.py` (`is_pool_net`/`pool_counts`/`MAX_PLACES=15`, sync empty + `proposal.pool` on pool nets, `place_cap_exceeded` guard in splice add/undo, pool holders `["pool"]` + pool `work_start` conflicts) + `sync_md.py` (`Pool: pending/active/done (places N/15)` line, `is_pool_net`)
+- scaffold collision: `new_feature.py` took free `047` → renamed to `048` per locked D20; stale ledger link kept green via tombstone `feature_047.wip_limited_pool/FEATURE.md`; `@budget work_md 7680→8192` + `WORK_BUDGET 7168→8192` same round
+- verified: `test_net_pool.py` 10/10, omt suite 364/364, sentinel 1778 passed, harnessc 0 err; live rev45 probe 12 places enabled=[work_start] pending=6/active=0/done=1, invariant drift-free 5/5 free, sync proposal empty + pool info (was 7 adds — no longer emitted)
+- NEXT: fire `work_start` to align pool (pending 6→5 active 0→1 matches reality 5+1) · then 047 session-start menu / 042–044 optionals · 001/002 still unscoped
+
+---
+
+## 2026-09-05 (resume — D20 15-place cap, feature_048 ACTIVE)
+
+- directive: user "meta petri net must limit work, 15 places max" → D20 locked (PROJECT.md: Quick-Start, roadmap #9, Status, Decisions log)
+- direction approved: generic WIP pool (11–12 places, 2 transitions; identity → overlay+ledger)
+- gap: rev 43 = 30 places (7×3 feature + 9 infra) → target 11–12 (3 pool + 5 resources + 3 boundary +1 archive)
+- migration plan: one splice remove 21+14 add 3+2, marking pending=6/active=0/done=1; Analysis declared feature_048.wip_limited_pool
+- APPLIED rev 43→44→45: add pool (work_pending/active/done + work_start/complete, 9 arcs) rev44 ok; reroute-remove 21 places +14 transitions (6 pending→work_pending, 1 done→work_done) rev45 ok; conformance 9/9 both; probe 12 places enabled=[work_start] marking pending=6/active=0/done=1; invariant drift-free rev45=ledger45 resources 5/5 free
+- OPEN: sync proposal still emits per-feature subnets (7 adds) — MUST NOT apply (would break ≤15); code follow-up (state.py _subnet_mutation/sync + resource_report + sync_md render pool-aware) required in feature_048 Programming
+- NEXT: Design → splice apply → probe/invariant green → sentinel
+
+---
+
+## 2026-09-05 (auto — feature_045.work_md_net_driven Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_045.work_md_net_driven/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+- exit finish 2026-09-05: WORK.md DONE line completed (core 4/4 CORE COMPLETE); FEATURE.md status/artifacts → [x]; PROJECT.md Status + Quick-Start Next → 047; net 98 green, sentinel 1767+1 flake, harnessc 0 err; dogfood rev 43 dry-run NEXT f001_start.
+- NEXT: feature_047.session_start_menu (D19, first after 045, unscaffolded) vs 042–044 scaffolded optionals.
+
+---
+
+
 ## 2026-08-31 (auto — feature_046.omt_net_session_arg_whitelist Done)
 
 - shipped: bug_fix · test report @ 6.testing/features/feature_046.omt_net_session_arg_whitelist/test_report.md

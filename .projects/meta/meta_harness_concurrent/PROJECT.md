@@ -10,7 +10,7 @@
 
 > One line: A **meta-harness-scoped** design project — **concurrency state management driven by a single Petri net** (D16): ONE flat supervisor net composes per-project/per-feature subnets as partitions (`f{N}_` prefixes + boundary ports `feature_ready`/`resource_token`/`goal_satisfied`), resource places (`agent_attention`=1, `src_edit_capacity`, `tests_capacity`, `harness_surface_round`, `e2e_receipt`) make conflicts/deadlocks structural, and the net bundle (net file + sidecar + overlay) — **in complement with** the ledger (audit) and WORK.md (human projection) — is the **global state single source of truth**. Gates keep enforcement; the analyzer blocks invalid fires. **Meta harness only — NOT agentx (D1).**
 
-**Next:** the exit-review batch is COMPLETE — **feature_046 DONE** (omt_net.ts per-op `OP_ARGS` whitelist; 6 cross-source pins; live plugin check lands on next-session plugin reload, this session's cached plugin ran pre-fix code); D17 RESOLVED (feature_045 promoted, **core = 039/040/041/045**); the REAL SSOT holds the resource catalog + all scaffolded feature subnets (`.meta/.omt/META_NET.petri.json` **rev 3**, drift-free, invariant green — 042–045 materialized `pending`, 046 `done`). **Next feature: feature_045.work_md_net_driven** (core 4/4 — completes the D16 SSOT loop; design basis IDEA-005 + `ideas/WORK.md.net-driven-example`; D4 proposal-only for the md→net direction). Optional phase-2 after that: 042 synthesize / 043 dashboard / 044 mined net.
+**Next:** D20 15-place cap ACTIVE (user directive 2026-09-05) — **feature_048.wip_limited_pool** FIRST (generic WIP pool, 11–12 places), then 047 session-start menu / 042–044 optionals. Core 4/4 COMPLETE — **feature_045 DONE 2026-09-05** (sync_md render/parse/propose + md directions; net 98 green; dogfood rev 43 dry-run).
 
 ---
 
@@ -72,6 +72,8 @@ Proposed feature roadmap (each spawned via `new_feature.py`; numbers auto-assign
 | 5 | `feature_043.meta_net_dashboard` | major_feature (optional, phase-2) | Static-build dashboard reusing studio projection/animation/gallery: reads `.meta/.omt/META_NET.petri.json` + sidecar at build; deadlock highlight, revision slider | 1–3 |
 | 6 | `feature_044.mined_behavioral_net` | minor_feature (optional, phase-2) | IDEA-004: `miner.py` (α-variant + session attribution over the ledger store) + `mine` op (single gated extension of the closed op enum) + intended-vs-observed behavioral drift report + empirical invariants | 2 (+4 for full compare) |
 | 7 | `feature_045.work_md_net_driven` | minor_feature (**core 4/4 — promoted per D17 resolution 2026-08-30**) | IDEA-005: WORK.md as deterministic net projection + proposal surface — `sync.py` render/parse/propose, `omt_net{op:sync}` md directions, round-trip conformance vectors | 1–3 |
+| 8 | `feature_047.session_start_menu` | minor_feature (phase-2, first after 045) | Session-start actionable menu = the 045 render, rev-stamped: `NEXT + Other enabled + Blocked + Resources` derived from `probe.enabled[]/holders/conflicts`; STARTUP presents options from WORK.md Tasks only (no new gate/hook/ledger kind; staleness = re-render before fire, D4) | 7 |
+| 9 | `feature_048.wip_limited_pool` | minor_feature (phase-2, FIRST per D20) | Generic WIP pool: 3 pool places (`work_pending/active/done`) + 5 resources + 3 boundary (+1 archive) = 11–12 places ≤15 cap; 2 transitions (`work_start/complete`); identity in overlay+ledger; one-splice migration from 30-place per-feature net | 1–3,7 |
 
 **Core = features 1–3 + 7** (feature_045 promoted into the core per D17 resolution, user-approved 2026-08-30). Features 4–6 are phase-2, only if core proves valuable (IDEA-003 §6 re-scope, not cancellation). **Feature 7 (WORK.md projection) completes the SSOT loop of D16.**
 
@@ -84,6 +86,7 @@ Proposed feature roadmap (each spawned via `new_feature.py`; numbers auto-assign
 5. Three-file atomic persistence: `META_NET.petri.json` (v1, structure + M0) + `net_state.sidecar.json` (live marking + revision) + `supervisor.overlay.json` (composition view); git-ignored (runtime state, durability via revision + ledger + conformance vectors).
 6. Drift check: `omt_net{op:invariant}` runs net-vs-ledger reconciliation at every `omt_complete` exit; logs to `harness.net.drift.jsonl`.
 7. WORK.md projection surface (phase-2, feature_045): deterministic render of net state into WORK.md tasks/projects sections + proposal path for hand edits (IDEA-005). WORK.md convention sections (CONV_WORK_*) stay under their existing authority; only the tasks/projects blocks become renders.
+8. Session-start actionable menu (phase-2, feature_047, first after 045): the 045 render *is* the menu — rev-stamped `NEXT + Other enabled + Blocked + Resources`, presented from WORK.md Tasks at session start with no new gate/hook/ledger kind (D19).
 
 **Out of scope (explicit non-goals):**
 
@@ -102,6 +105,18 @@ Proposed feature roadmap (each spawned via `new_feature.py`; numbers auto-assign
 - Fire/mutate ops are atomic, versioned, audit-logged (`kind:"net_*"`); every firing carries reasoning; conformance vectors pass after every splice.
 - Core features 1–3 ship with parity + sentinel green; drift check runs at every `omt_complete` exit.
 - Zero `src/` edits recorded under this project; agentx suite untouched.
+
+### Feature 8 elaborated — `feature_047.session_start_menu` (D19)
+
+**Problem:** the net tracks global state, but nothing turns it into user action at session start — the user must know to ask. The main idea (user directive 2026-09-05): partial work available must be actionable, all options presented at every opencode session start.
+
+**Design (simplest effective — no new machinery):** the 045 WORK.md render *is* the menu. `sync` net→md writes `## Tasks` as a rev-stamped block — `NEXT: <fN_start> (recommended)` + `Other enabled: <...>` + `Blocked: <...with reason>` + `Resources: <5/5 free|holders>` + `(net rev R)` — derived purely from `probe.enabled[]`, `resource_report` holders, and `conflicts[]`. The existing `STARTUP` WORK.md read becomes the net read: agent presents options from that block only, in order, with no other options invented. No INJECT, no enforcer gate, no ledger kind, no session-state file (F5 zero churn).
+
+**Render contract:** deterministic (same marking → byte-identical block); `NEXT` = smallest pending core/phase-2 start, recommendation = 045 until done then 042→044; `Blocked` lists disabled/conflicted starts with structural reason (holder or conflict pair); `Resources` one line with capacity_ok flags. Header carries `(net rev R)`; fire path verifies `R == probe revision` else re-renders first (D4 proposal-only, never silent). Hand edits to the block are proposals through splice, never state.
+
+**Non-goals:** no fire-on-pick automation (user picks, agent fires with reasoning); no push/notification; no dashboard; no new ops or budgets; no change to gates/FSM (D3) or engine (D2).
+
+**Acceptance:** fresh session shows the 6 current starts in order with correct NEXT + resources line; stale rev refuses fire and re-renders; round-trip vector (marking → render → parse → same enabled set) green alongside the 045 vectors.
 
 ---
 
@@ -165,6 +180,8 @@ Proposed feature roadmap (each spawned via `new_feature.py`; numbers auto-assign
 - [x] feature_041.resource_places_concurrency DONE (core 3/3) — R1–R8 resource places shipped (5-place catalog cap=1, attention claim/release, `ports.resources`, `resource_report`+conflicts, resync proposal, lifecycle auto-sync hooks) + dogfooded on the REAL SSOT (**rev 0→1**: catalog via sync→splice, invariant green, drift-free); sentinel 1756 passed. Exit-review decisions surfaced to user: D17 feature_045 promotion; omt_net.ts `--session` proxy bug (feature_046?)
 - [x] Exit-review batch (2026-08-30, user-approved) — D17 RESOLVED (feature_045 promoted, core = 039/040/041/045); roadmap scaffolded (feature_042–046, all `--project meta_harness_concurrent`); **41 pending subnets applied** to the REAL SSOT (one merged `splice{mode:add}`, 123 places/82 transitions/369 arcs → **rev 2**, drift-free, invariants hold, 5/5 resources capacity_ok)
 - [x] feature_046.omt_net_session_arg_whitelist DONE (bug_fix) — omt_net.ts per-op `OP_ARGS` argv whitelist mirroring cli.py subparsers (probe/invariant/synthesize get no `--session`; `max_states` probe-gated) + TA gotcha→why-note + 6 cross-source pins (`tests/scripts/omt/test_omt_net_plugin_args.py`); sentinel 1756→**1762**, harnessc 0 err; live plugin check lands on next-session plugin reload (session-cached plugin ran pre-fix code; simulated argv probe+invariant green)
+- [x] feature_045.work_md_net_driven DONE 2026-09-05 (core 4/4 — CORE COMPLETE) — `sync_md.py` render/parse/propose + `omt_net{op:sync}` md directions + rev-stamped Tasks block (D19 menu); net 98 green, sentinel 1767+1 flake, harnessc 0 err; dogfood SSOT rev 43 dry-run (NEXT f001_start, 6 pending, 5/5 free)
+- [x] feature_048.wip_limited_pool DONE 2026-09-05 (D20) — pool-aware net (sync empty + pool info on pool nets, 15-cap guard, pool holders/conflicts, Pool render line) + test_net_pool.py×10; live rev45 12 places drift-free; omt 364 green, sentinel 1778, harnessc 0 err
 
 ---
 
@@ -188,6 +205,8 @@ Proposed feature roadmap (each spawned via `new_feature.py`; numbers auto-assign
 - **D16 — Single-Petri-net global state SSOT (user directive 2026-08-30: "concurrency with state management driven by a single petri net; the net, in complement with other files, is the global state single source of truth"):** ONE flat net drives concurrency state management; the SSOT = the net bundle (`META_NET.petri.json` + `net_state.sidecar.json` + `supervisor.overlay.json`) **complemented by** the ledger (audit) and WORK.md (projection). **Amends the v0.4 authority framing (D3 wording, IDEA-003 §2.1 "primary/secondary"):** replaced by an authority split — the net owns **state**, the gates keep **enforcement**, the ledger keeps **audit**. All D3/D5–D15 mechanics stand unchanged (no gate removed; the analyzer blocks fires; the drift check reconciles net state vs ledger audit at every `omt_complete` exit). IDEA-003's category-error caution (don't replace the workflow driver) is honored: enforcement stays out of the net; only state ownership moves.
 - **D17 — WORK.md is a deterministic projection of the net (IDEA-005 adopted):** under the SSOT, WORK.md's tasks/projects sections are rendered from net state via `omt_net{op:sync}` (net→md); hand edits to projected sections are proposals through the splice path (md→net), never authoritative state. Ships as **feature_045** (depends on core 1–3); first phase-2 pick and candidate for promotion into the core at the feature_041 exit review. **(RESOLVED 2026-08-30, user-approved at the feature_041 exit review: feature_045 PROMOTED into the core — core = 039/040/041/045; 045 is the next feature after feature_046.)**
 - **D18 — Idea numbering collision resolved:** the WORK.md net-driven idea (created as a duplicate "IDEA-004") is renumbered **IDEA-005** (`ideas/idea-005-work-md-net-driven-concurrency.md`), slot **feature_045**; IDEA-004 + feature_044 remain the ledger-mined behavioral net. No content change beyond renumbering (+ `drift`→`invariant` op-name conformance).
+- **D19 — Session-start menu = the 045 render, no new gate (user directive 2026-09-05: "partial work available to be actionable, all options presented at opencode session start"):** the net's `probe.enabled[]` (+ holders/conflicts) renders into WORK.md Tasks as `NEXT + Other enabled + Blocked + Resources`, rev-stamped; the existing STARTUP WORK.md read *is* the net read — no INJECT/hook/ledger kind/enforcer change (F5). Staleness = re-render before fire (D4). Ships as **feature_047** (depends on 045, first phase-2 after it).
+- **D20 — META_NET ≤15 places via generic WIP pool (user directive 2026-09-05: "meta petri net must limit work, 15 places max"):** the per-feature partition model (7×3=21 + 9 infra = 30 places at rev 43) is replaced by a generic pool — 3 pool places (`work_pending/active/done`) + 5 resources + 3 boundary (+1 archive) = 11–12 places, 2 transitions (`work_start/complete`); feature identity moves to overlay+ledger (counts in net, map in overlay, audit in ledger — D16 split holds). WIP is structurally limited: `agent_attention=1` serializes starts, pool counts bound concurrency. Ships as **feature_048.wip_limited_pool** (FIRST phase-2 per user approval 2026-09-05, supersedes 047 order).
 
 ---
 

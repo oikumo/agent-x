@@ -66,6 +66,36 @@ RESOURCE_PLACES = (
     "e2e_receipt",
 )
 
+# feature_048.wip_limited_pool (D20 15-place cap): generic WIP pool — 3 pool
+# places + 5 resources + 3 boundary (+1 archive) = 11–12 places, 2 transitions.
+# TA: D20 pool net (rev45 12 places, work_pending=6/active=0/done=1) — sync() returns
+# empty per-feature proposals on pool nets (never auto-applied D4); splice add enforces
+# the 15-place cap; resource_report is pool-aware (holders/conflicts); sync_md render
+# reads work_* counts. Per-feature _subnet_mutation stays for pre-pool bundles only.
+POOL_PLACES = ("work_pending", "work_active", "work_done")
+POOL_TRANSITIONS = ("work_start", "work_complete")
+MAX_PLACES = 15
+
+
+def is_pool_net(net: Any) -> bool:
+    """D20: pool detection — all three work_* places present (migrated rev44+)."""
+    return all(pl in net.places for pl in POOL_PLACES)
+
+
+def pool_counts(live_marking: dict[str, int]) -> dict[str, int]:
+    """Live pool counts (pending/active/done) by place name."""
+    return {pl: live_marking.get(pl, 0) for pl in POOL_PLACES}
+
+
+def _check_place_cap(candidate: Any) -> None:
+    """D20: structural WIP limit — no splice may grow the net past 15 places."""
+    if len(candidate.places) > MAX_PLACES:
+        raise SpliceError(
+            "place_cap_exceeded",
+            f"D20 15-place cap: splice would grow to {len(candidate.places)} "
+            f"places (cap {MAX_PLACES}) — apply the WIP pool, not per-feature subnets",
+        )
+
 
 class NetNotBootstrappedError(PetriNetError):
     """The net bundle does not exist yet (IDEA-002 v4 §5.1 — sync is first-call)."""
@@ -645,6 +675,7 @@ def _splice_add(
     places, transitions, arcs = _validate_add_mutation(mutation)
     candidate = copy.deepcopy(st.net)
     _apply_add(candidate, places, transitions, arcs)
+    _check_place_cap(candidate)
     gate = _conformance_gate()
     st.net = candidate
     st.live_marking = rebase_marking(st.live_marking, candidate)
@@ -791,6 +822,7 @@ def _splice_undo(
         places, transitions, arcs = _validate_add_mutation(mutation)
         candidate = copy.deepcopy(st.net)
         _apply_add(candidate, places, transitions, arcs)
+        _check_place_cap(candidate)
         gate = _conformance_gate()
         st.net = candidate
         st.live_marking = rebase_marking(st.live_marking, candidate)
@@ -1005,13 +1037,19 @@ def _subnet_mutation(n: str, m0: str) -> dict[str, Any]:
     }
 
 
-def sync(base: Path, *, reasoning: str = "", session: str = "") -> tuple[NetState, dict[str, Any]]:
+def sync(base: Path, *, reasoning: str = "", session: str = "", direction: str = "proposal", dry_run: bool = False) -> tuple[NetState, dict[str, Any]]:
     """net↔reality bootstrap + resync (IDEA-002 v4 §5.1/§11 #6). First call
     materializes the supervisor skeleton (boundary ports, NO supervisor
     transitions in v1) behind the conformance gate; every call then scans
     reality and emits a deterministic PROPOSAL — never auto-applied (D4; the
     agent applies it via splice). Resyncs bump nothing (read-only on state;
-    the ledger record is the audit, never silent)."""
+    the ledger record is the audit, never silent).
+
+    feature_045.work_md_net_driven adds md directions (D4 proposal-only):
+    direction="net_to_md" renders WORK.md Tasks/Projects blocks from live
+    state (writes unless dry_run); "md_to_net_propose" parses WORK.md and
+    returns analyzer-validated fire/blocked proposals (never applied). The
+    default "proposal" path is byte-identical to feature_040/041."""
     bootstrap = not is_bootstrapped(base)
     gate = None
     if bootstrap:
@@ -1041,24 +1079,43 @@ def sync(base: Path, *, reasoning: str = "", session: str = "") -> tuple[NetStat
     features, checkboxes, projects = _scan_reality()
     existing = set(st.overlay.get("subnets", {}))
     archived = set(st.overlay.get("disabled", []))
-    add_subnets = []
-    for n in sorted(features):
-        key = f"feature_{n}"
-        if key in existing or key in archived:
-            continue
-        m0 = checkboxes.get(n, "pending")
-        add_subnets.append({
-            "subnet": key,
-            "slug": features[n],
-            "project": projects.get(n),
-            "m0": m0,
-            "mutation": _subnet_mutation(n, m0),
-        })
-    disable_subnets = [
-        {"subnet": key, "reason": "feature_dir_missing"}
-        for key in sorted(existing)
-        if key[len("feature_"):] not in features
-    ]
+    pool_mode = is_pool_net(st.net)
+    add_subnets: list[dict[str, Any]] = []
+    disable_subnets: list[dict[str, Any]] = []
+    pool_info: dict[str, Any] | None = None
+    if pool_mode:
+        # D20: pool nets never emit per-feature subnets (would break the 15-cap).
+        # Identity lives in overlay+ledger (counts in net, map in overlay — D16 split).
+        live_pool = pool_counts(st.live_marking)
+        pool_info = {
+            "pending": live_pool["work_pending"],
+            "active": live_pool["work_active"],
+            "done": live_pool["work_done"],
+            "places": len(st.net.places),
+            "cap": MAX_PLACES,
+            "reality_features": len(features),
+            "reality_pending": sum(1 for v in checkboxes.values() if v == "pending"),
+            "reality_active": sum(1 for v in checkboxes.values() if v == "active"),
+            "reality_done": sum(1 for v in checkboxes.values() if v == "done"),
+        }
+    else:
+        for n in sorted(features):
+            key = f"feature_{n}"
+            if key in existing or key in archived:
+                continue
+            m0 = checkboxes.get(n, "pending")
+            add_subnets.append({
+                "subnet": key,
+                "slug": features[n],
+                "project": projects.get(n),
+                "m0": m0,
+                "mutation": _subnet_mutation(n, m0),
+            })
+        disable_subnets = [
+            {"subnet": key, "reason": "feature_dir_missing"}
+            for key in sorted(existing)
+            if key[len("feature_"):] not in features
+        ]
     # feature_041 R5: resync of pre-041 bundles proposes ONE
     # add_resource_places entry (missing catalog places in catalog order +
     # agent_attention retrofit arcs for existing subnets lacking the wiring)
@@ -1091,11 +1148,13 @@ def sync(base: Path, *, reasoning: str = "", session: str = "") -> tuple[NetStat
                 "add_arcs": retrofit_arcs,
             },
         })
-    proposal = {
+    proposal: dict[str, Any] = {
         "add_subnets": add_subnets,
         "disable_subnets": disable_subnets,
         "add_resource_places": add_resource_places,
     }
+    if pool_info is not None:
+        proposal["pool"] = pool_info
     record: dict[str, Any] = {
         "kind": "net_sync",
         "bootstrap": bootstrap,
@@ -1107,10 +1166,78 @@ def sync(base: Path, *, reasoning: str = "", session: str = "") -> tuple[NetStat
         "add_resource_places": missing_resources,
         "retrofit_arcs": len(retrofit_arcs),
     }
+    if pool_info is not None:
+        record["pool"] = pool_info
     if gate is not None:
         record["conformance"] = gate
+    record["direction"] = direction
+    info: dict[str, Any] = {
+        "bootstrap": bootstrap, "proposal": proposal, "conformance": gate,
+    }
+    if direction in ("net_to_md", "md_to_net_propose"):
+        from . import sync_md  # noqa: PLC0415 (lazy — keeps import graph flat)
+
+        rep = resource_report(st)
+        live_tuple = tuple(st.live_marking.get(p, 0) for p in st.net.place_order)
+        try:
+            enabled_md = sorted(
+                t for t in st.net.enabled_transitions_at(live_tuple)
+            )
+        except AttributeError:
+            enabled_md = []
+        if direction == "net_to_md":
+            slugs = {n: s for n, s in features.items()}
+            # slug map is keyed by bare number in _scan_reality
+            rendered = sync_md.render_tasks_block(
+                st.net, st.live_marking, st.overlay,
+                rep["resources"], rep["conflicts"], st.revision, slugs,
+            )
+            if not dry_run:
+                _write_md_section(_work_md_path(), "## Tasks", rendered)
+            record["md_rev"] = st.revision
+            info["rendered"] = rendered
+        else:
+            work_text = _work_md_path().read_text(encoding="utf-8") \
+                if _work_md_path().is_file() else ""
+            desired = sync_md.parse_tasks_block(_md_section(work_text, "## Tasks"))
+            proposals = sync_md.propose_diff(st.net, st.live_marking, desired)
+            if proposals["blocked"]:
+                append_drift(base, {
+                    "op": "sync_md_propose",
+                    "net_revision": st.revision,
+                    "blocked": proposals["blocked"],
+                })
+            record["proposals_blocked"] = len(proposals["blocked"])
+            info["proposals"] = proposals
     append_ledger(record)
-    return st, {"bootstrap": bootstrap, "proposal": proposal, "conformance": gate}
+    return st, info
+
+
+def _write_md_section(path: Path, header: str, body: str) -> None:
+    """feature_045: replace one `## ` section body in place (headers kept)."""
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    lines = text.splitlines()
+    out: list[str] = []
+    i = 0
+    replaced = False
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith("## ") and line.strip().startswith(header):
+            out.append(line)
+            out.append(body.rstrip("\n"))
+            i += 1
+            while i < len(lines) and not lines[i].startswith("## "):
+                i += 1
+            replaced = True
+            continue
+        out.append(line)
+        i += 1
+    if not replaced:
+        if out and out[-1].strip():
+            out.append("")
+        out.append(header)
+        out.append(body.rstrip("\n"))
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -1128,6 +1255,11 @@ def resource_report(st: NetState) -> dict[str, Any]:
     conflicts[]: pending subnets (f{N}_pending marked) whose f{N}_start is
     NOT enabled at the live marking; blocked_by = the empty UNPREFIXED input
     places of start (sorted). Legacy bundles (no catalog) report []/[].
+
+    Pool nets (D20): agent_attention holders = ["pool"] while work_active is
+    marked (conservation agent_attention + work_active = 1); conflicts =
+    pool-level work_start blockage (work_pending marked but work_start not
+    enabled; subnet "pool").
     """
     resources: list[dict[str, Any]] = []
     for name in RESOURCE_PLACES:
@@ -1144,6 +1276,8 @@ def resource_report(st: NetState) -> dict[str, Any]:
                 and p.endswith("_active")
                 and st.live_marking.get(p, 0) > 0
             )
+            if not holders and is_pool_net(st.net) and st.live_marking.get("work_active", 0) > 0:
+                holders = ["pool"]
         resources.append({
             "place": name,
             "capacity": capacity,
@@ -1172,6 +1306,20 @@ def resource_report(st: NetState) -> dict[str, Any]:
             "transition": start,
             "blocked_by": blocked_by,
         })
+    if is_pool_net(st.net) and "work_start" in st.net.transitions:
+        if st.live_marking.get("work_pending", 0) > 0 and not st.net.is_enabled_at(
+            live_tuple, "work_start"
+        ):
+            blocked_by = sorted(
+                p
+                for p in st.net.inputs.get("work_start", {})
+                if not SUBNET_PREFIX_RE.match(p) and st.live_marking.get(p, 0) == 0
+            )
+            conflicts.append({
+                "subnet": "pool",
+                "transition": "work_start",
+                "blocked_by": blocked_by,
+            })
     return {"resources": resources, "conflicts": conflicts}
 
 

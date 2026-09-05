@@ -110,7 +110,18 @@ def _splice(base: Path, args: argparse.Namespace, mutation: Any) -> tuple[dict[s
 
 
 def _sync(base: Path, args: argparse.Namespace) -> tuple[dict[str, Any], int]:
-    st, info = state.sync(base, reasoning=args.reasoning, session=args.session)
+    work_md = getattr(args, "work_md", "")
+    if work_md:
+        import os as _os
+
+        _os.environ["OMT_NET_WORK_MD"] = work_md
+    st, info = state.sync(
+        base,
+        reasoning=args.reasoning,
+        session=args.session,
+        direction=getattr(args, "direction", "proposal"),
+        dry_run=getattr(args, "dry_run", False),
+    )
     envelope: dict[str, Any] = {
         "ok": True,
         "op": "sync",
@@ -120,6 +131,10 @@ def _sync(base: Path, args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     }
     if info.get("conformance") is not None:
         envelope["conformance"] = info["conformance"]
+    if info.get("rendered") is not None:
+        envelope["rendered"] = info["rendered"]
+    if info.get("proposals") is not None:
+        envelope["proposals"] = info["proposals"]
     return envelope, 0
 
 
@@ -196,6 +211,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_sync.add_argument("--reasoning", default="")
     p_sync.add_argument("--session", default="")
+    p_sync.add_argument(
+        "--direction", default="proposal",
+        choices=["proposal", "net_to_md", "md_to_net_propose"],
+    )
+    p_sync.add_argument("--dry-run", action="store_true")
+    p_sync.add_argument("--work-md", default="")
 
     sub.add_parser("invariant", help="Invariants + net-vs-ledger drift (D7).")
 
