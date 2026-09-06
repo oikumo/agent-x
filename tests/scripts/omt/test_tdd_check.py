@@ -487,26 +487,41 @@ class _FakeResult:
 # ---------------------------------------------------------------------------
 
 class TestTddCheckSubprocess:
-    """Run tdd_check.py as a subprocess and verify JSON output."""
+    """Run tdd_check.py as a subprocess and verify JSON output.
 
-    def test_status_returns_valid_json(self):
+    feature_051 (A1 — ledger test isolation): subprocesses run against a
+    fresh TMP ledger (OMT_LEDGER_PATH / OMT_SNAPSHOT_DIR) so verdicts never
+    depend on live-session ledger state (the historical window-flaky root —
+    the real ledger + the 8h window made gate output flip with whatever TDD
+    session happened to be active)."""
+
+    @staticmethod
+    def _hermetic_env(tmp_path) -> dict:
+        import os
+        return {
+            **os.environ,
+            "OMT_LEDGER_PATH": str(tmp_path / "ledger.jsonl"),
+            "OMT_SNAPSHOT_DIR": str(tmp_path / "tdd_snapshots"),
+        }
+
+    def test_status_returns_valid_json(self, tmp_path):
         import subprocess
         result = subprocess.run(
             ["uv", "run", "scripts/omt/tdd_check.py", "status", "--session", ""],
             capture_output=True, text=True, timeout=10,
-            cwd=str(SCRIPTS_DIR.parent.parent),
+            cwd=str(SCRIPTS_DIR.parent.parent), env=self._hermetic_env(tmp_path),
         )
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)
         assert "tdd_mode" in data
         assert "state" in data
 
-    def test_gate_returns_allowed_when_no_tdd(self):
+    def test_gate_returns_allowed_when_no_tdd(self, tmp_path):
         import subprocess
         result = subprocess.run(
             ["uv", "run", "scripts/omt/tdd_check.py", "gate", "--path", "src/foo.py", "--session", ""],
             capture_output=True, text=True, timeout=10,
-            cwd=str(SCRIPTS_DIR.parent.parent),
+            cwd=str(SCRIPTS_DIR.parent.parent), env=self._hermetic_env(tmp_path),
         )
         assert result.returncode == 0
         data = json.loads(result.stdout)
@@ -516,21 +531,21 @@ class TestTddCheckSubprocess:
         # gate_driver.ts (order=55, runBeforeGates), wired via kbTrack
         # (nav_gate.ts) + SESSION_FLAGS[kb_consulted]. The python gate's job is
         # only two-hats; the consult enforcement is the opencode plugin's job.
-        # Whether allowed is True or False here depends only on whether a TDD
-        # cycle is currently active (a global done/leftover state blocks both
-        # buckets until reset). The test pins the structural contract: gate
-        # returns a valid JSON shape with allowed + tdd_mode keys.
+        # feature_051: the tmp ledger is empty by construction → tdd_mode is
+        # deterministically False → allowed deterministically True (previously
+        # this depended on no live TDD session being in the real 8h window).
         assert "allowed" in data
         assert "tdd_mode" in data
-        assert "state" in data
+        assert data["allowed"] is True
+        assert data["tdd_mode"] is False
         assert data["state"] in ("none", "red", "green", "refactor", "testlist", "done")
 
-    def test_validate_exit_returns_ok_for_unknown_feature(self):
+    def test_validate_exit_returns_ok_for_unknown_feature(self, tmp_path):
         import subprocess
         result = subprocess.run(
             ["uv", "run", "scripts/omt/tdd_check.py", "validate-exit", "--feature", "feature_999.nonexistent"],
             capture_output=True, text=True, timeout=10,
-            cwd=str(SCRIPTS_DIR.parent.parent),
+            cwd=str(SCRIPTS_DIR.parent.parent), env=self._hermetic_env(tmp_path),
         )
         data = json.loads(result.stdout)
         assert data["ok"] is True  # No test files = no gaps = ok

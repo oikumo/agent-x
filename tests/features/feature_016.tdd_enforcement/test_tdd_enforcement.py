@@ -9,8 +9,10 @@ Run with: uv run pytest tests/features/feature_016.tdd_enforcement/ -v
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -20,10 +22,22 @@ TDD_CHECK = ["uv", "run", "scripts/omt/tdd_check.py"]
 
 
 def _run_tdd(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        TDD_CHECK + list(args),
-        capture_output=True, text=True, timeout=30, cwd=str(REPO_ROOT),
-    )
+    """feature_051 (A1 — ledger test isolation): every tdd_check subprocess
+    runs against a fresh TMP ledger (OMT_LEDGER_PATH / OMT_SNAPSHOT_DIR), so
+    gate verdicts depend only on the args — never on whatever TDD session is
+    live in the real 8h-window ledger (the historical window-flaky root:
+    test_gate_no_tdd_* failed exactly while a TDD session was in-window)."""
+    with tempfile.TemporaryDirectory(prefix="omt_tdd_hermetic_") as td:
+        env = {
+            **os.environ,
+            "OMT_LEDGER_PATH": str(Path(td) / "ledger.jsonl"),
+            "OMT_SNAPSHOT_DIR": str(Path(td) / "tdd_snapshots"),
+        }
+        return subprocess.run(
+            TDD_CHECK + list(args),
+            capture_output=True, text=True, timeout=30, cwd=str(REPO_ROOT),
+            env=env,
+        )
 
 
 class TestTddCheckCli:

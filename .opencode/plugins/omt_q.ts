@@ -56,10 +56,13 @@ function headSha(): string {
 }
 
 // ---------------------------------------------------------------------------
-// KNOWN_SUITE_FAILURES extractor (U10 — the single NEW read this feature adds).
-// Reads scripts/omt/tdd/state.py:132 and regex-extracts the frozenset literal
-// (parse-not-import — the constant move/rename surfaces immediately to the
-// agent via known_suite_failures_parse_failed:true). Fail-open on missing /
+// KNOWN_SUITE_FAILURES extractor (U10). Reads scripts/omt/tdd/state.py and
+// regex-extracts the frozenset literal (parse-not-import — the constant
+// move/rename surfaces immediately to the agent via
+// known_suite_failures_parse_failed:true). feature_051/A1: the allowlist is
+// PERMANENTLY EMPTY — the `[^}]*` quantifier parses the empty frozenset({})
+// literal, so the field is a live invariant probe (non-empty output means
+// someone regrew the allowlist = reverting A1). Fail-open on missing /
 // unreadable file.
 // ---------------------------------------------------------------------------
 function parseKnownSuiteFailures(root: string): {
@@ -70,7 +73,7 @@ function parseKnownSuiteFailures(root: string): {
     const p = join(root, "scripts", "omt", "tdd", "state.py")
     if (!existsSync(p)) return { nodeIds: [], parse_failed: true }
     const src = readFileSync(p, "utf8")
-    const m = src.match(/KNOWN_SUITE_FAILURES\s*=\s*frozenset\(\{([^}]+)\}\)/)
+    const m = src.match(/KNOWN_SUITE_FAILURES\s*=\s*frozenset\(\{([^}]*)\}\)/)
     if (!m) return { nodeIds: [], parse_failed: true }
     const ids = (m[1].match(/['"]([^'"]+)['"]/g) || [])
       .map((s) => s.slice(1, -1))

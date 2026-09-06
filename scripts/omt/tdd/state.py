@@ -121,22 +121,19 @@ def _rotate_ledger_if_needed() -> None:
         pass
 
 
-# Known, pre-existing suite failures that must NOT block omt_done
-# (meta_harness_dsl R4; audit F6): the feature_018 react_screen trio
-# (Textual/mock failures predating the harness) and the window-flaky gate
-# probes that read the REAL 8 h-window ledger (red exactly when a TDD session
-# is in-window — i.e. when omt_done runs): the test_tdd_check subprocess
-# probe plus the feature_016 TestTddCheckCli pair (same real-ledger root;
-# allowlisted in feature_024 per user decision). A failure OUTSIDE this set
-# blocks.
-KNOWN_SUITE_FAILURES = frozenset({
-    "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_mounts_and_displays_welcome",
-    "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_escape_pops",
-    "tests/features/feature_018.react_screen/test_react_screen.py::TestReactScreenPilot::test_react_screen_input_and_send",
-    "tests/scripts/omt/test_tdd_check.py::TestTddCheckSubprocess::test_gate_returns_allowed_when_no_tdd",
-    "tests/features/feature_016.tdd_enforcement/test_tdd_enforcement.py::TestTddCheckCli::test_gate_no_tdd_allows_everything",
-    "tests/features/feature_016.tdd_enforcement/test_tdd_enforcement.py::TestTddCheckCli::test_gate_no_tdd_allows_tests",
-})
+# feature_051 (A1 — ledger test isolation, meta_harness_6): the allowlist is
+# PERMANENTLY EMPTY — the harness ships a green suite, full stop. The
+# constant + the omt_q U10 extractor stay (op:state surfaces the invariant
+# live); the shape-pin in tests/scripts/omt/test_ledger_rotation.py asserts
+# emptiness. The historical members were root-caused: the feature_018
+# react_screen trio (Textual/mock failures predating the harness) has been
+# stably green since the mock-leak fix, and the window-flaky real-ledger
+# gate probes (test_tdd_check subprocess + feature_016 TestTddCheckCli pair)
+# now run hermetically (OMT_LEDGER_PATH → tmp ledger, honored by BOTH
+# clients). The literal stays frozenset({}) — NOT frozenset() — because the
+# U10 regex pins the frozenset({...}) shape. Growing this set again REVERTS
+# the A1 decision: fix failures instead of tolerating them.
+KNOWN_SUITE_FAILURES = frozenset({})
 
 
 def suite_failures(stdout: str) -> list[str]:

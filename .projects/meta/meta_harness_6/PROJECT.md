@@ -1,14 +1,14 @@
 # PROJECT: meta_harness_6 — Meta Harness 6 — Evaluation-Driven Improvement Program
 
-> Status: **draft** · **v0.2 (2026-09-05)** — created by `project.py new`, program definition filled same session (deep evaluation). Iterate freely (non-gated); spawn features with `new_feature.py "<name>" --type <tt> --project meta_harness_6`; log sessions in CURRENT_STATE.md (newest on top).
+> Status: **active** · **v0.2 (2026-09-05)** — created by `project.py new`, program definition filled same session (deep evaluation). Iterate freely (non-gated); spawn features with `new_feature.py "<name>" --type <tt> --project meta_harness_6`; log sessions in CURRENT_STATE.md (newest on top).
 
 ---
 
 ## New Session Quick Start
 
-> One line: `meta_harness_6` is the **13-item improvement program distilled from the 2026-09-05 deep evaluation** of the META HARNESS (evidence + full option detail @ `.sandbox/meta_harness_6_evaluation.md`) — 5 waves: integrity → friction → signal → knowledge → productization; NOTHING has been executed yet (project state: draft, zero linked features).
+> One line: `meta_harness_6` is the **13-item improvement program distilled from the 2026-09-05 deep evaluation** of the META HARNESS (evidence + full option detail @ `.sandbox/meta_harness_6_evaluation.md`) — 5 waves: integrity → friction → signal → knowledge → productization; Wave 1/A1 SHIPPED as feature_051 (2026-09-06, suite 1846/0, allowlist permanently empty); next = Wave 1/F1.
 
-**Next:** scaffold Wave 1 item A1 as the first feature: `uv run scripts/omt/new_feature.py "ledger test isolation" --type minor_feature --project meta_harness_6`, then `omt_phase{task_type:minor_feature, phase:Programming, scope:"..."}` and execute per §Execution rules. Read §Decision gates + §Execution rules FIRST (numbering note DG2, net/receipt discipline).
+**Next:** Wave 1 continues with **F1 `opencode_version_canary`** — resume from `.sandbox/pause_2026-09-06.md`. Scaffold: `uv run scripts/omt/new_feature.py "opencode version canary" --type minor_feature --project meta_harness_6` (takes number 052), then `omt_phase{task_type:minor_feature, phase:Programming, scope:"..."}` and execute per §Execution rules. Read §Decision gates + §Execution rules FIRST (net/receipt discipline; DG2 numbering note is RESOLVED — 051 taken by A1).
 
 ---
 
@@ -129,13 +129,13 @@
 
 ## Status
 
-- [ ] Wave 1 — A1 ledger_test_isolation, F1 opencode_version_canary
+- [~] Wave 1 — A1 ✅ DONE (feature_051.ledger_test_isolation, 2026-09-06: OMT_LEDGER_PATH both clients, hermetic gate probes, KNOWN_SUITE_FAILURES permanently empty + shape-pinned, suite 1846/0, GOTCHA_TDD_ENV_FLAKY root-caused + demoted) · F1 opencode_version_canary = NEXT (paused @ `.sandbox/pause_2026-09-06.md`)
 - [ ] Wave 2 — C1 net_gate_concurrency_predicate, C2 small_task_fast_path, A4 gate_preflight
 - [ ] Wave 3 — A2+A3 skip_taxonomy_phase_hygiene, B1+B2 gate_budget_ceremony_meter
 - [ ] Wave 4 — E2+E1 thought_review_gotcha_root_cause
 - [ ] Wave 5 — D1 harness_tiered_template (+ D2 stack_profiles, D3 generated_onboarding)
 - [ ] End-of-program re-evaluation vs §Baseline (delta report → Decisions log)
-- [ ] First linked feature flips this project draft → active (mechanical)
+- [x] First linked feature flips this project draft → active (feature_051 linked 2026-09-06)
 
 ---
 

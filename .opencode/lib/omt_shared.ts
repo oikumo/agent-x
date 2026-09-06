@@ -38,7 +38,17 @@ export function repoRoot(): string {
 }
 
 // --- state paths (lazy getters — see header) --------------------------------
+// feature_051 (A1 — ledger test isolation): the ledger location is
+// env-overridable on BOTH clients — OMT_LEDGER_PATH wins over the
+// repo-relative default (parity with scripts/omt/tdd/state.py, which reads
+// the same env at import). This is the lever that keeps harness tests and
+// live-binary probes off the real session ledger. The override is
+// process-level: it beats an explicitly injected root. Empty/unset falls
+// TA: gotcha: OMT_LEDGER_PATH (feature_051/A1) is a PROCESS-level override — it beats an explicitly injected root arg in ledgerPath(); unset/empty falls back to root ?? REPO_ROOT. Test probes that pass a tmp root while the outer env has OMT_LEDGER_PATH set will silently follow the env — keep probes' env explicit.
+// back to <root>/.meta/.omt/.
 export function ledgerPath(root?: string): string {
+  const env = process.env.OMT_LEDGER_PATH
+  if (typeof env === "string" && env) return env
   return join(root ?? REPO_ROOT, ".meta", ".omt", "ledger.jsonl")
 }
 

@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-09-06 (iter 1 — Wave 1/A1 EXECUTED: feature_051.ledger_test_isolation DONE; session paused before F1)
+
+### Done
+
+- **Program execution started** (first session of the execution phase): work_start fired (net rev 53→54), meta_harness_5 backlog overlap-checked (clean — all its items shipped/rejected, no overlap with A1/F1), feature_051 scaffolded (`new_feature.py`, linked → project flipped draft→active), DG2 same-session obligation done (WORK.md prose reworded: deferred concurrency concept now "multi_session_concurrency (deferred, unnumbered)", number 051 reassigned to this program).
+- **A1 `feature_051.ledger_test_isolation` SHIPPED** (minor_feature, Programming→Testing→Done):
+  - `OMT_LEDGER_PATH` honored by BOTH ledger clients: `.opencode/lib/omt_shared.ts` `ledgerPath()` (process-level override, beats injected root) + `scripts/omt/tdd/state.py` (already honored; now pinned in both directions by tests).
+  - Window-flaky gate probes hermetic: feature_016 `_run_tdd` + `TestTddCheckSubprocess` subprocesses run on fresh tmp ledgers (`OMT_LEDGER_PATH`/`OMT_SNAPSHOT_DIR`); the feature_016 pair is now deterministic; the test_tdd_check gate probe re-tightened to `allowed is True / tdd_mode is False`.
+  - `KNOWN_SUITE_FAILURES` **permanently empty** (`frozenset({})` — literal shape kept for the U10 regex) + shape-pinned empty by `test_ledger_rotation.py`; omt_q U10 regex `[^}]*` → `known_suite_failures: []` is now a live invariant probe.
+  - .omt: 4 records updated (`tdd.done_allowlist` zero-tolerance, `gotcha.done_reachable`, `gotcha.tdd_env_flaky` → **demoted** to `tdd.env_flaky_fixed` (root-caused; nav gotchas 18→17), `gotcha.tdd_node` teaching flipped to "do NOT grow").
+  - react_screen trio verified stably green (×3 isolated + full suite) — un-tolerated with no code change.
+  - **Evidence: full suite 1846 passed / 0 failed with an EMPTY allowlist; harnessc check 0 errors (256 records); build OK, all 12 budgets green; e2e receipt refreshed (round 1, one edit per file).**
+  - Artifacts: `5.implementation/features/feature_051.../implementation_notes.md` + `6.testing/features/feature_051.../test_report.md` + `tests/features/feature_051.ledger_test_isolation/test_ledger_isolation.py` (4 tests).
+- **Session closed cleanly**: net work_complete fired (rev 55, work_done=6), net_to_md synced, harnessc check green.
+- Session-discovered gotchas embedded as TA: thoughts: omt_shared.ts (env-override-beats-root semantics) + net/sync_md.py (net_to_md sync consumes hand-added rows between `Pool:` and `## Projects` — durable pointers go after the Projects section; feature_050's DONE row was lost to this).
+
+### In progress / Blocked
+
+- _(nothing in-flight — clean pause; feature_051 fully closed)_
+
+### Next
+
+1. Read `PROJECT.md` §New Session Quick Start (updated → F1) + `.sandbox/pause_2026-09-06.md`.
+2. **Wave 1 / F1 `opencode_version_canary`**: overlap-check meta_harness_5 backlog → scaffold `uv run scripts/omt/new_feature.py "opencode version canary" --type minor_feature --project meta_harness_6` (takes number **052**) → work_start → omt_phase → implement `@var opencode_version_range` + startup WRN + live-binary probe canary suite (GOTCHA_LIVE_BINARY recipe) per `.sandbox/meta_harness_6_evaluation.md` §5 F1.
+3. Then Wave 2 (C1, C2, A4) — PROJECT.md §The program.
+
+### Notes / context
+
+- **Working tree is UNCOMMITTED** (agent cannot git-commit): all feature_051 changes + project docs + pause artifacts await user commit.
+- The 3 baseline full-suite failures seen at session start were mechanical (net pool drift after work_start + dashboard snapshot rev 53→54) — fixed via net_to_md sync + `net_snapshot.py` regen; not regressions.
+- Receipt round-robin honored: 9 files, ONE edit each, single e2e refresh (the .omt 4-record update ran as one sanctioned multi-site bash transform).
+
+---
+
+
 ## 2026-09-05 (iter 1 — deep evaluation performed + program defined; ZERO execution)
 
 ### Done

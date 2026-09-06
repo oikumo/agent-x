@@ -144,17 +144,15 @@ class TestOmtDoneAllowlistHelpers:
         assert state.suite_failures("984 passed, 1 deselected in 37.61s\n") == []
 
     def test_known_suite_failures_documented_shape(self):
-        """Exactly the audited F6 set + feature_024 addition: feature_018 ×3
-        + the window-flaky real-ledger gate probes (test_tdd_check subprocess
-        ×1 + feature_016 TestTddCheckCli ×2, same real-ledger root;
-        allowlisted in feature_024 per user decision). Grow this set
-        DELIBERATELY — a new known failure must be understood, not swept
-        under the allowlist."""
-        assert len(state.KNOWN_SUITE_FAILURES) == 6
-        assert sum("feature_018.react_screen" in f
-                   for f in state.KNOWN_SUITE_FAILURES) == 3
-        assert sum("feature_016.tdd_enforcement" in f
-                   for f in state.KNOWN_SUITE_FAILURES) == 2
+        """feature_051 (A1 — ledger test isolation): the allowlist is
+        PERMANENTLY EMPTY — suite green means green. The historical members
+        (feature_018 react_screen trio — mock-leak era, stably green since
+        that fix; the window-flaky real-ledger probes — test_tdd_check
+        subprocess + feature_016 TestTddCheckCli pair) were root-caused: the
+        probes now run hermetically (OMT_LEDGER_PATH → tmp). Growing this
+        set again REVERTS the A1 decision — fix failures, never tolerate
+        them."""
+        assert len(state.KNOWN_SUITE_FAILURES) == 0
 
 
 class TestCyclesRefactorRecorded:

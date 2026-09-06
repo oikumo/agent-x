@@ -22,13 +22,12 @@
 ---
 
 ## Tasks
-<!-- net_rev:53 -->
+<!-- net_rev:55 -->
 NEXT: work_start (recommended)
 Other enabled: none
 Blocked: none
 Resources: 5/5 free
-Pool: pending=2 active=0 done=5 (places 12/15)
-[x] feature_050.net_as_gate DONE 2026-09-06 — g.net:35 live (skip_ok=false, _start-suffix receipt filter, drift/stale-rev/net-down fail-closed, omt_q plan dry-run-safe); wrap-up runbook @ .sandbox/pause_2026-09-05c.md · details @ 6.testing/features/feature_050.net_as_gate/test_report.md (Phase B feature_051.multi_session_concurrency DEFERRED by user 2026-09-05)
+Pool: pending=1 active=0 done=6 (places 12/15)
 ## Projects (synced by `uv run scripts/omt/project.py sync` — do not hand-edit)
 
 | project | state | features |
@@ -38,7 +37,7 @@ Pool: pending=2 active=0 done=5 (places 12/15)
 | meta_harness_3 | active | feature_028.feature_scoped_gating |
 | meta_harness_4 | complete | feature_037.tdd_testlist_prose_fallback |
 | meta_harness_5 | active | feature_038.tdd_toolchain_aware |
-| meta_harness_6 | draft | — |
+| meta_harness_6 | active | feature_051.ledger_test_isolation |
 | meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor, feature_041.resource_places_concurrency, feature_042.goal_net_synthesis, feature_043.meta_net_dashboard, feature_044.mined_behavioral_net, feature_045.work_md_net_driven, feature_046.omt_net_session_arg_whitelist, feature_047.wip_limited_pool, feature_048.wip_limited_pool, feature_049.session_start_menu |
 | net_enforced_harness | active | feature_050.net_as_gate |
 | petri_net_library | active | feature_031.petri_net_library |
@@ -49,6 +48,10 @@ Pool: pending=2 active=0 done=5 (places 12/15)
 
 ---
 
+
+## Paused (resumable)
+
+- [~] **meta_harness_6 program execution** — paused 2026-09-06 after Wave 1/A1: `feature_051.ledger_test_isolation` DONE (OMT_LEDGER_PATH both clients · hermetic gate probes · KNOWN_SUITE_FAILURES permanently empty · suite 1846/0). NEXT: Wave 1/F1 `opencode_version_canary` (takes number 052). Resume @ `.sandbox/pause_2026-09-06.md` (read `.projects/meta/meta_harness_6/PROJECT.md` §New Session Quick Start first). ⚠ Working tree uncommitted — user commit pending.
 
 ## Agent Scratchpad (auto-managed, do not edit manually)
 

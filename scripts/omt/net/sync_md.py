@@ -63,6 +63,7 @@ def render_tasks_block(
     slugs: dict[str, str] | None = None,
 ) -> str:
     """Deterministic Tasks block: rev-stamp + menu + per-subnet rows."""
+# TA: gotcha: net_to_md sync REPLACES the whole WORK.md region from the net_rev comment to '## Projects' — any hand-added task/DONE/pause row placed between 'Pool:' and '## Projects' is silently consumed on the next sync (feature_050's DONE row was lost this way 2026-09-06). Durable pointers (pause docs, program rows) go AFTER the Projects table, in their own section.
     slugs = slugs or {}
     actual = _actual_states(net, live_marking)
     live_tuple = tuple(live_marking.get(p, 0) for p in net.place_order)

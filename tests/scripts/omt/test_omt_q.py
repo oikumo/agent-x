@@ -429,23 +429,26 @@ class TestOpStateSkipReasonTally:
 
 
 # ---------------------------------------------------------------------------
-# U10: known_suite_failures parsed from state.py:132 (not hardcoded)
+# U10: known_suite_failures parsed from state.py (not hardcoded)
 # ---------------------------------------------------------------------------
 
 class TestOpStateKnownSuiteFailuresParse:
-    """U10: op:state.known_suite_failures == EXACTLY the 6 node IDs in the
-    state.py KNOWN_SUITE_FAILURES frozenset, parsed via regex (NOT hardcoded in
-    the test — re-parse state.py here and compare)."""
+    """U10 (feature_051/A1 shape): op:state.known_suite_failures mirrors the
+    state.py KNOWN_SUITE_FAILURES frozenset — PERMANENTLY EMPTY since A1
+    (ledger test isolation). The field is now a live invariant probe:
+    non-empty output means someone regrew the allowlist (reverting A1).
+    Mirror-parse state.py here and compare (NOT hardcoded in the test)."""
 
     @staticmethod
     def _parse_ksf_from_state_py() -> tuple[list[str], bool]:
-        """Mirror omt_q's regex extractor in Python (independent cross-check)."""
+        """Mirror omt_q's regex extractor in Python (independent cross-check).
+        feature_051/A1: `[^}]*` so the empty frozenset({}) literal parses."""
         try:
             if not STATE_PY.exists():
                 return [], True
             src = STATE_PY.read_text(encoding="utf-8")
             m = re.search(
-                r"KNOWN_SUITE_FAILURES\s*=\s*frozenset\(\{([^}]+)\}\)", src)
+                r"KNOWN_SUITE_FAILURES\s*=\s*frozenset\(\{([^}]*)\}\)", src)
             if not m:
                 return [], True
             ids = [s.strip("'\"") for s in re.findall(r"['\"]([^'\"]+)['\"]", m.group(1))]
@@ -473,11 +476,12 @@ class TestOpStateKnownSuiteFailuresParse:
         expected_ids, py_parse_failed = self._parse_ksf_from_state_py()
         if py_parse_failed:
             pytest.skip("state.py KNOWN_SUITE_FAILURES regex miss on this checkout")
+        # A1 invariant: the allowlist is empty — the field is a live probe.
+        assert expected_ids == [], (
+            f"A1 invariant: KNOWN_SUITE_FAILURES must be empty: {expected_ids}")
         assert out["known_suite_failures"] == expected_ids, (
             f"U10 known_suite_failures must equal state.py parse: "
             f"plugin={out['known_suite_failures']}  py={expected_ids}")
-        assert len(expected_ids) == 6, (
-            f"U10 expected 6 IDs: py={expected_ids}")
         assert out["known_suite_failures_parse_failed"] is False, (
             f"U10 plugin parse must not have failed: {out}")
 
