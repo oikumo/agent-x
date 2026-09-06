@@ -204,15 +204,18 @@ class TestStatusReport:
                 .replace("TMP_ABS", tmp_path.as_posix()))
         out = _run_probe(tmp_path, body)
         h = out["hygiene"]
-        assert h == {"week_total": 4, "friction": 1, "nav_escapes": 1,
-                     "evasion": 2, "warn_at": 5, "dangling_total": 2,
-                     "dangling_expired": 1}, h
+        # feature_060 P0-2 dangling-active-only: active listed, expired GC'd.
+        assert h["week_total"] == 4 and h["friction"] == 1 and h["nav_escapes"] == 1
+        assert h["evasion"] == 2 and h["warn_at"] == 5
+        assert h["dangling_total"] == 2 and h["dangling_expired"] == 1
+        assert h["dangling_active"] == 1, h
         text = out["output"]
         assert "Skips 7d: 4 (friction 1 · nav-escapes 1 · evasion 2, warn>5/week)" in text
         assert "Dangling phases: 2 (1 expired)" in text
-        assert "feature_FB.b Design" in text and 'phase:"abandoned"' in text
+        assert "feature_FA.a Programming" in text and 'phase:"abandoned"' in text
         assert "resume: omt_phase{" in text and "abandon: omt_phase{" in text
-        assert "feature_FA.a" not in text.split("Dangling phases")[1].split("resume:")[0]
+        assert "feature_FB.b" not in text, "expired must auto-hide (P0-2)"
+        assert "1 expired auto-hidden" in text
 
 
 # --- static pins --------------------------------------------------------------------------

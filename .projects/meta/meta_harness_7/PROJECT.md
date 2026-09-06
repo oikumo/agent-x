@@ -1,6 +1,6 @@
 # PROJECT: meta_harness_7 — Meta Harness 7 — Work-Performance Improvement Program
 
-> Status: **draft** · **v0.2 (2026-09-06)** — created by `project.py new`, program definition filled same session (work-friction deep analysis). Iterate freely (non-gated); spawn features with `new_feature.py "<name>" --type <tt> --project meta_harness_7`; log sessions in CURRENT_STATE.md (newest on top).
+> Status: **active** · **v0.2 (2026-09-06)** — created by `project.py new`, program definition filled same session (work-friction deep analysis). Iterate freely (non-gated); spawn features with `new_feature.py "<name>" --type <tt> --project meta_harness_7`; log sessions in CURRENT_STATE.md (newest on top).
 
 ---
 
@@ -118,11 +118,11 @@
 
 ## Status
 
-- [ ] Wave 0 — P0-1 `preflight-on-declare` · P0-2 `dangling-active-only` · P0-3 `kb-sticky-per-feature` · P0-4 `nav-cache-hit`
+- [ ] Wave 0 — P0-1 `preflight-on-declare` · P0-2 `dangling-active-only` ✅ DONE (feature_060, 2026-09-06: active-only ≤10 + expired GC, suite 1981/0) · P0-3 `kb-sticky-per-feature` · P0-4 `nav-cache-hit`
 - [ ] Wave 1 — P1-1 `think-batch-consult` · P1-2 `tdd-same-node-lint` · P1-3 `project-autolink` · P1-4 `budget-diet-bot`
 - [ ] Wave 2 — P2-1 `omt-workflow-index` · P2-2 `subagent-fanout-recipe` · P2-3 `receipt-batch-mode`
 - [ ] End-of-program re-evaluation vs §Baseline (delta report → Decisions log → close program)
-- [ ] First linked feature flips this project draft → active
+- [x] First linked feature flips this project draft → active (feature_060 linked 2026-09-06)
 
 ---
 

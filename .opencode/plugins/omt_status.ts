@@ -417,21 +417,28 @@ function skipHygiene(): { lines: string[]; summary: Record<string, any> } {
     })
   })
   const expired = dangling.filter((d) => d.age > UNLOCK_WINDOW_MS)
+  const active = dangling.filter((d) => d.age <= UNLOCK_WINDOW_MS)
   const q = (s: string): string => s.replace(/"/g, "'")
   const lines = [
     `Skips 7d: ${week.length} (friction ${friction} · nav-escapes ${navEscapes} · evasion ${evasion}, warn>${warnAt}/week)`,
     `Dangling phases: ${dangling.length} (${expired.length} expired)`,
   ]
-  const oldest = [...expired].sort((a, b) => b.age - a.age).slice(0, DANGLING_LIST_CAP)
-  for (const d of oldest) {
+  // feature_060 P0-2 dangling-active-only: list <=10 unexpired oldest-first
+  // (closest to expiry); expired auto-hide behind a GC count line. The 8h
+  // UNLOCK_WINDOW is the one-session grace — hidden expired records stay
+  // resumable via explicit re-declare / abandon tombstone (one-call idiom).
+  const shown = [...active].sort((a, b) => b.age - a.age).slice(0, DANGLING_LIST_CAP)
+  for (const d of shown) {
     lines.push(`  • ${d.feature} ${d.phase} — ${formatDuration(d.age)} — resume: omt_phase{task_type:"${q(d.task_type)}", phase:"${d.phase}", scope:"${q(d.scope)}", feature:"${d.feature}"} · abandon: omt_phase{task_type:"${q(d.task_type)}", phase:"abandoned", scope:"abandon ${d.phase}: <reason>", feature:"${d.feature}"}`)
   }
-  if (expired.length > oldest.length) lines.push(`  … and ${expired.length - oldest.length} more expired (oldest shown)`)
+  if (active.length > shown.length) lines.push(`  … and ${active.length - shown.length} more active (oldest shown)`)
+  if (expired.length) lines.push(`  … and ${expired.length} expired auto-hidden (GC: abandon to tombstone, or re-declare to resume)`)
   return {
     lines,
     summary: {
       week_total: week.length, friction, nav_escapes: navEscapes, evasion,
       warn_at: warnAt, dangling_total: dangling.length, dangling_expired: expired.length,
+      dangling_active: active.length,
     },
   }
 }

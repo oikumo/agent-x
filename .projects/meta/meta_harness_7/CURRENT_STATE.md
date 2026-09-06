@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-09-06 (iter 2 — P0-2 dangling-active-only DONE, Wave 0 started)
+
+### Done
+
+- **feature_060.dangling_active_only DONE (minor_feature, Design→Programming→Testing→Done):** `omt_status` dangling list now shows ≤10 *unexpired* active oldest-first + `… N expired auto-hidden (GC: …)` line; header `Dangling phases: N (M expired)` unchanged (e2e shape pin); summary gains `dangling_active`. 8h UNLOCK_WINDOW is the one-session grace — hidden expired stay resumable via re-declare/abandon.
+- Overlap check (Exec rule 5): meta_harness_5 all-shipped/reject (no open), meta_harness_6 A2+A3 built the dangling list — P0-2 is incremental active-filter, no re-implementation.
+- Receipt round-robin held (ONE harness edit + tests edits, ONE e2e refresh); canary ordering held (phase before skip, skip immediately before tests/ edits).
+- Evidence: new `tests/features/feature_060.dangling_active_only/test_dangling_active_only.py` (cap 12→10 + GC + empty) + updated `feature_056/test_phase_hygiene.py` (active-listed, expired-hidden); e2e 1/1; `harnessc check` 0 errors + `build` OK (budgets green, gates 10/12); full suite **1981/0**.
+- Project flips draft → active (first linked feature; WORK.md + META.md auto-synced).
+
+### In progress / Blocked
+
+- _(nothing — P0-2 shipped)_
+
+### Next
+
+1. Wave 0 next per CURRENT_STATE iter 1: P0-4 `nav-cache-hit` (`new_feature.py "nav cache hit" --type minor_feature --project meta_harness_7`), then P0-1 → P0-3 in listed order.
+2. Before each scaffold: overlap check vs meta_harness_5/6 backlogs (Exec rule 5).
+
+### Notes / context
+
+- Live `omt_status` in-session still shows expired list (TS plugins don't hot-reload — fresh `bun` probes + pytest show the new behavior; restart picks it up).
+- Tightest budgets after build: tool_args 2278/2304, schemas 1770/1792, nav_index 63923/64000 — P1-4 owns the warning.
+
+---
+
+
 ## 2026-09-06 (iter 1 — program defined; ZERO execution)
 
 ### Done
