@@ -6,9 +6,9 @@
 
 ## New Session Quick Start
 
-> One line: `meta_harness_6` is the **13-item improvement program distilled from the 2026-09-05 deep evaluation** of the META HARNESS (evidence + full option detail @ `.sandbox/meta_harness_6_evaluation.md`) — 5 waves: integrity → friction → signal → knowledge → productization; Waves 1–2 COMPLETE (A1, F1, C1, C2, A4 → feature_051..055, suite 1902/0); next = Wave 3 (A2+A3).
+> One line: `meta_harness_6` is the **13-item improvement program distilled from the 2026-09-05 deep evaluation** of the META HARNESS (evidence + full option detail @ `.sandbox/meta_harness_6_evaluation.md`) — 5 waves: integrity → friction → signal → knowledge → productization; Waves 1–2 COMPLETE (A1, F1, C1, C2, A4 → feature_051..055, suite 1902/0); Wave 3/A2+A3 DONE (feature_056, suite 1934/0); next = Wave 3/B1+B2.
 
-**Next:** **Wave 3 / A2+A3 `skip_taxonomy_phase_hygiene`** — resume from `.projects/meta/meta_harness_6/CURRENT_STATE.md` §Next (2026-09-06 iter 5 entry). Scaffold: `uv run scripts/omt/new_feature.py "skip taxonomy phase hygiene" --type minor_feature --project meta_harness_6` (takes number 056), then `omt_phase{task_type:minor_feature, phase:Programming, scope:"..."}` and execute per §Execution rules. Read §Decision gates + §Execution rules FIRST (net/receipt discipline; solo sessions no longer fire work_start — C1; bug_fix/test phases satisfy g.nav+g.kb in one write — C2; `omt_status{op:"preflight", tool, path}` projects the gate chain + clearing actions before an edit — A4).
+**Next:** **Wave 3 / B1+B2 `gate_budget_ceremony_meter`** — resume from `.projects/meta/meta_harness_6/CURRENT_STATE.md` §Next (2026-09-06 iter 6 entry). Scaffold: `uv run scripts/omt/new_feature.py "gate budget ceremony meter" --type minor_feature --project meta_harness_6` (takes number 057), then `omt_phase{task_type:minor_feature, phase:Programming, scope:"..."}` and execute per §Execution rules. Read §Decision gates + §Execution rules FIRST (net/receipt discipline; solo sessions no longer fire work_start — C1; bug_fix/test phases satisfy g.nav+g.kb in one write — C2; `omt_status{op:"preflight", tool, path}` projects the gate chain + clearing actions before an edit — A4; skips carry purpose, phases expire, `omt_status` shows hygiene — A2+A3).
 
 ---
 
@@ -131,7 +131,7 @@
 
 - [x] Wave 1 — A1 ✅ DONE (feature_051.ledger_test_isolation, 2026-09-06) · F1 ✅ DONE (feature_052.opencode_version_canary, 2026-09-06: @var opencode_version_range >=1.18.29,<1.19 + session-start WRN + fail-loud canary suite, suite 1866/0) — **Wave 1 COMPLETE**
 - [x] Wave 2 — C1 ✅ DONE (feature_053.net_gate_concurrency_predicate, 2026-09-06: @pred net_marking(active>1) + Python solo bypass + TS fast-path mirror, suite 1879/0) · C2 ✅ DONE (feature_054.small_task_fast_path, 2026-09-06: bug_fix/test phase satisfies g.nav+g.kb in one ledger write + narrowed own-dir/RED canary auto-unlock, suite 1887/0) · A4 ✅ DONE (feature_055.gate_preflight, 2026-09-06: omt_status op=preflight — ordered gates-that-will-fire + clearing actions via runBeforeGatesDry fired/stop flags, suite 1902/0) — **Wave 2 COMPLETE**
-- [ ] Wave 3 — A2+A3 skip_taxonomy_phase_hygiene (NEXT, takes 056), B1+B2 gate_budget_ceremony_meter (takes 057)
+- [~] Wave 3 — A2+A3 ✅ DONE (feature_056.skip_taxonomy_phase_hygiene, 2026-09-06: purpose taxonomy + friction:evasion report + override/week warning + phase auto-expiry + abandon tombstones + dangling list, suite 1934/0) · B1+B2 gate_budget_ceremony_meter (NEXT, takes 057)
 - [ ] Wave 4 — E2+E1 thought_review_gotcha_root_cause
 - [ ] Wave 5 — D1 harness_tiered_template (+ D2 stack_profiles, D3 generated_onboarding)
 - [ ] End-of-program re-evaluation vs §Baseline (delta report → Decisions log)

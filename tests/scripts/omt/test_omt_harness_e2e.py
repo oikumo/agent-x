@@ -383,5 +383,36 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
         "A4 requires the op=preflight schema on @tool omt_status")
     checks.append("feature_055 A4: gate_preflight wired (omt_status op=preflight + runBeforeGatesDry fired/stop + clearing actions)")
 
+    # 16. feature_056 A2+A3 skip_taxonomy_phase_hygiene: purpose taxonomy on
+    # omt_skip (closed vocab + scope-aware default) + phase auto-expiry with
+    # abandon tombstones + status hygiene report + check-time override alarm.
+    harness_omt = _read(".meta/META_HARNESS.omt")
+    assert "purpose: canary|emergency|break_glass|override" in harness_omt, (
+        "A2 requires the purpose taxonomy on @tool omt_skip")
+    assert 'args="reason,scope?,purpose?"' in harness_omt, (
+        "A2 requires the purpose arg on @tool omt_skip")
+    assert "@var skip_override_warn_per_week" in harness_omt, (
+        "A2 requires the weekly override alarm threshold @var")
+    phase_gate = _read(".opencode/lib/enforcer/phase_gate.ts")
+    assert "SKIP_PURPOSES" in phase_gate, (
+        "A2 requires the closed purpose vocabulary in phase_gate.ts")
+    assert "abandonDanglingPhase" in phase_gate, (
+        "A3 requires the abandon tombstone writer in phase_gate.ts")
+    session_state = _read(".opencode/lib/enforcer/session_state.ts")
+    assert "isAliveUnlockRecord" in session_state, (
+        "A3 requires the expiry filter in session_state.ts")
+    assert "isRetiredByTombstone" in session_state, (
+        "A3 requires the tombstone-retirement rule in session_state.ts")
+    assert "skipHygiene" in status, (
+        "A2+A3 requires the hygiene report in omt_status.ts")
+    assert "Dangling phases" in status, (
+        "A3 requires the dangling-phase list in omt_status.ts")
+    harnessc_py = _read("scripts/omt/harnessc.py")
+    assert "check_skip_override_alarm" in harnessc_py, (
+        "A2 requires the override alarm in harnessc.py")
+    assert "c.warnings" in harnessc_py, (
+        "A2 requires the non-blocking warnings channel in harnessc.py")
+    checks.append("feature_056 A2+A3: skip_taxonomy_phase_hygiene wired (purpose taxonomy + expiry/tombstones + hygiene report + alarm)")
+
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

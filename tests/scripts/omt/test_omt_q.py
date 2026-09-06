@@ -124,16 +124,21 @@ class TestOpStateResumeSnapshot:
     @pytest.mark.skipif(BUN is None, reason="bun runtime not available")
     @pytest.mark.skipif(not OMT_Q_PLUGIN.exists(), reason="omt_q.ts not implemented yet (RED)")
     def test_u1_op_state_returns_5_read_snapshot(self, tmp_path):
+        # feature_056 A3: unlock selectors enforce the 8h window — fixtures
+        # must be in-window (the old absolute 2026-08-09 dates silently
+        # depended on timeless session matching, which auto-expire removed).
+        base = datetime.now(timezone.utc) - timedelta(hours=1)
+        ts = lambda m: (base + timedelta(minutes=m)).isoformat()
         _copy_real_ir(tmp_path)
         _write_ledger(tmp_path, [
-            {"ts": "2026-08-09T10:00:00Z", "kind": "phase",
+            {"ts": ts(0), "kind": "phase",
              "task_type": "major_feature", "phase": "Programming",
              "feature": "feature_026.omt_q_interrogative_first_ops",
              "session": "ses_u1"},
-            {"ts": "2026-08-09T10:01:00Z", "kind": "tdd_testlist",
+            {"ts": ts(1), "kind": "tdd_testlist",
              "session": "ses_u1", "behaviors": ["U1"], "remaining": [],
              "feature": "feature_026.omt_q_interrogative_first_ops"},
-            {"ts": "2026-08-09T10:05:00Z", "kind": "tdd", "session": "ses_u1",
+            {"ts": ts(5), "kind": "tdd", "session": "ses_u1",
              "state": "red", "test_node": "tests/scripts/omt/test_omt_q.py::T::t",
              "target_src": [".opencode/plugins/omt_q.ts"], "verified": False,
              "exit_code": 1, "feature": "feature_026.omt_q_interrogative_first_ops"},

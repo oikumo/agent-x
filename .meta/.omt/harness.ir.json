@@ -518,8 +518,8 @@
       "tags": "CMD_Q"
     },
     "omt_skip": {
-      "args": "reason,scope?",
-      "description": "Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all (default all).",
+      "args": "reason,scope?,purpose?",
+      "description": "Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all. purpose: canary|emergency|break_glass|override.",
       "perm": "allow",
       "tags": "CMD_OMT_SKIP"
     },
@@ -568,6 +568,7 @@
     "scaffold": "uv run scripts/omt/new_feature.py",
     "search_tools": "grep|glob|rg|find",
     "shared_lib": ".opencode/lib/omt_shared.ts",
+    "skip_override_warn_per_week": 5,
     "tdd_check": "uv run scripts/omt/tdd_check.py",
     "thought_pattern": "^\\s*(#|//|/\\*|<!--|--)\\s*TA:",
     "thoughts_path": ".meta/.omt/thoughts.jsonl",

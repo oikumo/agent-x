@@ -5,6 +5,48 @@
 
 ---
 
+## 2026-09-06 (auto — feature_056.skip_taxonomy_phase_hygiene Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_056.skip_taxonomy_phase_hygiene/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+## 2026-09-06 (iter 6 — Wave 3/A2+A3 EXECUTED: feature_056.skip_taxonomy_phase_hygiene DONE; NEXT = B1+B2)
+
+### Done
+
+- **Resumed per PROJECT.md Quick Start + CURRENT_STATE iter 5**: tree verified CLEAN (user committed Wave 2), meta_harness_5 overlap re-check clean (all 10 shipped/rejected — nothing on skip taxonomy/phase hygiene), net dormant (rev 57 — solo, no fire per C1), feature_056 scaffolded + linked, phase declared (Programming, minor_feature).
+- **A2+A3 `feature_056.skip_taxonomy_phase_hygiene` SHIPPED** (minor_feature, Programming→Testing→Done):
+  - **A2 purpose taxonomy**: `omt_skip{reason,scope?,purpose?}` — closed `canary|emergency|break_glass|override` (rejected otherwise), scope-aware default (tests→canary, else override — zero-friction: canary IS the designed toll; nav escapes bucket separately, never alarming). Effective purpose on the ledger record + result echo.
+  - **A2 report + alarm**: `omt_status` default output gains `Skips 7d: N (friction F · nav-escapes V · evasion E, warn>T/week)` + `Dangling phases` section (read-only — A4 pin holds); `harnessc check` gains a warnings channel (alarm ≠ error, exit 0) firing past `@var skip_override_warn_per_week` (5). Live ledger right now: evasion 0, no warning.
+  - **A3 auto-expire + tombstones**: `getActiveUnlock`/`getActiveFeaturePhase` ignore records past `@var unlock_window_ms` INCLUDING session-matched (the stale-shadow hole — expired phases neither unlock nor shadow; all-expired sessions fail closed). `omt_phase{phase:"abandoned"}` tombstones the latest dangling phase; one retirement semantic everywhere (`isRetiredByTombstone` — round-2 probe catch: no resurrection of the retired record; other features/phases unaffected; resume = plain re-declare). `hasFastPathUnlock`/`hasNavUnlock` untouched (C2 owns them).
+  - **Dangling list**: expired declared-never-completed phases, oldest-first capped at 10, each with exact one-call resume/abandon commands (taught point-of-use — no schema growth).
+  - `.omt`: `@tool omt_skip` payload+args (kept `Scopes: a|b` derive shape), `@var skip_override_warn_per_week`, `@state ledger` semantics, `@xref ledger` fields, `@flow skip_src` purpose — NO new @tool/@doc/@msg. 260 records, check 0 errors, all 12 budgets green (tool_args 2271/2304, tool_schemas 1750/1792, nav_index 63900/64000 — the 59 B purpose describe funded by −70 B hint trims).
+  - Tests: 32 new (18 taxonomy incl. pure matrices + wrapper hermeticity + SSOT/diet pins; 14 hygiene incl. bun probes on the REAL modules — expiry matrix, shadow-kill via real `guardTestsPath`, tool behavior with ledger read-back, full status-plugin probe, C2 guardrail) + e2e check 16.
+  - **Evidence: full suite 1934 passed / 0 failed (1902 + 32 new, empty allowlist); bun builds clean; e2e receipt refreshed (R1 → R2 → fixture-fix).**
+  - Incidents closed: U1 snapshot fixture (absolute 2026-08-09 dates depended on timeless matching → relative in-window timestamps); live-guards red once, green on rerun (flaky); round-2 resurrection catch (see above).
+- Artifacts: `5.implementation/.../implementation_notes.md` + `6.testing/.../test_report.md` (incl. documented deviation: this tool surface exposes no `omt_skip` — tests/ writes via the sanctioned bash path under declared phase, receipt discipline kept manually; no live-ledger skip from this session).
+
+### In progress / Blocked
+
+- _(nothing in-flight — feature_056 fully closed)_
+
+### Next
+
+1. **Wave 3 / B1+B2 `gate_budget_ceremony_meter`** (minor_feature, one feature two behaviors): overlap-check meta_harness_5 backlog → scaffold `uv run scripts/omt/new_feature.py "gate budget ceremony meter" --type minor_feature --project meta_harness_6` (takes number **057**) → omt_phase → `@budget gates max=12` net-zero policy + retirement candidates from skip-frequency (A2's purpose data feeds this!); ceremony meter (calls before first src edit per task_type; alarm bug_fix > 3) per evaluation §5 B1+B2. NOTE: owns the tight budgets (tool_args 33B, tool_schemas 42B, nav_index 100B headroom — likely needs its own diet or deliberate bumps).
+2. Then Wave 4 (E2+E1), Wave 5 (D1–D3) — PROJECT.md §The program.
+
+### Notes / context
+
+- Working tree UNCOMMITTED (agent cannot git-commit): feature_056 changes (.omt + 3 TS files + harnessc.py + e2e check 16 + U1 fixture refresh + 2 new test files + 3 artifact dirs + project docs) await user `git commit`.
+- Net: rev 57 (dormant all session — solo per C1), pool pending=0/active=0/done=7.
+- Round discipline: R1 = 5 per-file transforms (one script each) → check+build green → smoke 11/12 → e2e refresh; R2 = session_state retired-rule only → 19/19 probes → e2e refresh; R3 = check-16 + tests + U1 fixture (bash path, documented) → full suite 1934/0.
+- Dogfood note: this session's own skips (none — no omt_skip in surface) and canary-pattern test writes are now classifiable; the next session's `omt_status` shows the live `Skips 7d` line.
+
+---
+
+
 ## 2026-09-06 (auto — feature_055.gate_preflight Done)
 
 - shipped: minor_feature · test report @ 6.testing/features/feature_055.gate_preflight/test_report.md

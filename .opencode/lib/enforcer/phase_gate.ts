@@ -22,6 +22,13 @@ const VALID_TASK_TYPES = new Set([
 ])
 // Task types that may not touch src/ until a design artifact exists on disk (guide §12).
 const ARTIFACT_REQUIRED = new Set(["major_feature", "new_screen"])
+// feature_056 A2 skip_purpose_taxonomy: closed purpose vocabulary for omt_skip
+// (friction vs evasion signal). The scope-aware default is applied at write
+// time: scope=tests → canary (the designed toll); anything else unmarked →
+// override (uncategorized bypass).
+const SKIP_PURPOSES: ReadonlySet<string> = new Set([
+  "canary", "emergency", "break_glass", "override",
+])
 
 // Valid phase transitions per guide §12: .omt @fsm phase transitions= is the
 // FUNCTIONAL source (improvement007/OPT-E), resolved per call through the
@@ -214,6 +221,33 @@ export async function guardSrcPath(
   await capturePreEditSnapshot(env, abs, rel, unlock.record.tdd_mode === true)
 }
 
+// feature_056 A3 phase_hygiene: tombstone the feature's latest dangling
+// (declared, never completed, untombstoned) phase. Returns the tool result
+// string; writes nothing when there is nothing dangling. Tombstones are pure
+// hygiene metadata — unlock selectors and the dangling scan skip them.
+function abandonDanglingPhase(
+  env: EnforcerEnv, session: string | undefined, taskType: string, feature: string, scope: string,
+): string {
+  if (!feature) {
+    return `❌ omt_phase abandon: feature required (e.g., feature:"feature_056.x").`
+  }
+  const recs = readLedger()
+  let target: { phase: string } | null = null
+  recs.forEach((r: any, i: number) => {
+    if (r?.kind !== "phase" || r?.feature !== feature || !r?.phase || r.phase === "abandoned") return
+    const resolved = recs.slice(i + 1).some((x: any) =>
+      (x?.kind === "complete" && x?.feature === feature && x?.phase === r.phase) ||
+      (x?.kind === "phase" && x?.phase === "abandoned" && x?.feature === feature && x?.abandons === r.phase))
+    if (!resolved) target = { phase: String(r.phase) }
+  })
+  if (!target) return `✅ omt_phase abandon: nothing dangling for ${feature} — no tombstone written.`
+  writeLedger({
+    kind: "phase", session, task_type: taskType, phase: "abandoned",
+    abandons: target.phase, scope: scope || `abandon ${target.phase}`, feature,
+  })
+  return `✅ omt_phase abandon: ${feature} ${target.phase} retired (tombstoned — no unlock; re-declare omt_phase to resume it).`
+}
+
 // --- phase lifecycle tools ---------------------------------------------------
 export function createPhaseTools(env: EnforcerEnv) {
   const { directory, $, safeLog } = env
@@ -225,8 +259,8 @@ export function createPhaseTools(env: EnforcerEnv) {
       scope: tool.schema.string().describe("one sentence describing what 'done' looks like"),
       phase: tool.schema.string().optional().describe("Analysis|Design|Programming|Testing"),
       feature: tool.schema.string().optional().describe("feature slug, e.g. feature_006.x"),
-      design_doc: tool.schema.string().optional().describe("design artifact path (required for major_feature/new_screen)"),
-      tdd: tool.schema.boolean().optional().describe("TDD for Programming (auto-on major_feature/new_screen)"),
+      design_doc: tool.schema.string().optional().describe("design artifact path (major/new_screen only)"),
+      tdd: tool.schema.boolean().optional().describe("TDD for Programming (auto-on majors)"),
     },
     async execute(args, context) {
       const tt = String(args.task_type || "").trim()
@@ -235,6 +269,16 @@ export function createPhaseTools(env: EnforcerEnv) {
       }
       const session = context?.sessionID || undefined
       const newPhase = args.phase || ""
+
+      // feature_056 A3: phase="abandoned" is a hygiene tombstone, not an
+      // unlock — it retires the feature's latest dangling phase (see
+      // abandonDanglingPhase). Early return: no exit validation, no TDD
+      // baseline, no artifact link — abandoning must never demand the work it
+      // retires. Taught point-of-use (omt_status prints the exact call); the
+      // phase describe stays untouched (tool_args headroom).
+      if (newPhase === "abandoned") {
+        return abandonDanglingPhase(env, session, tt, args.feature || "", args.scope || "")
+      }
 
       // Phase exit validation: if transitioning FROM a feature-sized phase,
       // check artifacts exist. Bug fixes/refactors/tests intentionally keep the
@@ -314,16 +358,24 @@ export function createPhaseTools(env: EnforcerEnv) {
   })
 
   const omt_skip = tool({
-    description: irToolDescription("omt_skip", "Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all (default all)."),
+    description: irToolDescription("omt_skip", "Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all. purpose: canary|emergency|break_glass|override."),
     args: {
-      reason: tool.schema.string().describe("why the process is being skipped"),
+      reason: tool.schema.string().describe("why (logged)"),
       scope: tool.schema.string().optional().describe("src|tests|nav|all (default all)"),
+      purpose: tool.schema.string().optional().describe("canary|emergency|break_glass|override (tests default canary)"),
     },
     async execute(args, context) {
       const session = context?.sessionID || undefined
       const scope = args.scope || "all"
+      // feature_056 A2: purpose turns opaque skips into signal. Unknown values
+      // are rejected — a free-text purpose would re-opaque the taxonomy.
+      const rawPurpose = String(args.purpose || "").trim()
+      if (rawPurpose && !SKIP_PURPOSES.has(rawPurpose)) {
+        return `❌ invalid purpose '${rawPurpose}'. Use one of: ${[...SKIP_PURPOSES].join(", ")}.`
+      }
+      const purpose = rawPurpose || (scope === "tests" ? "canary" : "override")
       writeLedger({
-        kind: "skip", session, reason: args.reason || "(none)", scope,
+        kind: "skip", session, reason: args.reason || "(none)", scope, purpose,
         tests_approved: scope === "tests" || scope === "all",
       })
       const scopeNote =
@@ -331,7 +383,7 @@ export function createPhaseTools(env: EnforcerEnv) {
         : scope === "nav" ? "scope=nav unlocks the feature_020 navigation gate for this session (grep/glob on docs no longer require prior omt_nav)."
         : scope === "tests" ? "scope=tests unlocks tests/ edits (canary approval)."
         : "scope=src unlocks src/ edits."
-      return `⚠️ OMT++ skip recorded (scope=${scope}): "${args.reason}". ` +
+      return `⚠️ OMT++ skip recorded (scope=${scope}, purpose=${purpose}): "${args.reason}". ` +
         "This override is logged in .meta/.omt/ledger.jsonl. " + scopeNote
     },
   })
@@ -341,7 +393,7 @@ export function createPhaseTools(env: EnforcerEnv) {
     description: irToolDescription("omt_complete", "Verify phase artifacts; optionally advance (Design|Programming|Testing|Done)."),
     args: {
       feature: tool.schema.string().describe("feature slug, e.g. feature_006.x"),
-      advance_to: tool.schema.string().optional().describe("phase after verification (Design|Programming|Testing|Done)"),
+      advance_to: tool.schema.string().optional().describe("advance to: Design|Programming|Testing|Done"),
     },
     async execute(args, context) {
       const session = context?.sessionID || undefined

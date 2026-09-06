@@ -24,7 +24,9 @@ import json
 import re
 import shlex
 import sys
+import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -144,6 +146,7 @@ class Record:
 class Corpus:
     records: list[Record]
     errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def of(self, kind: str) -> list[Record]:
         return [r for r in self.records if r.kind == kind]
@@ -1274,6 +1277,96 @@ def check_harness_paths(c: Corpus) -> None:
                         "matches no real repo path (stale guard)")
 
 
+# --- feature_056 A2 skip_purpose_taxonomy --------------------------------------
+# Turns opaque skips into signal: every skip classifies as friction (the
+# process toll, paid by design), nav-escape (cheap efficiency bypass, tracked
+# but never alarming), or evasion (uncategorized bypass of discipline gates).
+# Scope-aware default keeps history meaningful: scope=tests IS the canary toll;
+# anything else unmarked is an uncategorized bypass (override). Mirrors
+# omt_status.ts skipHygiene (TS) — keep the two in sync; both pinned by
+# tests/features/feature_056.skip_taxonomy_phase_hygiene/.
+SKIP_PURPOSES = ("canary", "emergency", "break_glass", "override")
+FRICTION_PURPOSES = frozenset({"canary", "emergency", "break_glass"})
+SKIP_HYGIENE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+SKIP_OVERRIDE_WARN_PER_WEEK_DEFAULT = 5
+
+
+def skip_effective_purpose(record: dict) -> str:
+    """Effective purpose of a ledger skip record (A2.1 default rule)."""
+    purpose = record.get("purpose")
+    if isinstance(purpose, str) and purpose in SKIP_PURPOSES:
+        return purpose
+    return "canary" if record.get("scope") == "tests" else "override"
+
+
+def skip_hygiene_counts(records: list[dict], now_ms: float) -> dict[str, int]:
+    """Pure 7-day skip-signal split (A2.2). Unparseable ts fails open (skipped)."""
+    friction = nav_escapes = evasion = total = 0
+    for r in records:
+        if not isinstance(r, dict) or r.get("kind") != "skip":
+            continue
+        try:
+            t = datetime.fromisoformat(
+                str(r.get("ts", "")).replace("Z", "+00:00")).timestamp() * 1000
+        except (ValueError, OSError):
+            continue
+        if now_ms - t >= SKIP_HYGIENE_WINDOW_MS:
+            continue
+        total += 1
+        purpose = skip_effective_purpose(r)
+        if purpose in FRICTION_PURPOSES:
+            friction += 1
+        elif r.get("scope") == "nav":
+            nav_escapes += 1
+        else:
+            evasion += 1
+    return {"total": total, "friction": friction,
+            "nav_escapes": nav_escapes, "evasion": evasion}
+
+
+def skip_override_warning(counts: dict[str, int], threshold: int) -> str | None:
+    """Warning text when 7-day evasion crosses the weekly threshold (A2.3)."""
+    if counts.get("evasion", 0) > threshold:
+        return (f"skip-hygiene: {counts['evasion']} evasion skip(s) in the last 7d "
+                f"(friction {counts.get('friction', 0)}, nav-escapes "
+                f"{counts.get('nav_escapes', 0)}) cross warn>{threshold}/week "
+                f"(@var skip_override_warn_per_week) — mark omt_skip purposes, "
+                f"or route around fewer gates")
+    return None
+
+
+def check_skip_override_alarm(c: Corpus) -> None:
+    """A2.3: alarm (warning, NEVER error) on live-ledger override volume.
+
+    Reads the repo hot ledger only (64 KB cap >> a week of skips — skips are
+    rare); deliberately NOT OMT_LEDGER_PATH-aware (this audits the repo, like
+    the WORK.md checks). Missing/unreadable ledger fails open silent.
+    """
+    var = c.get("var", "skip_override_warn_per_week")
+    try:
+        threshold = int(str(var.payload).strip()) if var is not None else SKIP_OVERRIDE_WARN_PER_WEEK_DEFAULT
+    except (ValueError, AttributeError):
+        threshold = SKIP_OVERRIDE_WARN_PER_WEEK_DEFAULT
+    if threshold <= 0:
+        return
+    try:
+        raw = (REPO_ROOT / ".meta" / ".omt" / "ledger.jsonl").read_text(encoding="utf-8")
+    except OSError:
+        return
+    records = []
+    for line in raw.splitlines():
+        try:
+            parsed = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(parsed, dict):
+            records.append(parsed)
+    warning = skip_override_warning(
+        skip_hygiene_counts(records, time.time() * 1000), threshold)
+    if warning is not None:
+        c.warnings.append(warning)
+
+
 def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str = "") -> dict[str, tuple[int, int | None]]:
     check_schema(c)
     check_ids(c)
@@ -1294,6 +1387,7 @@ def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str =
     check_projects_status(c)
     check_projects_manifest(c)
     check_tool_seed_sync(c)
+    check_skip_override_alarm(c)
     sizes = measure_budgets(c, agents_md, nav_text, ir_text)
     for rid, (size, cap) in sizes.items():
         if size >= 0 and cap is not None and size > cap:
@@ -1337,6 +1431,9 @@ def main(argv: list[str]) -> int:
         for e in c.errors:
             print(f"harnessc: error: {e}", file=sys.stderr)
         return 1
+
+    for w in c.warnings:
+        print(f"harnessc: warn: {w}", file=sys.stderr)
 
     if cmd == "build":
         IR_PATH.parent.mkdir(parents=True, exist_ok=True)

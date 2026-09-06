@@ -44,6 +44,8 @@ interface LedgerRecord {
   design_doc?: string
   reason?: string
   tests_approved?: boolean
+  purpose?: string
+  abandons?: string
 }
 
 function readLedger(): LedgerRecord[] {
@@ -359,6 +361,81 @@ function preflightLines(p: Record<string, any>): string[] {
   return lines
 }
 
+// ---------------------------------------------------------------------------
+// feature_056 A2+A3 skip taxonomy + phase hygiene. READ-ONLY (the A4
+// ledger-write-free pin holds — this section never writes the ledger):
+//   • 7-day skip-signal split — friction (the process toll, paid by design)
+//     vs nav-escapes (cheap efficiency bypass, tracked, never alarming) vs
+//     evasion (uncategorized bypass of discipline gates). Unmarked history
+//     classifies via the scope-aware default (scope=tests → canary).
+//   • dangling-phase list — declared-never-completed EXPIRED phases with the
+//     exact one-call resume (omt_phase re-declare) / abandon (omt_phase
+//     phase="abandoned" tombstone) commands.
+// ---------------------------------------------------------------------------
+const SKIP_PURPOSES = ["canary", "emergency", "break_glass", "override"]
+const FRICTION_PURPOSES = new Set(["canary", "emergency", "break_glass"])
+const SKIP_HYGIENE_WEEK_MS = 7 * 24 * 60 * 60 * 1000
+const SKIP_OVERRIDE_WARN_DEFAULT = 5
+const DANGLING_LIST_CAP = 10
+
+function skipEffectivePurpose(r: any): string {
+  const p = typeof r?.purpose === "string" ? r.purpose : ""
+  if ((SKIP_PURPOSES as string[]).includes(p)) return p
+  return r?.scope === "tests" ? "canary" : "override"
+}
+
+function skipHygiene(): { lines: string[]; summary: Record<string, any> } {
+  const now = Date.now()
+  const recs = sharedReadLedgerAll()
+  const week = recs.filter((r: any) => r?.kind === "skip" &&
+    !Number.isNaN(Date.parse(r.ts || "")) && now - Date.parse(r.ts || "") < SKIP_HYGIENE_WEEK_MS)
+  let friction = 0, navEscapes = 0, evasion = 0
+  for (const r of week) {
+    const purpose = skipEffectivePurpose(r)
+    if (FRICTION_PURPOSES.has(purpose)) friction += 1
+    else if (r?.scope === "nav") navEscapes += 1
+    else evasion += 1
+  }
+  const rawT = (loadIr() as any)?.vars?.skip_override_warn_per_week
+  const parsedT = Number.isInteger(rawT) ? rawT : parseInt(String(rawT ?? ""), 10)
+  const warnAt = Number.isFinite(parsedT) && parsedT > 0 ? parsedT : SKIP_OVERRIDE_WARN_DEFAULT
+  // Dangling: phase records (feature set, not tombstones) with no later
+  // complete{feature,phase} and no later abandon tombstone for that phase.
+  const dangling: { feature: string; phase: string; task_type: string; scope: string; age: number }[] = []
+  recs.forEach((r: any, i: number) => {
+    if (r?.kind !== "phase" || !r?.feature || !r?.phase || r.phase === "abandoned") return
+    const later = recs.slice(i + 1)
+    const resolved = later.some((x: any) =>
+      (x?.kind === "complete" && x?.feature === r.feature && x?.phase === r.phase) ||
+      (x?.kind === "phase" && x?.phase === "abandoned" && x?.feature === r.feature && x?.abandons === r.phase))
+    if (resolved) return
+    const t = Date.parse(r.ts || "")
+    dangling.push({
+      feature: String(r.feature), phase: String(r.phase),
+      task_type: String(r.task_type || ""), scope: String(r.scope || ""),
+      age: Number.isNaN(t) ? 0 : now - t,
+    })
+  })
+  const expired = dangling.filter((d) => d.age > UNLOCK_WINDOW_MS)
+  const q = (s: string): string => s.replace(/"/g, "'")
+  const lines = [
+    `Skips 7d: ${week.length} (friction ${friction} · nav-escapes ${navEscapes} · evasion ${evasion}, warn>${warnAt}/week)`,
+    `Dangling phases: ${dangling.length} (${expired.length} expired)`,
+  ]
+  const oldest = [...expired].sort((a, b) => b.age - a.age).slice(0, DANGLING_LIST_CAP)
+  for (const d of oldest) {
+    lines.push(`  • ${d.feature} ${d.phase} — ${formatDuration(d.age)} — resume: omt_phase{task_type:"${q(d.task_type)}", phase:"${d.phase}", scope:"${q(d.scope)}", feature:"${d.feature}"} · abandon: omt_phase{task_type:"${q(d.task_type)}", phase:"abandoned", scope:"abandon ${d.phase}: <reason>", feature:"${d.feature}"}`)
+  }
+  if (expired.length > oldest.length) lines.push(`  … and ${expired.length - oldest.length} more expired (oldest shown)`)
+  return {
+    lines,
+    summary: {
+      week_total: week.length, friction, nav_escapes: navEscapes, evasion,
+      warn_at: warnAt, dangling_total: dangling.length, dangling_expired: expired.length,
+    },
+  }
+}
+
 // R8: build the tool AFTER initOmtShared so irToolDescription reads the IR
 // under the injected repo root (never the pre-init cwd).
 
@@ -395,7 +472,7 @@ function createStatusTool() {
       op: tool.schema.string().optional().describe("status (default) | preflight"),
       tool: tool.schema.string().optional().describe("target tool (default edit)"),
       path: tool.schema.string().optional().describe("target path"),
-      include_ledger: tool.schema.boolean().optional().describe("include last 5 phase/skip ledger entries"),
+      include_ledger: tool.schema.boolean().optional().describe("include last 5 ledger entries"),
     },
     async execute(args, context) {
       const sessionId = context?.sessionID
@@ -542,6 +619,11 @@ function createStatusTool() {
       } else if (statusRecords.length) {
         lines.push(`Ledger: hidden (${statusRecords.length} records; omt_status{include_ledger:true} for audit detail)`)
       }
+
+      // feature_056 A2+A3: skip-signal split + dangling-phase hygiene.
+      const hygiene = skipHygiene()
+      lines.push(...hygiene.lines)
+      result.skip_hygiene = hygiene.summary
 
       return {
         title: "OMT++ Status",

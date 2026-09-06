@@ -87,22 +87,56 @@ export function readLedger(): any[] {
   return sharedReadLedger()
 }
 
+// feature_056 A3 phase_hygiene: liveness filter shared by the unlock
+// selectors. Expired records neither unlock nor shadow (kills the
+// beyond-ordering half of GOTCHA_TESTS_CANARY_SHADOW); abandon tombstones are
+// pure hygiene metadata, never unlocks.
+function isAliveUnlockRecord(r: any, now: number): boolean {
+  if (!r || r.phase === "abandoned") return false
+  const t = Date.parse(r.ts || "")
+  return !Number.isNaN(t) && now - t < UNLOCK_WINDOW_MS
+}
+
+// feature_056 A3 (round 2 — probe catch): a tombstone retires EARLIER
+// same-feature same-phase records (abandons= names the phase). Without this,
+// abandoning the session's current phase would resurrect the retired record
+// as the unlock (tombstone skipped, earlier record live). Other features' and
+// other phases' records are unaffected — abandoning stale A never disturbs
+// active B. Same rule as the dangling scan (omt_status) and the abandon
+// target search (phase_gate): one retirement semantic everywhere.
+function isRetiredByTombstone(recs: any[], index: number): boolean {
+  const r = recs[index]
+  if (!r || r.kind !== "phase" || !r.feature || !r.phase || r.phase === "abandoned") return false
+  return recs.slice(index + 1).some((x: any) =>
+    x?.kind === "phase" && x?.phase === "abandoned" &&
+    x?.feature === r.feature && x?.abandons === r.phase)
+}
+
 // Latest phase/skip unlocking edits for this session (exact match preferred,
 // else any record within the time window — keeps the gate usable if sessionID
 // is not threaded through on this opencode version).
 export function getActiveUnlock(session: string | undefined): { type: string; record: any } | null {
   const recs = readLedger().filter((r) => r.kind === "phase" || r.kind === "skip")
   if (!recs.length) return null
-  const mine = session ? recs.filter((r) => r.session === session) : []
-  let chosen = mine.length ? mine[mine.length - 1] : null
-  if (!chosen) {
-    const now = Date.now()
-    const recent = recs.filter((r) => {
-      const t = Date.parse(r.ts || "")
-      return !Number.isNaN(t) && now - t < UNLOCK_WINDOW_MS
-    })
-    chosen = recent.length ? recent[recent.length - 1] : null
+  const now = Date.now()
+  const liveIdx = new Set<number>()
+  recs.forEach((r: any, i: number) => {
+    if ((r.kind === "phase" || r.kind === "skip") &&
+      isAliveUnlockRecord(r, now) && !isRetiredByTombstone(recs, i)) liveIdx.add(i)
+  })
+  const owns = session ? recs.some((r) => r.session === session) : false
+  if (owns) {
+    // Session-matched records EXPIRE too (the stale-shadow hole): a session
+    // whose records are all expired/tombstoned/retired resolves to no-unlock
+    // (fail-closed — re-declare to resume; omt_status shows how). No
+    // cross-session fallback once the session owns records.
+    const mine = recs.filter((r, i) => r.session === session && liveIdx.has(i))
+    if (!mine.length) return null
+    const chosen = mine[mine.length - 1]
+    return { type: chosen.kind, record: chosen }
   }
+  const recent = recs.filter((r, i) => liveIdx.has(i))
+  const chosen = recent.length ? recent[recent.length - 1] : null
   return chosen ? { type: chosen.kind, record: chosen } : null
 }
 
@@ -160,17 +194,21 @@ export function hasFastPathUnlock(session: string | undefined): boolean {
 // this ignores skip records and unrelated features so omt_complete cannot be
 // shadowed by a later skip or another task's phase declaration.
 export function getActiveFeaturePhase(feature: string, session: string | undefined): any | null {
-  const recs = readLedger().filter((r) => r.kind === "phase" && r.feature === feature)
-  if (!recs.length) return null
-  const mine = session ? recs.filter((r) => r.session === session) : []
-  let chosen = mine.length ? mine[mine.length - 1] : null
-  if (!chosen) {
-    const now = Date.now()
-    const recent = recs.filter((r) => {
-      const t = Date.parse(r.ts || "")
-      return !Number.isNaN(t) && now - t < UNLOCK_WINDOW_MS
-    })
-    chosen = recent.length ? recent[recent.length - 1] : null
+  // feature_056 A3: same expiry as getActiveUnlock (tombstones skipped) —
+  // omt_complete must not see retired phases as active.
+  const all = readLedger()
+  const idx: number[] = []
+  all.forEach((r: any, i: number) => {
+    if (r?.kind === "phase" && r?.feature === feature) idx.push(i)
+  })
+  if (!idx.length) return null
+  const now = Date.now()
+  const liveIdx = new Set(idx.filter((i) =>
+    isAliveUnlockRecord(all[i], now) && !isRetiredByTombstone(all, i)))
+  if (session && idx.some((i) => all[i].session === session)) {
+    const mine = idx.filter((i) => all[i].session === session && liveIdx.has(i))
+    return mine.length ? all[mine[mine.length - 1]] : null
   }
-  return chosen
+  const recent = idx.filter((i) => liveIdx.has(i))
+  return recent.length ? all[recent[recent.length - 1]] : null
 }

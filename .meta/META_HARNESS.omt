@@ -44,6 +44,8 @@
 @var work_done_max : 10
 # F1 (feature_052.opencode_version_canary): audited live-binary line — session start warns + canary suite fails when `opencode --version` falls outside; re-baseline deliberately (live smoke + full suite on the new binary, then bump here + rebuild)
 @var opencode_version_range : >=1.18.29,<1.19
+# A2 (feature_056.skip_taxonomy_phase_hygiene): weekly uncategorized-bypass alarm — check warns past this, never blocks
+@var skip_override_warn_per_week : 5
 
 # ============================================================
 # DENY — NEVER command rules (→ opencode.jsonc generated blocks)
@@ -153,7 +155,7 @@
 # ============================================================
 # STATE — runtime state files (mode: append|rotate|rewrite)
 # ============================================================
-@state ledger path=@var.ledger_path mode=rotate cap=@var.ledger_cap_bytes window=@var.unlock_window_ms truth="ledger.jsonl hot + latest ledger-YYYYMM.jsonl archive" : audit log {ts,kind:phase|skip|complete|think_consult,...}; 8h unlock window
+@state ledger path=@var.ledger_path mode=rotate cap=@var.ledger_cap_bytes window=@var.unlock_window_ms truth="ledger.jsonl hot + latest ledger-YYYYMM.jsonl archive" : audit log {ts,kind:phase|skip|complete|think_consult,...}; skip.purpose=canary|emergency|break_glass|override (scope=tests defaults canary, else override); phase/skip records EXPIRE past the window (expired records neither unlock nor shadow — re-declare to resume); phase='abandoned' tombstones retired work (omt_phase{phase:'abandoned',feature}); 8h unlock window
 @state thoughts path=@var.thoughts_path mode=append truth="grep TA:" : append-only sidecar (add/verify/remove-tombstone; latest-wins fold; verdicts join on normalized text F28); inline TA: is the source of truth — the index is NEVER rewritten (R6 S1)
 @state receipt path=@var.receipt_path mode=rewrite truth="json passed_at + mtime" : harness e2e receipt; refreshed by @var.e2e_cmd
 
@@ -266,7 +268,7 @@
 # TOOL — registry (perms → jsonc block; one-line schema text → IR; CMD_ tags)
 # ============================================================
 @tool omt_phase perm=allow args="task_type,scope,phase?,feature?,design_doc?,tdd?" tags="CMD_OMT_PHASE" : Declare phase before src/ edits (task_type/scope → ledger; §12 unlock matrix).
-@tool omt_skip perm=allow args="reason,scope?" tags="CMD_OMT_SKIP" : Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all (default all).
+@tool omt_skip perm=allow args="reason,scope?,purpose?" tags="CMD_OMT_SKIP" : Logged escape hatch: unlock without phase. Scopes: src|tests|nav|all. purpose: canary|emergency|break_glass|override.
 @tool omt_complete perm=allow args="feature,advance_to?" tags="CMD_OMT_COMPLETE" : Verify phase artifacts; optionally advance (Design|Programming|Testing|Done).
 @tool omt_status perm=allow args="op?,tool?,path?,include_ledger?" tags="CMD_STATUS" : Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task; op=preflight(tool,path) → ordered gates that will fire + clearing action each (default: full status).
 @tool omt_tdd perm=allow args="op,behaviors?,feature?,test_node?,target_src?" tags="CMD_TDD" : TDD cycle driver. op=testlist(behaviors,feature; JSON array or prose) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature). Toolchain-aware: .py→pytest, .ts/.tsx→vitest (GOTCHA_TDD_TOOLCHAIN).
@@ -281,7 +283,7 @@
 # ============================================================
 # DERIVED (harnessc derive_records, R9/OPT-I): flow.start_{major,minor,bug}
 # ← @phase/@fsm/@var scaffold · flow.tdd_<state> ← @fsm tdd × @hat tdd.*
-@flow skip_src tags="QUICK_SKIP_SRC" : omt_skip{reason:"emergency",scope:"src"} (logged)
+@flow skip_src tags="QUICK_SKIP_SRC" : omt_skip{reason:"emergency",scope:"src",purpose:"emergency"} (logged)
 @flow skip_tests tags="QUICK_SKIP_TESTS" : omt_skip{reason:"canary approved",scope:"tests"} (logged)
 @flow status tags="QUICK_STATUS" : omt_status → phase, unlock, artifacts, lint, next phases, WORK.md next
 @flow lint tags="QUICK_LINT" : uv run scripts/omt/mvc_check.py [file|dir]
@@ -294,7 +296,7 @@
 @xref mvc tags="XREF_MVC" : mvc_check.py 5 ERROR VIEW_IMPORTS_MODEL, MODEL_IMPORTS_UI, CONTROLLER_IN_MODEL, PARTNER_NOT_ABC, VIEW_CREATES_CONTROLLER + 3 WARNING CONTROLLER_UI_CODE, SQL_OUTSIDE_DP, GOD_CONTROLLER; catalog: @msg.err_v2m @msg.err_m2v @msg.err_prt_abc @msg.wrn_sql_dp @msg.wrn_god_ctl @msg.wrn_ctl_ui — CONTROLLER_IN_MODEL + VIEW_CREATES_CONTROLLER have no @msg
 @xref tdd tags="XREF_TDD" : tdd_check.py subcommands: testlist,start,green,refactor,done,gate,after-edit,status,validate-exit
 @xref scaffold tags="XREF_SCAFFOLD" : new_feature.py creates FEATURE.md, plan/PLAN.md under .meta/.../2.requirements/features/feature_XXX.<slug>/
-@xref ledger tags="XREF_LEDGER" : .meta/.omt/ledger.jsonl — JSONL {ts,kind:phase|skip|complete|tdd|tdd_testlist|think_consult,session,task_type,phase,scope,feature,design_doc,tdd_mode}
+@xref ledger tags="XREF_LEDGER" : .meta/.omt/ledger.jsonl — JSONL {ts,kind:phase|skip|complete|tdd|tdd_testlist|think_consult,session,task_type,phase,scope,purpose,feature,abandons,design_doc,tdd_mode}
 @xref work tags="XREF_WORK" : WORK.md — task list [x]/[~]/[ ]/[!], auto-synced by omt_complete
 @xref nav tags="XREF_NAV" : .opencode/plugins/omt_nav.ts — navigation tools answering from the compiled index
 @xref nav_enf tags="XREF_NAV_ENF" : lib/enforcer/nav_gate.ts — nav gate + ONE sessionBootstrap (nav tip deferred when nav-first R7 T3; dead session.start hook deleted R6)
