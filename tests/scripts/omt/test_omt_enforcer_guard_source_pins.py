@@ -330,6 +330,14 @@ class TestIrAccessorFallbackSyncPin:
             "search-tools fallback drifted from IR vars.search_tools "
             "(source: .omt @var search_tools)")
 
+    def test_version_range_fallback_matches_ir(self):
+        src = NAV_GATE.read_text(encoding="utf-8")
+        m = re.search(r'FALLBACK_OPENCODE_VERSION_RANGE = "([^"]+)"', src)
+        assert m, "FALLBACK_OPENCODE_VERSION_RANGE missing in nav_gate.ts"
+        assert m.group(1) == self._ir()["vars"]["opencode_version_range"], (
+            "version-range fallback drifted from IR vars.opencode_version_range "
+            "(source: .omt @var opencode_version_range — feature_052/F1)")
+
     def test_protect_fallback_matches_ir(self):
         src = SHARED_LIB.read_text(encoding="utf-8")
         region = src[src.index("const FALLBACK_PROTECT"):]

@@ -8,7 +8,7 @@
 
 > One line: `meta_harness_6` is the **13-item improvement program distilled from the 2026-09-05 deep evaluation** of the META HARNESS (evidence + full option detail @ `.sandbox/meta_harness_6_evaluation.md`) — 5 waves: integrity → friction → signal → knowledge → productization; Wave 1/A1 SHIPPED as feature_051 (2026-09-06, suite 1846/0, allowlist permanently empty); next = Wave 1/F1.
 
-**Next:** Wave 1 continues with **F1 `opencode_version_canary`** — resume from `.sandbox/pause_2026-09-06.md`. Scaffold: `uv run scripts/omt/new_feature.py "opencode version canary" --type minor_feature --project meta_harness_6` (takes number 052), then `omt_phase{task_type:minor_feature, phase:Programming, scope:"..."}` and execute per §Execution rules. Read §Decision gates + §Execution rules FIRST (net/receipt discipline; DG2 numbering note is RESOLVED — 051 taken by A1).
+**Next:** Wave 2 opens with **C1 `net_gate_concurrency_predicate`** — resume from `.projects/meta/meta_harness_6/CURRENT_STATE.md` §Next (2026-09-06 iter 2 entry). Scaffold: `uv run scripts/omt/new_feature.py "net gate concurrency predicate" --type minor_feature --project meta_harness_6` (takes number 053), then `omt_phase{task_type:minor_feature, phase:Programming, scope:"..."}` and execute per §Execution rules. Read §Decision gates + §Execution rules FIRST (net/receipt discipline; DG2 numbering note is RESOLVED — 051 taken by A1, 052 by F1).
 
 ---
 
@@ -129,8 +129,8 @@
 
 ## Status
 
-- [~] Wave 1 — A1 ✅ DONE (feature_051.ledger_test_isolation, 2026-09-06: OMT_LEDGER_PATH both clients, hermetic gate probes, KNOWN_SUITE_FAILURES permanently empty + shape-pinned, suite 1846/0, GOTCHA_TDD_ENV_FLAKY root-caused + demoted) · F1 opencode_version_canary = NEXT (paused @ `.sandbox/pause_2026-09-06.md`)
-- [ ] Wave 2 — C1 net_gate_concurrency_predicate, C2 small_task_fast_path, A4 gate_preflight
+- [x] Wave 1 — A1 ✅ DONE (feature_051.ledger_test_isolation, 2026-09-06) · F1 ✅ DONE (feature_052.opencode_version_canary, 2026-09-06: @var opencode_version_range >=1.18.29,<1.19 + session-start WRN + fail-loud canary suite, suite 1866/0) — **Wave 1 COMPLETE**
+- [ ] Wave 2 — C1 net_gate_concurrency_predicate (= NEXT, takes number 053), C2 small_task_fast_path, A4 gate_preflight
 - [ ] Wave 3 — A2+A3 skip_taxonomy_phase_hygiene, B1+B2 gate_budget_ceremony_meter
 - [ ] Wave 4 — E2+E1 thought_review_gotcha_root_cause
 - [ ] Wave 5 — D1 harness_tiered_template (+ D2 stack_profiles, D3 generated_onboarding)

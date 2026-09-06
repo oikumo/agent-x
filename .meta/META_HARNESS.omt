@@ -42,6 +42,8 @@
 @var projects_archive : .projects/archive
 @var project_resume_threshold_bytes : 16384
 @var work_done_max : 10
+# F1 (feature_052.opencode_version_canary): audited live-binary line — session start warns + canary suite fails when `opencode --version` falls outside; re-baseline deliberately (live smoke + full suite on the new binary, then bump here + rebuild)
+@var opencode_version_range : >=1.18.29,<1.19
 
 # ============================================================
 # DENY — NEVER command rules (→ opencode.jsonc generated blocks)
@@ -144,6 +146,7 @@
 @msg wrn_sql_dp sev=warn : SQL outside DP classes (non-*_db.py has SQL) — TOAST
 @msg wrn_god_ctl sev=warn : Controller >300 lines — TOAST
 @msg wrn_ctl_ui sev=warn : print()/console in Controller — TOAST
+@msg wrn_opencode_version sev=warn : opencode binary {rel} is outside the audited range ({@var.opencode_version_range}) — gates were audited against that line; re-run the live canary suite and re-baseline the range before trusting gate behavior
 @msg kb_required sev=block : KB consult required — run omt_kb_nav{op:nav, query} (tag-prefix CLASS_/CONTRACT_/DEP_/LAYER_ or symbol id; tag_type:TIER_CODE) before editing src/ (feature_kb_akb)
 
 # ============================================================

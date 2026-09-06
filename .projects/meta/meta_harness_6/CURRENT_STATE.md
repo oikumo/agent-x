@@ -5,6 +5,38 @@
 
 ---
 
+## 2026-09-06 (iter 2 — Wave 1/F1 EXECUTED: feature_052.opencode_version_canary DONE; Wave 1 COMPLETE)
+
+### Done
+
+- **Resumed per `.sandbox/pause_2026-09-06.md`**: Quick Start + pause file read, tree verified CLEAN (user committed A1: `ec7bc5b`), overlap re-check clean (meta_harness_5 backlog all shipped/rejected, nothing on version canary), work_start fired (net rev 55→56).
+- **F1 `feature_052.opencode_version_canary` SHIPPED** (minor_feature, Programming→Testing→Done):
+  - `.omt`: `@var opencode_version_range : >=1.18.29,<1.19` (floor = live 1.18.29) + `@msg wrn_opencode_version sev=warn` (range baked via OPT-C; `{rel}` renders observed version) — 258 records, check 0 errors, orphan-wired via TS gateMsg.
+  - `.opencode/lib/enforcer/nav_gate.ts`: `liveBinaryVersion()` + `versionInRange()` (exported, fail-open nulls) + WRN appended in `sessionBootstrap` firstEver branch (warn-only, zero steady-state token cost).
+  - Canary suite `tests/features/feature_052.opencode_version_canary/test_version_canary.py` (17 tests: wiring pins, 14-case grammar matrix, live `opencode --version` fail-loud canary) + `test_version_range_fallback_matches_ir` source pin.
+  - R6 bun probes: real impl matrix 9/9 + in-range silence w/ digest intact; fake 9.9.9 binary → exact WRN text end-to-end. Bun quirk found: execFileSync ignores runtime PATH mutation (set PATH at launch).
+  - **Evidence: full suite 1866 passed / 0 failed (empty allowlist); build OK, all 12 budgets green (nav_index 63582/64000 — tight, Wave 3/B1 owns it); e2e receipt refreshed (round 1, 3 files).**
+  - One mechanical failure fixed, not a regression: dashboard snapshot rev drift (work_start 55→56) → `net_snapshot.py` regen.
+  - Artifacts: `5.implementation/.../implementation_notes.md` + `6.testing/.../test_report.md`.
+- **Wave 1 COMPLETE (A1 + F1).** Re-baseline contract on future WRN/canary red: live smoke + full suite on the new binary → bump @var → rebuild → commit.
+
+### In progress / Blocked
+
+- _(nothing in-flight — feature_052 fully closed)_
+
+### Next
+
+1. **Wave 2 / C1 `net_gate_concurrency_predicate`** (minor_feature): overlap-check meta_harness_5 backlog → scaffold (takes number **053**) → work_start (if new session) → omt_phase → `@pred net_marking()` per evaluation §5 C1.
+2. Then Wave 2 (C2, A4) — PROJECT.md §The program.
+
+### Notes / context
+
+- Working tree UNCOMMITTED (agent cannot git-commit): feature_052 changes (2 harness files + pins test + new test dir + 2 feature artifact dirs + project docs + net bundle rev 56 + snapshot regen) await user `git commit`.
+- Net: rev 56, pool pending=0/active=1/done=6 — close with `work_complete` before pausing, or continue straight into C1.
+
+---
+
+
 ## 2026-09-06 (iter 1 — Wave 1/A1 EXECUTED: feature_051.ledger_test_isolation DONE; session paused before F1)
 
 ### Done

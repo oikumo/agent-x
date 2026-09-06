@@ -10,8 +10,9 @@
 //                       omt_think's digestSessions Tier-1c hook — load-order
 //                       independent, single Set in session_state).
 
-import { loadIr, relOf, thinkDigest } from "../omt_shared"
+import { loadIr, relOf, thinkDigest, gateMsg } from "../omt_shared"
 import { type EnforcerEnv } from "./session_state"
+import { execFileSync } from "node:child_process"
 
 const NAV_TOOLS = new Set(["omt_nav"])  // improvement006/OPT-H: consolidated
 // feature_kb_akb: any op on the KB nav tool marks the session as having
@@ -105,6 +106,92 @@ const kbBootstrapMsg = (): string | null => {
   return inj?.text ? `💡 ${inj.text}` : null
 }
 
+// Wave 1/F1 (feature_052.opencode_version_canary): fail-loud version canary.
+// The live binary drifts under the harness (opencode upgrades ship new
+// SDK/plugin behavior); gates audited against one line may silently mis-fire
+// on another. The audited line lives in ONE place (.omt @var
+// opencode_version_range → ir.vars); sessionBootstrap warns once per session
+// when the observed binary falls outside it, and the canary suite
+// (tests/features/feature_052.opencode_version_canary/) fails loudly until
+// the range is deliberately re-baselined. Fail-open throughout: an
+// unobservable binary or unparsable range never warns (absence ≠ drift).
+// Posture (shared-lib header): the FALLBACK literal is pinned vs the IR by
+// test_omt_enforcer_guard_source_pins.py — edit the .omt, rebuild, update here.
+const FALLBACK_OPENCODE_VERSION_RANGE = ">=1.18.29,<1.19"
+function versionRange(): string {
+  const v = loadIr()?.vars?.opencode_version_range
+  return typeof v === "string" && v ? v : FALLBACK_OPENCODE_VERSION_RANGE
+}
+
+function parseDotted(s: string): number[] | null {
+  const t = s.trim()
+  if (!/^\d+(\.\d+)*$/.test(t)) return null
+  return t.split(".").map(Number)
+}
+
+function cmpDotted(a: number[], b: number[]): number {
+  const n = Math.max(a.length, b.length)
+  for (let i = 0; i < n; i++) {
+    const d = (a[i] ?? 0) - (b[i] ?? 0)
+    if (d) return d < 0 ? -1 : 1
+  }
+  return 0
+}
+
+// Minimal range grammar: comma-separated comparators, each one of
+// >=V | <=V | >V | <V | =V | V(exact), V = dotted numeric. ALL must hold.
+// Returns null when the version OR the range is unparsable (caller fails
+// open = no warning). Exported for the R6 bun-probe recipe (no second
+// binary needed to exercise the out-of-range branch).
+export function versionInRange(ver: string, range: string): boolean | null {
+  const v = parseDotted(ver)
+  if (!v) return null
+  const parts = range.split(",").map((s) => s.trim()).filter(Boolean)
+  if (!parts.length) return null
+  for (const p of parts) {
+    const m = p.match(/^(>=|<=|>|<|=)?(\d+(\.\d+)*)$/)
+    if (!m) return null
+    const c = cmpDotted(v, m[2].split(".").map(Number))
+    const op = m[1] ?? "="
+    const ok = op === "=" ? c === 0
+      : op === ">=" ? c >= 0
+      : op === "<=" ? c <= 0
+      : op === ">" ? c > 0 : c < 0
+    if (!ok) return false
+  }
+  return true
+}
+
+// Live `opencode --version` (bare "1.18.29" on stdout). Null when the binary
+// is unobservable (absent/PATH) — the bootstrap treats that as no-signal,
+// never as drift.
+export function liveBinaryVersion(): string | null {
+  try {
+    const out = execFileSync("opencode", ["--version"], {
+      encoding: "utf8",
+      timeout: 10000,
+    })
+    const ver = String(out || "").trim().split(/\s+/)[0]
+    return parseDotted(ver) ? ver : null
+  } catch {
+    return null
+  }
+}
+
+// gateMsg ctx carries only {rel,tt,feature} — {rel} renders the observed
+// version (documented here so the slot reuse never confuses).
+function opencodeVersionWarn(): string | null {
+  try {
+    const ver = liveBinaryVersion()
+    if (!ver) return null
+    if (versionInRange(ver, versionRange()) !== false) return null
+    return `⚠️ ${gateMsg("wrn_opencode_version", { rel: ver })}`
+  } catch {
+    return null
+  }
+}
+
+
 // Before-hook instrumentation (feature_020): track nav-vs-search usage for
 // every tool. HDL-2 (improvement006/OPT-F): the BLOCK decision moved to the
 // data-driven gate chain — lib/enforcer/gate_driver.ts IMPLS["g.nav"].
@@ -172,6 +259,8 @@ export async function sessionBootstrap(env: EnforcerEnv, input: any, output: any
         parts.push(thinkDigest())
         const kb = kbBootstrapMsg()
         if (kb) parts.push(kb)
+        const vw = opencodeVersionWarn()
+        if (vw) parts.push(vw)
       }
       if (parts.length) output.output += "\n\n" + parts.join("\n\n")
     }

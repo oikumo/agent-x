@@ -1,8 +1,8 @@
 {
   "format": "meta-net-dashboard-snapshot",
   "version": 1,
-  "net_revision": 54,
-  "built_at": "2026-09-06T01:43:30.262481+00:00",
+  "net_revision": 56,
+  "built_at": "2026-09-06T02:30:02.949307+00:00",
   "place_order": [
     "agent_attention",
     "archive_pool",
@@ -183,9 +183,9 @@
     }
   },
   "pool": {
-    "pending": 1,
+    "pending": 0,
     "active": 1,
-    "done": 5
+    "done": 6
   },
   "snapshots": [
     {
@@ -4552,6 +4552,44 @@
         "work_active": 1,
         "work_done": 5,
         "work_pending": 1
+      }
+    },
+    {
+      "revision": 55,
+      "kind": "net_fire",
+      "label": "work_complete",
+      "marking": {
+        "agent_attention": 1,
+        "archive_pool": 39,
+        "e2e_receipt": 1,
+        "feature_ready": 1,
+        "goal_satisfied": 5,
+        "harness_surface_round": 1,
+        "resource_token": 1,
+        "src_edit_capacity": 1,
+        "tests_capacity": 1,
+        "work_active": 0,
+        "work_done": 6,
+        "work_pending": 1
+      }
+    },
+    {
+      "revision": 56,
+      "kind": "net_fire",
+      "label": "work_start",
+      "marking": {
+        "agent_attention": 0,
+        "archive_pool": 39,
+        "e2e_receipt": 1,
+        "feature_ready": 1,
+        "goal_satisfied": 5,
+        "harness_surface_round": 1,
+        "resource_token": 1,
+        "src_edit_capacity": 1,
+        "tests_capacity": 1,
+        "work_active": 1,
+        "work_done": 6,
+        "work_pending": 0
       }
     }
   ],
