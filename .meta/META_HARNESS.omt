@@ -259,6 +259,7 @@
 @budget digest_cap max=1024 : TA digest hard cap (C4, conversation-resident, re-paid per turn F32)
 @budget tool_schemas max=1792 : sum of @tool one-line descriptions (C11, rides the system prompt every turn F33; OPT-A diet 1484→1174, OPT-H consolidation 18→7 ≈760; feature_026: +1 tool omt_q pushed 1024→1085→1280; feature_039/meta_harness_concurrent: +1 tool omt_net pushed 1280→1536; feature_040: omt_net splice/sync args live pushed 1536→1792)
 @budget tool_args max=2304 : live TS arg describe() bytes, irToolDescription-region only (feature_kb_akb: +1 tool pushed budget 1536→1792; feature_039/meta_harness_concurrent: +1 tool omt_net pushed 1792→2048; feature_040: omt_net splice args (mode/mutation/subnet/feature) pushed 2048→2304)
+@budget gates max=12 : gate count cap (10 now) — net-zero: a new gate needs a retirement/merge; candidates from skip-frequency; ceremony meter alarms bug_fix>3 (B1+B2)
 @budget nav_index max=64000 : nav.index.jsonl bytes — on-demand nav answers (improvement006/OPT-D: the largest projection was unchecked)
 @budget ir_json max=20480 : harness.ir.json bytes — plugin-internal (improvement006/OPT-D: previously unchecked)
 @budget meta_harness_md max=2048 : .meta/META_HARNESS.md stub bytes — on-demand (improvement007/OPT-B: state-note rotation 5526→1366; only the latest note inline, older → git history)

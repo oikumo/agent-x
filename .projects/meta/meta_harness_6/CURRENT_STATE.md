@@ -5,6 +5,48 @@
 
 ---
 
+## 2026-09-06 (auto — feature_057.gate_budget_ceremony_meter Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_057.gate_budget_ceremony_meter/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-06 (iter 7 — Wave 3/B1+B2 EXECUTED: feature_057.gate_budget_ceremony_meter DONE; WAVE 3 COMPLETE; NEXT = Wave 4)
+
+### Done
+
+- **Resumed per PROJECT.md Quick Start + CURRENT_STATE iter 6**: tree verified CLEAN (user committed feature_056), meta_harness_5 overlap re-check clean (backlog all shipped/rejected — nothing on gate budget/ceremony), net dormant (rev 57, work_active=0 — solo, no fire per C1), feature_057 scaffolded + linked, phase declared (Programming, minor_feature).
+- **B1+B2 `feature_057.gate_budget_ceremony_meter` SHIPPED** (minor_feature, Programming→Testing→Done):
+  - **B1 gate budget**: `@budget gates max=12` (count is 10 — the eval counted 12 at review time) rides the generic budget loop (over max = build error, gates-aware unit); at-cap warns (never errors) with net-zero advice — toll-booth = most-skipped gate, dead-weight watch = bypassable zero-skip gates (`SKIP_SCOPE_TO_GATES`: tests→g.tests, nav→g.nav, src→g.phase, all→g.net).
+  - **B2 ceremony meter**: per-task_type median agent-issued ledger records (`q|think_consult|skip|tdd|tdd_testlist`) before the session's first phase; alarm (warning) when bug_fix median > 3. Sessions w/o session-id/phase unattributable by construction.
+  - **Mirror**: `gate_skip_counts`/`gate_retirement_candidates`/`ceremony_stats` pure in harnessc.py (+ audit-the-repo warnings readers, deliberately NOT OMT_LEDGER_PATH-aware per A2) mirrored by exported `gateBudget()`/`ceremonyMeter()` in omt_status.ts (A4 read-only pin holds) as two default-output lines + metadata. NO new @tool/@doc/@msg, NO omt_status schema growth.
+  - **Budgets**: `@budget` records are NOT nav-indexed — the new record was nav-free (nav_index 63900/64000 unchanged; ir_json +17 B; tool_args/tool_schemas untouched). 261 records, check 0 errors.
+  - Tests: 17 new (4 budget pins, 4 retirement matrices, 4 ceremony matrices, 1 full-plugin bun probe with hermetic ledger + fixture IR asserting exact lines, 3 static pins incl. read-only + no-schema-growth) + e2e check 17.
+  - **Evidence: full suite 1951 passed / 0 failed (1934 + 17 new, empty allowlist); build OK; e2e receipt refreshed twice (R1 transforms, R2 fixes).**
+  - Incidents closed: `attrs["max"]` vs `.payload` catch (budget values live in attrs — vars use payload; pinned); `×`→`x` ASCII normalization; live-status invisibility in-session (GOTCHA_TS_NO_RELOAD class — covered by bun probe).
+- Artifacts: `5.implementation/.../implementation_notes.md` + `6.testing/.../test_report.md` (incl. documented deviation: single tests-canary skip covered all tests/ writes — no re-declare, no shadow).
+- **Wave 3 COMPLETE (A2+A3 + B1+B2).** Live signal now: gates 10/12, no bug_fix ceremony data, toll-booth g.nav, watch g.phase/g.protect.
+
+### In progress / Blocked
+
+- _(nothing in-flight — feature_057 fully closed)_
+
+### Next
+
+1. **Wave 4 / E2+E1 `thought_review_gotcha_root_cause`** (minor + analysis/docs): overlap-check meta_harness_5 backlog → scaffold `uv run scripts/omt/new_feature.py "thought review gotcha root cause" --type minor_feature --project meta_harness_6` (takes number **058**) → omt_phase → batch `omt_think{op:review}` (>90d untouched → one-call archive); gotcha cluster tagging + root-cause fixes per evaluation §5 E2+E1.
+2. Then Wave 5 (D1–D3) — PROJECT.md §The program.
+
+### Notes / context
+
+- Working tree UNCOMMITTED (agent cannot git-commit): feature_057 changes (.omt + harnessc.py + omt_status.ts + e2e check 17 + new test dir + 3 artifact dirs + project docs incl. WORK.md/Projects sync rows) await user `git commit`.
+- Net: rev 57 (dormant all session — solo per C1), pool pending=0/active=0/done=7.
+- Round discipline: R1 = .omt edit + 2 bash transforms (one per file) + e2e pin + tests → check green → 15/17 → e2e refresh; R2 = 1 bash transform (attrs fix) + 2 test expectation edits → 17/17 → check/build + full suite 1951/0 → e2e refresh.
+- PROJECT.md Status §Wave 3 line needs the ✅ flip + Wave 4 NEXT pointer (hand-edit at close or next resume).
+
+---
+
 ## 2026-09-06 (auto — feature_056.skip_taxonomy_phase_hygiene Done)
 
 - shipped: minor_feature · test report @ 6.testing/features/feature_056.skip_taxonomy_phase_hygiene/test_report.md

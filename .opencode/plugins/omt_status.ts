@@ -436,6 +436,87 @@ function skipHygiene(): { lines: string[]; summary: Record<string, any> } {
   }
 }
 
+// ---------------------------------------------------------------------------
+// feature_057 B1+B2 gate budget + ceremony meter. READ-ONLY (the A4
+// ledger-write-free pin holds — this section never writes the ledger):
+//   • gate budget — IR gate count vs @budget gates max (net-zero: retire to
+//     add); retirement candidates from 7-day skip-frequency (the scope→gate
+//     map mirrors harnessc.py SKIP_SCOPE_TO_GATES — keep the two in sync).
+//   • ceremony meter — median pre-unlock ledger records (q/think_consult/
+//     skip/tdd/tdd_testlist before the session's first phase) per task_type;
+//     alarm when the bug_fix median > 3.
+// ---------------------------------------------------------------------------
+const SKIP_SCOPE_TO_GATES: Record<string, string[]> = {
+  tests: ["g.tests"],
+  nav: ["g.nav"],
+  src: ["g.phase"],
+  all: ["g.net"],
+}
+const CEREMONY_KINDS = new Set(["q", "think_consult", "skip", "tdd", "tdd_testlist"])
+const CEREMONY_BUG_FIX_ALARM = 3
+
+export function gateBudget(): { lines: string[]; summary: Record<string, any> } {
+  const ir = loadIr() as any
+  const gates: any[] = Array.isArray(ir?.gates) ? ir.gates : []
+  const ids = gates.map((g: any) => String(g.id))
+  const skipOk: Record<string, boolean> = {}
+  for (const g of gates) skipOk[String(g.id)] = g.skip_ok === true
+  const rawMax = (ir as any)?.budgets?.gates
+  const parsed = Number.isInteger(rawMax) ? rawMax : parseInt(String(rawMax ?? ""), 10)
+  const max = Number.isFinite(parsed) && parsed > 0 ? parsed : 12
+  const now = Date.now()
+  const counts: Record<string, number> = {}
+  for (const r of sharedReadLedgerAll() as any[]) {
+    if (r?.kind !== "skip") continue
+    const t = Date.parse(r.ts || "")
+    if (Number.isNaN(t) || now - t >= SKIP_HYGIENE_WEEK_MS) continue
+    for (const g of SKIP_SCOPE_TO_GATES[String(r.scope ?? "")] ?? []) {
+      counts[g] = (counts[g] ?? 0) + 1
+    }
+  }
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1])
+  const toll = ranked.length ? `${ranked[0][0]}x${ranked[0][1]}` : "no skips to rank"
+  const dead = ids.filter((id) => skipOk[id] && !counts[id])
+  return {
+    lines: [`Gates ${ids.length}/${max} (net-zero: retire to add; top-skipped ${toll}${dead.length ? `; watch ${dead.join(",")}` : ""})`],
+    summary: {
+      count: ids.length, max, top_skipped: ranked[0] ?? null, dead_weight_watch: dead,
+    },
+  }
+}
+
+export function ceremonyMeter(): { lines: string[]; summary: Record<string, any> } {
+  const bySession = new Map<string, any[]>()
+  for (const r of sharedReadLedgerAll() as any[]) {
+    if (!r?.session || !r?.ts) continue
+    if (!bySession.has(r.session)) bySession.set(r.session, [])
+    bySession.get(r.session)!.push(r)
+  }
+  const perTt = new Map<string, number[]>()
+  for (const rs of bySession.values()) {
+    rs.sort((a, b) => String(a.ts).localeCompare(String(b.ts)))
+    const fi = rs.findIndex((r) => r?.kind === "phase")
+    if (fi < 0) continue
+    const tt = String(rs[fi].task_type || "unknown")
+    const pre = rs.slice(0, fi).filter((r) => CEREMONY_KINDS.has(String(r?.kind))).length
+    if (!perTt.has(tt)) perTt.set(tt, [])
+    perTt.get(tt)!.push(pre)
+  }
+  const medians: Record<string, { sessions: number; median: number }> = {}
+  for (const [tt, vals] of perTt) {
+    vals.sort((a, b) => a - b)
+    const n = vals.length
+    medians[tt] = { sessions: n, median: n % 2 ? vals[n >> 1] : (vals[n / 2 - 1] + vals[n / 2]) / 2 }
+  }
+  const bug = medians["bug_fix"]
+  const parts = Object.entries(medians).map(([tt, m]) => `${tt} ${m.median}`).join(" · ") || "no attributable sessions"
+  const alarm = !!bug && bug.median > CEREMONY_BUG_FIX_ALARM
+  return {
+    lines: [`Ceremony median (pre-unlock records): ${parts} (alarm bug_fix>${CEREMONY_BUG_FIX_ALARM})${alarm ? " ⚠ over alarm" : ""}`],
+    summary: { medians, alarm },
+  }
+}
+
 // R8: build the tool AFTER initOmtShared so irToolDescription reads the IR
 // under the injected repo root (never the pre-init cwd).
 
@@ -624,6 +705,14 @@ function createStatusTool() {
       const hygiene = skipHygiene()
       lines.push(...hygiene.lines)
       result.skip_hygiene = hygiene.summary
+
+      // feature_057 B1+B2: gate budget + ceremony meter.
+      const budget = gateBudget()
+      lines.push(...budget.lines)
+      result.gate_budget = budget.summary
+      const ceremony = ceremonyMeter()
+      lines.push(...ceremony.lines)
+      result.ceremony = ceremony.summary
 
       return {
         title: "OMT++ Status",

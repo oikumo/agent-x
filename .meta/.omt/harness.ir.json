@@ -2,6 +2,7 @@
   "budgets": {
     "agents_md": 2944,
     "digest_cap": 1024,
+    "gates": 12,
     "ir_json": 20480,
     "meta_harness_md": 2048,
     "meta_md": 6144,

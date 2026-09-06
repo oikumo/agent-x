@@ -414,5 +414,28 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
         "A2 requires the non-blocking warnings channel in harnessc.py")
     checks.append("feature_056 A2+A3: skip_taxonomy_phase_hygiene wired (purpose taxonomy + expiry/tombstones + hygiene report + alarm)")
 
+    # 17. feature_057 B1+B2 gate_budget_ceremony_meter: compile-enforced
+    # @budget gates max=12 (net-zero — past max is a build error) with
+    # skip-frequency retirement candidates + a pre-unlock ceremony meter
+    # (median per task_type, bug_fix>3 alarm) — Python checks in harnessc.py
+    # mirrored by the omt_status.ts Gates/Ceremony lines.
+    harness_omt = _read(".meta/META_HARNESS.omt")
+    assert "@budget gates max=12" in harness_omt, (
+        "B1 requires the compile-enforced gate-count budget in META_HARNESS.omt")
+    harnessc_py = _read("scripts/omt/harnessc.py")
+    assert '"gates"' in harnessc_py, (
+        "B1 requires the gates id in the measurable budget set")
+    assert "gate_retirement_candidates" in harnessc_py, (
+        "B1 requires the skip-frequency retirement helper in harnessc.py")
+    assert "ceremony_stats" in harnessc_py, (
+        "B2 requires the pre-unlock ceremony meter in harnessc.py")
+    assert "CEREMONY_BUG_FIX_ALARM" in harnessc_py, (
+        "B2 requires the bug_fix>3 alarm threshold in harnessc.py")
+    assert "export function gateBudget" in status and "export function ceremonyMeter" in status, (
+        "B1+B2 requires the mirrored Gates/Ceremony helpers in omt_status.ts")
+    assert "Ceremony median (pre-unlock records)" in status, (
+        "B2 requires the ceremony median line in omt_status.ts")
+    checks.append("feature_057 B1+B2: gate_budget_ceremony_meter wired (@budget gates + retirement candidates + ceremony meter + status lines)")
+
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

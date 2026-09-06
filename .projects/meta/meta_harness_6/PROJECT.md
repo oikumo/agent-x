@@ -131,7 +131,7 @@
 
 - [x] Wave 1 — A1 ✅ DONE (feature_051.ledger_test_isolation, 2026-09-06) · F1 ✅ DONE (feature_052.opencode_version_canary, 2026-09-06: @var opencode_version_range >=1.18.29,<1.19 + session-start WRN + fail-loud canary suite, suite 1866/0) — **Wave 1 COMPLETE**
 - [x] Wave 2 — C1 ✅ DONE (feature_053.net_gate_concurrency_predicate, 2026-09-06: @pred net_marking(active>1) + Python solo bypass + TS fast-path mirror, suite 1879/0) · C2 ✅ DONE (feature_054.small_task_fast_path, 2026-09-06: bug_fix/test phase satisfies g.nav+g.kb in one ledger write + narrowed own-dir/RED canary auto-unlock, suite 1887/0) · A4 ✅ DONE (feature_055.gate_preflight, 2026-09-06: omt_status op=preflight — ordered gates-that-will-fire + clearing actions via runBeforeGatesDry fired/stop flags, suite 1902/0) — **Wave 2 COMPLETE**
-- [~] Wave 3 — A2+A3 ✅ DONE (feature_056.skip_taxonomy_phase_hygiene, 2026-09-06: purpose taxonomy + friction:evasion report + override/week warning + phase auto-expiry + abandon tombstones + dangling list, suite 1934/0) · B1+B2 gate_budget_ceremony_meter (NEXT, takes 057)
+- [x] Wave 3 — A2+A3 ✅ DONE (feature_056.skip_taxonomy_phase_hygiene, 2026-09-06: purpose taxonomy + friction:evasion report + override/week warning + phase auto-expiry + abandon tombstones + dangling list, suite 1934/0) · B1+B2 ✅ DONE (feature_057.gate_budget_ceremony_meter, 2026-09-06: @budget gates max=12 net-zero + skip-frequency retirement candidates + pre-unlock ceremony medians + bug_fix>3 alarm, suite 1951/0) — **Wave 3 COMPLETE**
 - [ ] Wave 4 — E2+E1 thought_review_gotcha_root_cause
 - [ ] Wave 5 — D1 harness_tiered_template (+ D2 stack_profiles, D3 generated_onboarding)
 - [ ] End-of-program re-evaluation vs §Baseline (delta report → Decisions log)

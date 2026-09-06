@@ -124,8 +124,8 @@ GATE_NEVER_EXCLUDE = {"g.protect", "g.nav"}
 AGENTS_QUICK_FLOWS = ["start_bug", "start_major", "skip_src", "status", "lint"]
 
 MEASURABLE_BUDGETS = {"agents_md", "work_md", "work_scratchpad", "tool_schemas",
-                        "tool_args", "nav_index", "ir_json",
-                        "meta_harness_md", "meta_md"}  # compiler-measurable
+                        "tool_args", "nav_index", "ir_json", "gates",
+                        "meta_harness_md", "meta_md"}  # compiler-measurable (gates = count, B1)
 REPORT_ONLY_BUDGETS = {"nav_tip", "digest_cap"}  # TS-rendered; test-pinned (R7 T5)
 
 
@@ -1247,6 +1247,7 @@ def measure_budgets(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str 
             scratch = len(("## Agent Scratchpad" + parts[1]).encode("utf-8"))
     sizes["work_scratchpad"] = (scratch, budgets.get("work_scratchpad"))
     sizes["nav_index"] = (len(nav_text.encode("utf-8")), budgets.get("nav_index"))
+    sizes["gates"] = (len(c.of("gate")), budgets.get("gates"))  # B1: count, not bytes
     sizes["ir_json"] = (len(ir_text.encode("utf-8")), budgets.get("ir_json"))
     sizes["meta_harness_md"] = (
         META_HARNESS_MD_PATH.stat().st_size
@@ -1367,6 +1368,154 @@ def check_skip_override_alarm(c: Corpus) -> None:
         c.warnings.append(warning)
 
 
+# --- feature_057 B1 gate_budget + B2 ceremony_meter -----------------------------
+# B1: the gate count is a compile-enforced budget (@budget gates max=12 —
+# currently 10; the eval counted 12 at review time). Net-zero policy: adding a
+# gate requires retiring/merging one (past max, the generic budget loop
+# errors). Retirement candidates come from skip-frequency: the most-skipped
+# gate is the toll-booth candidate (merge/simplify it); bypassable (skip_ok)
+# gates with zero skips are dead-weight watch.
+# B2: ledger timestamps already exist — the ceremony proxy counts agent-issued
+# ledger records before a session's first phase record (pre-unlock consults),
+# median per task_type; alarm (warning, never error) when bug_fix median > 3.
+# Mirrors omt_status.ts gateBudget/ceremonyMeter (TS) — keep the two in sync;
+# both pinned by tests/features/feature_057.gate_budget_ceremony_meter/.
+GATE_BUDGET_DEFAULT_MAX = 12
+CEREMONY_BUG_FIX_ALARM = 3
+
+# Scope → gates a skip of that scope bypasses (heuristic: scope=all is the
+# break-glass that opens net/protected paths; scope=src opens the src chain).
+SKIP_SCOPE_TO_GATES = {
+    "tests": ("g.tests",),
+    "nav": ("g.nav",),
+    "src": ("g.phase",),
+    "all": ("g.net",),
+}
+
+# Agent-issued pre-work calls (system records — net_*/project_*/complete —
+# are session noise, not ceremony).
+CEREMONY_KINDS = frozenset({"q", "think_consult", "skip", "tdd", "tdd_testlist"})
+
+
+def gate_skip_counts(records: list[dict], now_ms: float,
+                     window_ms: float = SKIP_HYGIENE_WINDOW_MS) -> dict[str, int]:
+    """Pure 7-day per-gate skip attribution via SKIP_SCOPE_TO_GATES."""
+    counts: dict[str, int] = {}
+    for r in records:
+        if not isinstance(r, dict) or r.get("kind") != "skip":
+            continue
+        try:
+            t = datetime.fromisoformat(
+                str(r.get("ts", "")).replace("Z", "+00:00")).timestamp() * 1000
+        except (ValueError, OSError):
+            continue
+        if now_ms - t >= window_ms:
+            continue
+        for g in SKIP_SCOPE_TO_GATES.get(str(r.get("scope") or ""), ()):
+            counts[g] = counts.get(g, 0) + 1
+    return counts
+
+
+def gate_retirement_candidates(counts: dict[str, int], gate_ids: list[str],
+                               skip_ok: dict[str, bool]) -> tuple:
+    """Pure net-zero advice: (toll_booth, dead_weight_watch).
+
+    toll_booth = (gate, skips) with the most skips (merge/simplify
+    candidate), or None when there are no skips; dead_weight_watch =
+    bypassable gates with zero skips.
+    """
+    toll = None
+    if counts:
+        top = max(sorted(counts), key=lambda g: counts[g])
+        toll = (top, counts[top])
+    dead = sorted(g for g in gate_ids
+                  if skip_ok.get(g, False) and counts.get(g, 0) == 0)
+    return toll, dead
+
+
+def ceremony_stats(records: list[dict]) -> dict[str, dict]:
+    """Pure ceremony proxy: per task_type, the median agent-issued ledger
+    records before the session's first phase record (pre-unlock consults).
+    Sessions without a session id or without a phase record carry no
+    attributable ceremony and are skipped."""
+    from collections import defaultdict
+    by_session: dict[str, list[dict]] = defaultdict(list)
+    for r in records:
+        if isinstance(r, dict) and r.get("session") and r.get("ts"):
+            by_session[r["session"]].append(r)
+    per_tt: dict[str, list[int]] = defaultdict(list)
+    for rs in by_session.values():
+        ordered = sorted(rs, key=lambda r: str(r.get("ts", "")))
+        first = next((i for i, r in enumerate(ordered)
+                      if r.get("kind") == "phase"), None)
+        if first is None:
+            continue
+        tt = str(ordered[first].get("task_type") or "unknown")
+        pre = sum(1 for r in ordered[:first]
+                  if str(r.get("kind")) in CEREMONY_KINDS)
+        per_tt[tt].append(pre)
+    out: dict[str, dict] = {}
+    for tt, vals in per_tt.items():
+        vals = sorted(vals)
+        n = len(vals)
+        med = vals[n // 2] if n % 2 else (vals[n // 2 - 1] + vals[n // 2]) / 2
+        out[tt] = {"sessions": n, "median": med}
+    return out
+
+
+def _read_repo_ledger_records() -> list[dict]:
+    """Live repo ledger only (the A2 audit-the-repo precedent — deliberately
+    NOT OMT_LEDGER_PATH-aware); missing/unreadable fails open to []."""
+    try:
+        raw = (REPO_ROOT / ".meta" / ".omt" / "ledger.jsonl").read_text(encoding="utf-8")
+    except OSError:
+        return []
+    records = []
+    for line in raw.splitlines():
+        try:
+            parsed = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(parsed, dict):
+            records.append(parsed)
+    return records
+
+
+def check_gate_retirement(c: Corpus) -> None:
+    """B1: warn (never error) when the gate count reaches the @budget gates
+    cap — net-zero applies to the NEXT gate, with skip-frequency candidates."""
+    budget = c.get("budget", "gates")
+    try:
+        cap = int(str(budget.attrs.get("max", "")).strip())
+    except (ValueError, AttributeError):
+        cap = GATE_BUDGET_DEFAULT_MAX
+    if cap <= 0:
+        return
+    gates = c.of("gate")
+    if len(gates) < cap:
+        return
+    counts = gate_skip_counts(_read_repo_ledger_records(), time.time() * 1000)
+    toll, dead = gate_retirement_candidates(
+        counts, [g.rid for g in gates],
+        {g.rid: g.attrs.get("skip_ok") == "true" for g in gates})
+    advice = f"toll-booth {toll[0]}x{toll[1]}" if toll else "no skips to rank"
+    if dead:
+        advice += f"; dead-weight watch {','.join(dead)}"
+    c.warnings.append(
+        f"gate-budget: {len(gates)}/{cap} gates at cap — net-zero: retiring/merging one "
+        f"is required to add one ({advice})")
+
+
+def check_ceremony_alarm(c: Corpus) -> None:
+    """B2: warn (never error) when the bug_fix ceremony median crosses 3."""
+    bug = ceremony_stats(_read_repo_ledger_records()).get("bug_fix")
+    if bug is not None and bug["median"] > CEREMONY_BUG_FIX_ALARM:
+        c.warnings.append(
+            f"ceremony: bug_fix pre-unlock median {bug['median']} over "
+            f"{bug['sessions']} session(s) crosses alarm>{CEREMONY_BUG_FIX_ALARM} — "
+            f"reduce pre-phase consults (the C2 fast path already covers bug_fix)")
+
+
 def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str = "") -> dict[str, tuple[int, int | None]]:
     check_schema(c)
     check_ids(c)
@@ -1388,10 +1537,13 @@ def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str =
     check_projects_manifest(c)
     check_tool_seed_sync(c)
     check_skip_override_alarm(c)
+    check_gate_retirement(c)
+    check_ceremony_alarm(c)
     sizes = measure_budgets(c, agents_md, nav_text, ir_text)
     for rid, (size, cap) in sizes.items():
         if size >= 0 and cap is not None and size > cap:
-            c.errors.append(f"budget {rid}: {size} B > {cap} B (grow the budget deliberately in the same .omt edit)")
+            unit = "gates" if rid == "gates" else "B"
+            c.errors.append(f"budget {rid}: {size} {unit} > {cap} {unit} (grow the budget deliberately in the same .omt edit)")
     return sizes
 
 
