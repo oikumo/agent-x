@@ -7,8 +7,8 @@
 //   • the tests/ canary (AGENTS.md Stop Point #4; TDD two-hats delegates to
 //     tdd_hats when tdd_mode is active)
 
-import { omtHarnessE2eStatus, protectList, matchesProtect, gateMsg } from "../omt_shared"
-import { OmtBlock, getActiveUnlock, type EnforcerEnv } from "./session_state"
+import { omtHarnessE2eStatus, protectList, matchesProtect, gateMsg, UNLOCK_WINDOW_MS } from "../omt_shared"
+import { OmtBlock, getActiveUnlock, readLedger, type EnforcerEnv } from "./session_state"
 import { tddGateCheck } from "./tdd_hats"
 
 // --- path classification -------------------------------------------------
@@ -55,6 +55,68 @@ export async function guardHarnessReceipt(rel: string, abs: string): Promise<voi
   if (!e2e.ok) throw new OmtBlock(e2e.message)
 }
 
+// feature_054 C2 narrowed canary auto-unlock: the declared feature's OWN test
+// dir (tests/features/<feature>/, full slug or feature_NNN short form) is
+// auto-approved while its TDD RED hat is active (latest feature-scoped tdd
+// record has state red) — no separate omt_skip{scope:tests} needed for
+// follow-on test edits in RED. The initial bootstrap (no RED yet) and any
+// other tests/ path still require explicit canary approval. MUST NOT touch
+// g.think/g.protect.
+function featureNumOf(feature: string): string | null {
+  const m = String(feature || "").match(/feature_(\d+)/)
+  return m ? `feature_${m[1]}` : null
+}
+
+function isOwnTestDir(rel: string, feature: string): boolean {
+  if (!feature || (!rel.startsWith("tests/features/") && rel !== "tests/features")) return false
+  const cands = [`tests/features/${feature}/`, `tests/features/${feature}`]
+  const num = featureNumOf(feature)
+  if (num && num !== feature) cands.push(`tests/features/${num}/`, `tests/features/${num}`)
+  for (const c of cands) {
+    if (rel === c || rel.startsWith(c.endsWith("/") ? c : c + "/")) return true
+  }
+  if (num) {
+    const rest = rel.slice("tests/features/".length)
+    const seg = rest.split("/")[0] || ""
+    if (seg === num || seg.startsWith(num + ".") || seg.startsWith(num + "_")) return true
+  }
+  return false
+}
+
+function isFeatureRedActive(feature: string): boolean {
+  // Deliberately FEATURE-scoped (mirrors tdd/state.py _tdd_records): the RED
+  // hat belongs to the feature's cycle, not the session's latest phase record
+  // — omt_complete's advance writes tdd-less phase records, and a mid-TDD
+  // Programming→Testing advance must not strand own-dir test edits. The
+  // narrowed guardrails still hold: own test dir + feature-scoped RED only;
+  // a testlist (no RED yet) or green/refactor/done latest record never
+  // auto-unlocks.
+  if (!feature) return false
+  const recs = readLedger().filter(
+    (r: any) => (r.kind === "tdd" || r.kind === "tdd_testlist") && r.feature === feature,
+  )
+  if (!recs.length) return false
+  const latest = recs[recs.length - 1]
+  if (latest.kind === "tdd_testlist") return false
+  return latest.state === "red"
+}
+
+function activeFeatureFor(session: string | undefined, fallback: string): string {
+  if (fallback) return fallback
+  // Session-matched phase records with a feature first; else window-recent
+  // ones (never a stale global pickup — mirrors getActiveUnlock's fallback).
+  const recs = readLedger().filter((r: any) => r.kind === "phase" && r.feature)
+  if (!recs.length) return ""
+  const mine = session ? recs.filter((r: any) => r.session === session) : []
+  if (mine.length) return String(mine[mine.length - 1].feature || "")
+  const now = Date.now()
+  const recent = recs.filter((r: any) => {
+    const t = Date.parse(r.ts || "")
+    return !Number.isNaN(t) && now - t < UNLOCK_WINDOW_MS
+  })
+  return recent.length ? String(recent[recent.length - 1].feature || "") : ""
+}
+
 // tests/ canary guard. TDD mode active → the two-hats gate decides (allowed
 // tests/ edits skip the canary approval entirely). Otherwise an explicit
 // canary approval (phase record with tests_approved or omt_skip) is required.
@@ -67,6 +129,12 @@ export async function guardTestsPath(
   if (unlock?.record?.tdd_mode) {
     await tddGateCheck(env, session, rel, true)
     return // TDD allows tests/ — skip canary approval
+  }
+  // C2 narrowed auto-unlock (own dir + RED only — never a blanket approval).
+  const feature = activeFeatureFor(session, String(unlock?.record?.feature || ""))
+  if (feature && isOwnTestDir(rel, feature) && isFeatureRedActive(feature)) {
+    env.safeLog("info", `C2 fast-path: own test dir '${rel}' auto-approved in RED (feature ${feature})`)
+    return
   }
   const approved = unlock && (unlock.type === "skip"
     ? unlock.record.tests_approved

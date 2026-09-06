@@ -331,5 +331,40 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
         "C1 requires a net_marking builtin in gate_driver.ts")
     checks.append("feature_053 C1: net_gate_concurrency_predicate wired (@pred + solo bypass + TS mirror)")
 
+    # 14. feature_054 C2 small_task_fast_path: bug_fix/test phase satisfies
+    # g.nav+g.kb in one write (stays hard for major/new_screen); narrowed
+    # canary auto-unlock (own test dir, RED only); g.think/g.protect untouched.
+    phase_gate = _read(".opencode/lib/enforcer/phase_gate.ts")
+    assert "feature_054 C2 small_task_fast_path" in phase_gate, (
+        "C2 requires the fast-path note at the omt_phase ledger write")
+    assert "state.nav.get(session)" not in phase_gate and "state.kb.get(session)" not in phase_gate, (
+        "C2 single mechanism: omt_phase must NOT flip in-memory nav/kb flags "
+        "(sticky flags would bypass g.kb after a later major_feature declaration)")
+    session_state = _read(".opencode/lib/enforcer/session_state.ts")
+    assert "FAST_PATH_TASK_TYPES" in session_state, (
+        "C2 requires FAST_PATH_TASK_TYPES in session_state.ts")
+    assert "hasFastPathUnlock" in session_state, (
+        "C2 requires the ledger-backed hasFastPathUnlock helper")
+    assert "hasFastPathUnlock(ctx.session)" in gate_driver, (
+        "C2 requires the gate_driver SESSION_FLAGS fast-path predicate")
+    assert "hasNavUnlock(ctx.session) || hasFastPathUnlock(ctx.session)" in gate_driver, (
+        "C2 requires the g.nav impl fast-path (the impl bypasses requires=)")
+    receipt_guard = _read(".opencode/lib/enforcer/receipt_guard.ts")
+    assert "isOwnTestDir" in receipt_guard, (
+        "C2 requires the own-test-dir matcher in receipt_guard.ts")
+    assert "isFeatureRedActive" in receipt_guard, (
+        "C2 requires the RED-active check in receipt_guard.ts")
+    assert "C2 fast-path: own test dir" in receipt_guard, (
+        "C2 requires the narrowed auto-unlock branch in guardTestsPath")
+    # Guardrails: think/protect semantics untouched by this feature.
+    assert "think_gate" not in receipt_guard.lower() or "g.think" not in receipt_guard, (
+        "C2 must not touch g.think semantics")
+    harness_omt = _read(".meta/META_HARNESS.omt")
+    assert "C2: bug_fix/test phase auto-satisfies" in harness_omt, (
+        "C2 requires the fast-path note on g.nav/g.kb")
+    assert "C2: own test dir auto-approved in RED" in harness_omt, (
+        "C2 requires the narrowed-canary note on g.tests")
+    checks.append("feature_054 C2: small_task_fast_path wired (phase fast-path + narrowed canary; think/protect untouched)")
+
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

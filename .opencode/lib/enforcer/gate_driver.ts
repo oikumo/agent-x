@@ -25,7 +25,7 @@ import {
   omtHarnessE2eStatus, UNLOCK_WINDOW_MS, protectList, matchesProtect, gateMsg,
 } from "../omt_shared"
 import {
-  OmtBlock, getActiveUnlock, hasNavUnlock, type EnforcerEnv,
+  OmtBlock, getActiveUnlock, hasNavUnlock, hasFastPathUnlock, type EnforcerEnv,
 } from "./session_state"
 import { getSearchPath, navGateDecision } from "./nav_gate"
 import {
@@ -71,16 +71,20 @@ function pathIn(rel: string, spec: string, ir: any): boolean {
   })
 }
 
+// feature_054 C2: bug_fix/test phase record satisfies g.nav+g.kb in one
+// write — session_state.hasFastPathUnlock is the single ledger-backed
+// implementation (session-matched, window fallback; major/new_screen stay
+// hard). The phase tool also flips the in-memory flags for immediacy.
 const SESSION_FLAGS: Record<string, (ctx: GateCtx) => boolean> = {
   nav_used: (ctx) => {
     const s = ctx.session ? ctx.env.state.nav.get(ctx.session) : undefined
-    return !!s?.usedNav || hasNavUnlock(ctx.session)
+    return !!s?.usedNav || hasNavUnlock(ctx.session) || hasFastPathUnlock(ctx.session)
   },
   // feature_kb_akb: g.kb gate's `session_flag(kb_consulted)` predicate. Set by
   // kbTrack on any omt_kb_nav op call (nav_gate.ts); guards src/ edit-tools.
   kb_consulted: (ctx) => {
     const s = ctx.session ? ctx.env.state.kb.get(ctx.session) : undefined
-    return !!s?.consulted
+    return !!s?.consulted || hasFastPathUnlock(ctx.session)
   },
 }
 
@@ -182,7 +186,9 @@ const IMPLS: Record<string, GateImpl> = {
       tool: ctx.tool,
       targetRel: ctx.rel,
       usedNav: state?.usedNav ?? false,
-      navUnlock: hasNavUnlock(ctx.session),
+      // feature_054 C2: a bug_fix/test phase record satisfies the nav gate
+      // too (impl-owned — this impl never evaluates requires=).
+      navUnlock: hasNavUnlock(ctx.session) || hasFastPathUnlock(ctx.session),
     })
     if (decision === "block") {
       ctx.env.safeLog("warn", `Session ${ctx.session}: blocked ${ctx.tool} (doc search '${ctx.rel || "repo"}') without prior navigation`)

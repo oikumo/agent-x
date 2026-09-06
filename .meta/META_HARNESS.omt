@@ -111,16 +111,16 @@
 # ============================================================
 # GATE — the enforcer concerns as data (guard order pinned; LOGIC stays TS in HDL-1)
 # ============================================================
-@gate g.nav on=before tools="grep|glob|rg|find" paths=@var.doc_paths when=path_in(@var.doc_paths) requires=session_flag(nav_used) msg=@msg.nav_required hard=true skip_ok=true order=0 : nav tools before doc searches (feature_020); read + src/non-doc exempt
+@gate g.nav on=before tools="grep|glob|rg|find" paths=@var.doc_paths when=path_in(@var.doc_paths) requires=session_flag(nav_used) msg=@msg.nav_required hard=true skip_ok=true order=0 : nav tools before doc searches (feature_020); read + src/non-doc exempt; C2: bug_fix/test phase auto-satisfies
 @gate g.protect on=before tools=@var.edit_tools when=path_in(@protect.*) msg=@msg.protect_file hard=true skip_ok=true order=10 : NEVER paths; .env* hard (no skip), README/uv.lock/LICENSE via scope=all
 @gate g.receipt on=before tools=@var.edit_tools when=path_in(@var.harness_paths) requires=receipt_fresh() msg=@msg.receipt_stale hard=true skip_ok=false order=20 : second-edit guard on the harness surface (git-dirty + mtime vs receipt)
-@gate g.tests on=before tools=@var.edit_tools when=path_in(tests/) requires=ledger_has(skip,tests_approved=true,@var.unlock_window_ms) msg=@msg.tests_canary hard=true skip_ok=true order=30 : canary approval; TDD hat decides when tdd_mode active
+@gate g.tests on=before tools=@var.edit_tools when=path_in(tests/) requires=ledger_has(skip,tests_approved=true,@var.unlock_window_ms) msg=@msg.tests_canary hard=true skip_ok=true order=30 : canary approval; TDD hat decides when tdd_mode active; C2: own test dir auto-approved in RED
 @gate g.net on=before tools=@var.edit_tools when=path_in(@var.net_paths) msg=@msg.net_required hard=true skip_ok=false order=35 : net permission-to-act (feature_050 Alt A; feature_053 C1: engages only when net_marking(active>1) — solo sessions skip to phase-gate only, impl-owned check); calls omt_net{op:gate} — fail-closed unless omt_skip{scope:"all"} expiry+audit
 @gate g.phase on=before tools=@var.edit_tools when=path_in(src/) requires=ledger_has(phase|skip) msg=@msg.no_phase hard=true skip_ok=true order=40 : declared phase; design artifact also required for major_feature/new_screen
 @gate g.think on=before tools=@var.edit_tools when=file_has("TA:") requires=ledger_has(think_consult) msg=@msg.think_gate hard=true skip_ok=false order=50 : consult via omt_think{op:list,path} — NOT skip-bypassable; risk: thoughts drop the cross-session window
 @gate g.tdd_after on=after tools=@var.edit_tools when=path_in(src/) requires=fsm_allows(@fsm.tdd,path) msg=@msg.tdd_revert hard=false skip_ok=false order=70 : REFACTOR auto-revert when tests break + advisories
 @gate g.mvc on=after tools=@var.edit_tools when=path_in(src/**/*.py) run=@var.mvc_check msg=@msg.mvc_new_hard hard=true skip_ok=false order=60 : block NEWLY introduced hard MVC++ violations (delta vs pre-edit snapshot; correct-forward)
-@gate g.kb on=before tools=@var.edit_tools when=path_in(src/) requires=session_flag(kb_consulted) msg=@msg.kb_required hard=true skip_ok=false order=55 : KB consult — src/ edits need prior omt_kb_nav consult (feature_kb_akb)
+@gate g.kb on=before tools=@var.edit_tools when=path_in(src/) requires=session_flag(kb_consulted) msg=@msg.kb_required hard=true skip_ok=false order=55 : KB consult — src/ edits need prior omt_kb_nav consult (feature_kb_akb); C2: bug_fix/test phase auto-satisfies
 
 # ============================================================
 # MSG — block/warn text (ERR_/WRN_ + enforcer literals; TS renders in HDL-1)
@@ -173,7 +173,7 @@
 @doc rule.r1 tags="RULE_R1" : src/ edit REQUIRES omt_phase{task_type,phase,scope} — task_type: bug_fix|minor_feature|major_feature|new_screen|refactor|test|docs; phase: Analysis|Design|Programming|Testing; scope: one-sentence done definition
 @doc rule.r2 tags="RULE_R2" : major_feature|new_screen REQUIRES design_*.md on disk — scaffold: uv run scripts/omt/new_feature.py "<name>" --type major_feature|new_screen
 @doc rule.r3 tags="RULE_R3" : TDD AUTO-ACTIVATES for major_feature|new_screen in Programming — omt_tdd op=testlist→red→green→refactor→done
-@doc tdd.bootstrap tags="TDD_BOOTSTRAP" : TESTLIST blocks tests/ creation (the gate precedes the first RED) → bootstrap new test files via omt_skip{reason:"...",scope:"tests"} — logged canary; auto-unlock REJECTED (weakens the canary model)
+@doc tdd.bootstrap tags="TDD_BOOTSTRAP" : TESTLIST blocks tests/ creation (the gate precedes the first RED) → bootstrap new test files via omt_skip{reason:"...",scope:"tests"} — logged canary; blanket auto-unlock REJECTED; narrowed C2 auto-unlock: declared feature own test dir while RED active only
 @doc tdd.done_allowlist tags="TDD_DONE_ALLOWLIST" : feature_051/A1: omt_done tolerates ZERO suite failures — KNOWN_SUITE_FAILURES (scripts/omt/tdd/state.py) is permanently EMPTY (shape-pinned by test_ledger_rotation.py); suite green means green; regrowing it reverts the A1 decision
 @doc tdd.true_red tags="TDD_TRUE_RED" : AST+pytest verify — must import target src, fail on missing behavior (not syntax)
 @doc tdd.coverage tags="TDD_COVERAGE_GAPS" : public src/ methods without test calls → blocks phase exit

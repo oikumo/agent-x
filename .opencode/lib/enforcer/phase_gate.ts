@@ -277,6 +277,13 @@ export function createPhaseTools(env: EnforcerEnv) {
         tdd_mode: tddMode,
         ...(baseline !== undefined ? { baseline_failures: baseline } : {}),
       })
+      // feature_054 C2 small_task_fast_path: for bug_fix/test, THIS record is
+      // the single mechanism that satisfies g.nav+g.kb — the gate chain reads
+      // it live (session_state.hasFastPathUnlock; ledger reads are fresh per
+      // call, so the write is immediately visible). Deliberately NO in-memory
+      // flag flip: sticky flags would keep the fast path on after a later
+      // major_feature declaration (guardrail: major/new_screen stay hard).
+      // MUST NOT touch g.think/g.protect.
       const lines = [
         "📋 OMT++ PROCESS CHECK (recorded)",
         `- Task type: ${tt}`,

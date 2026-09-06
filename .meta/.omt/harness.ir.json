@@ -96,7 +96,7 @@
       "paths": ".meta/,AGENTS.md,WORK.md",
       "requires": "session_flag(nav_used)",
       "skip_ok": true,
-      "text": "nav tools before doc searches (feature_020); read + src/non-doc exempt",
+      "text": "nav tools before doc searches (feature_020); read + src/non-doc exempt; C2: bug_fix/test phase auto-satisfies",
       "tools": "grep|glob|rg|find",
       "when": "path_in(@var.doc_paths)"
     },
@@ -135,7 +135,7 @@
       "paths": "",
       "requires": "ledger_has(skip,tests_approved=true,@var.unlock_window_ms)",
       "skip_ok": true,
-      "text": "canary approval; TDD hat decides when tdd_mode active",
+      "text": "canary approval; TDD hat decides when tdd_mode active; C2: own test dir auto-approved in RED",
       "tools": "edit|write|patch|multiedit",
       "when": "path_in(tests/)"
     },
@@ -214,7 +214,7 @@
       "paths": "",
       "requires": "session_flag(kb_consulted)",
       "skip_ok": false,
-      "text": "KB consult \u2014 src/ edits need prior omt_kb_nav consult (feature_kb_akb)",
+      "text": "KB consult \u2014 src/ edits need prior omt_kb_nav consult (feature_kb_akb); C2: bug_fix/test phase auto-satisfies",
       "tools": "edit|write|patch|multiedit",
       "when": "path_in(src/)"
     }

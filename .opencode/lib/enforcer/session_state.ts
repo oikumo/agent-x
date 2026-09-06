@@ -128,6 +128,33 @@ export function hasNavUnlock(session: string | undefined): boolean {
   return !!chosen
 }
 
+// feature_054 C2 small_task_fast_path: bug_fix/test phases auto-satisfy
+// g.nav+g.kb. The phase tool flips the in-memory flags immediately; this
+// ledger-backed check keeps the fast path durable across plugin reloads and
+// session-ID drift (window fallback mirrors getActiveUnlock). Major/new_screen
+// stay hard — only bug_fix/test qualify. MUST NOT extend to g.think/g.protect.
+export const FAST_PATH_TASK_TYPES: ReadonlySet<string> = new Set(["bug_fix", "test"])
+
+export function hasFastPathUnlock(session: string | undefined): boolean {
+  // Latest-PHASE-wins (skips are not the authority): the session's latest
+  // phase record decides — a later minor/major declaration turns the fast
+  // path OFF again. Mirrors getActiveUnlock's selection shape (session-matched
+  // preferred, else window-recent) but reads only phase records.
+  const phases = readLedger().filter((r) => r.kind === "phase")
+  if (!phases.length) return false
+  const mine = session ? phases.filter((r) => r.session === session) : []
+  let chosen = mine.length ? mine[mine.length - 1] : null
+  if (!chosen) {
+    const now = Date.now()
+    const recent = phases.filter((r) => {
+      const t = Date.parse(r.ts || "")
+      return !Number.isNaN(t) && now - t < UNLOCK_WINDOW_MS
+    })
+    chosen = recent.length ? recent[recent.length - 1] : null
+  }
+  return FAST_PATH_TASK_TYPES.has(String(chosen?.task_type || ""))
+}
+
 // Latest phase record for a specific feature. Exact session match is preferred,
 // then we fall back to the recent single-user window. Unlike getActiveUnlock(),
 // this ignores skip records and unrelated features so omt_complete cannot be

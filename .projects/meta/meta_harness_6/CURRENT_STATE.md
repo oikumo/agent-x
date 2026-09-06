@@ -5,6 +5,47 @@
 
 ---
 
+## 2026-09-06 (auto — feature_054.small_task_fast_path Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_054.small_task_fast_path/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-06 (iter 4 — Wave 2/C2 EXECUTED: feature_054.small_task_fast_path DONE; NEXT = A4)
+
+### Done
+
+- **Resumed per PROJECT.md Quick Start + CURRENT_STATE iter 3**: tree verified CLEAN (user committed C1), meta_harness_5 overlap re-check clean (backlog all shipped/rejected, nothing on small-task fast path / canary auto-unlock), net dormant (rev 57, work_active=0 — solo, no fire per C1), feature_054 scaffolded + linked, phase declared (Programming, minor_feature).
+- **C2 `feature_054.small_task_fast_path` SHIPPED** (minor_feature, Programming→Testing→Done):
+  - **Fast path**: `bug_fix`/`test` phase record satisfies g.nav+g.kb in ONE ledger write — `session_state.ts` `FAST_PATH_TASK_TYPES` + exported `hasFastPathUnlock` (latest-PHASE-wins, session-matched → window fallback; skips NOT the authority); `gate_driver.ts` SESSION_FLAGS OR-in + **g.nav impl fix** (specialized impls bypass `requires=` — fed into `navGateDecision`'s navUnlock slot, round-2 catch). Minor/major/new_screen stay hard; a later non-fast-path declaration turns it off.
+  - **Narrowed canary**: `receipt_guard.ts` `guardTestsPath` C2 branch — `activeFeatureFor` (unlock feature → session → window) + `isOwnTestDir` (full slug / `feature_NNN` short form; separator-safe: `feature_054evil` does NOT match) + `isFeatureRedActive` (feature-scoped tdd records, latest=red — deliberately NOT session tdd_mode: omt_complete's advance writes tdd-less phase records; mid-TDD Programming→Testing advance is THE value case). Bootstrap (testlist/no RED), other dirs, tests/scripts/ unchanged — explicit canary skip still required.
+  - **Design decision (round 3)**: NO in-memory flag flip in phase_gate — the ledger record is the single mechanism (fresh fs read per gate call = immediately visible); sticky in-memory flags would keep kb_consulted=true after a later major_feature declaration (guardrail violation, caught in review before any session relied on it).
+  - `.omt`: C2 notes on g.nav/g.kb/g.tests + TDD_BOOTSTRAP doc narrowed ("blanket auto-unlock REJECTED; narrowed C2 auto-unlock: own test dir, RED only"); 259 records, check 0 errors, build OK, all 12 budgets green (nav_index 63719/64000 — tight, Wave 3/B1 owns it).
+  - Tests: 10 new (`test_small_task_fast_path.py`: 7 static pins incl. g.think/g.protect-untouched + 3 bun probes on the REAL TS modules — hasFastPathUnlock 12-case matrix, guardTestsPath 6-scenario canary, runBeforeGates full-chain nav+kb) + e2e check 14.
+  - **Evidence: full suite 1887 passed / 0 failed (1877 + 10 new, empty allowlist); bun builds clean; e2e receipt refreshed (3 rounds, one edit per harness file per round, transforms via sanctioned bash scripts).**
+- Artifacts: `5.implementation/.../implementation_notes.md` + `6.testing/.../test_report.md`.
+
+### In progress / Blocked
+
+- _(nothing in-flight — feature_054 fully closed)_
+
+### Next
+
+1. **Wave 2 / A4 `gate_preflight`** (minor_feature): overlap-check meta_harness_5 backlog → scaffold (takes number **055**) → omt_phase → `omt_status{op:preflight, tool, path}` ordered gates-that-will-fire projection per evaluation §5 A4 (read-only projection of the @gate table; omt_q op:plan already predicts the chain — A4 builds the clearing-action layer on it).
+2. Then Wave 3 (A2+A3, B1+B2) — PROJECT.md §The program.
+
+### Notes / context
+
+- Working tree UNCOMMITTED (agent cannot git-commit): feature_054 changes (4 enforcer TS files + .omt + e2e check 14 + new test dir + 2 artifact dirs + project docs) await user `git commit`.
+- Net: rev 57 (dormant all session — solo per C1, no fire needed), pool pending=0/active=0/done=7.
+- Ceremony note (dogfooding C2): this session itself declared a minor_feature phase — C2's fast path applies to bug_fix/test only, so nav/kb consults were still paid here by design; the NEXT bug_fix session is the first to ride the fast path.
+- Probe idiom reuse: `test_omt_q.py` bun-probe pattern + OMT_LEDGER_PATH hermetic ledger (feature_051); mock `$` for tddGateCheck-shell branches.
+
+---
+
+
 ## 2026-09-06 (auto — feature_053.net_gate_concurrency_predicate Done)
 
 - shipped: minor_feature · test report @ 6.testing/features/feature_053.net_gate_concurrency_predicate/test_report.md
