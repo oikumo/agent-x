@@ -45,6 +45,7 @@ HARNESS_FILES = [
     ".opencode/lib/enforcer/think_gate.ts",
     ".opencode/lib/enforcer/mvc_after.ts",
     ".opencode/lib/enforcer/gate_driver.ts",
+    ".opencode/lib/enforcer/preflight.ts",
     "opencode.jsonc",
     "AGENTS.md",
     ".meta/META_HARNESS.omt",
@@ -371,11 +372,15 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     # before-chain via the runBeforeGatesDry sibling (fired/stop flags so
     # "will fire" distinguishes when=-miss from pass and chain halts), the
     # after-chain as IR notes; killing the deny-learn-retry loop.
+    # feature_062 P0-1: the core moved to lib/enforcer/preflight.ts (shared
+    # home for the op and the omt_phase declare-embed); omt_status is a thin
+    # consumer.
+    preflight_lib = _read(".opencode/lib/enforcer/preflight.ts")
     assert "preflightProjection" in status, (
-        "A4 requires the preflight projection in omt_status.ts")
-    assert "CLEARING_ACTIONS" in status, (
-        "A4 requires the per-gate clearing-action map in omt_status.ts")
-    assert "runBeforeGatesDry" in status, (
+        "A4 requires the preflight projection wired in omt_status.ts")
+    assert "CLEARING_ACTIONS" in preflight_lib, (
+        "A4 requires the per-gate clearing-action map in preflight.ts")
+    assert "runBeforeGatesDry" in preflight_lib, (
         "A4 before-chain must reuse the runBeforeGatesDry sibling (no second gate engine)")
     assert "fired?: boolean" in gate_driver and "stop?: boolean" in gate_driver, (
         "A4 requires the fired/stop GateDecision flags in gate_driver.ts")
@@ -480,6 +485,40 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
     assert "GETTING_STARTED.md" in _read(".gitignore"), (
         "D3 requires the generated onboarding file to stay uncommitted")
     checks.append("feature_059 Wave 5/D1+D2+D3: harness_tiered_template wired (filter + template vars + init/onboarding + mvc profiles)")
+
+    # 20. feature_061 P0-4 nav_cache_hit: the g.nav denial appends the top-3
+    # nav index hits for the blocked query's stem — message-only (verdict,
+    # policy and the IR nav_required text unchanged; fail-open to the
+    # byte-identical pre-P0-4 denial when no stem/index/hits).
+    gate_driver = _read(".opencode/lib/enforcer/gate_driver.ts")
+    assert "navCacheHint(ctx.output)" in gate_driver, (
+        "P0-4 requires the hint append in the g.nav impl (gate_driver.ts)")
+    assert 'gateMsg("nav_required")' in gate_driver, (
+        "P0-4 is message-only: the IR @msg text stays the denial source")
+    nav_gate = _read(".opencode/lib/enforcer/nav_gate.ts")
+    assert "export function navCacheHint" in nav_gate, (
+        "P0-4 requires the hint builder in nav_gate.ts")
+    assert "export function searchQueryStem" in nav_gate, (
+        "P0-4 requires the query-stem extractor in nav_gate.ts")
+    assert "loadNavIndex" in nav_gate, (
+        "P0-4 reads the compiled nav index (no second corpus)")
+    checks.append("feature_061 P0-4: nav_cache_hit wired (stem extract + top-3 index hits appended to g.nav denial, message-only)")
+
+    # 21. feature_062 P0-1 preflight_on_declare: the omt_phase success
+    # response embeds the A4 preflight projection for the feature's own edit
+    # surfaces (tests-dir probe always; src probe at Programming) — read-only
+    # runBeforeGatesDry reuse with the live session state and an inert $,
+    # fail-open, no schema growth.
+    phase_gate = _read(".opencode/lib/enforcer/phase_gate.ts")
+    assert 'await preflightProjection(t, "edit", session' in phase_gate, (
+        "P0-1 requires the declare-embed projection call in phase_gate.ts")
+    assert "feature_062.preflight_on_declare" in phase_gate, (
+        "P0-1 requires the lineage note at the embed site")
+    assert "envOverride" in preflight_lib, (
+        "P0-1 requires the live-state override in preflight.ts")
+    assert "writeLedger" not in preflight_lib and "appendLedger" not in preflight_lib, (
+        "the preflight core stays read-only (A4 posture)")
+    checks.append("feature_062 P0-1: preflight_on_declare wired (declare embed via shared preflight.ts; read-only + fail-open)")
 
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

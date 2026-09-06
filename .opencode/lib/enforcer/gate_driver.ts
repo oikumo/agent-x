@@ -27,7 +27,7 @@ import {
 import {
   OmtBlock, getActiveUnlock, hasNavUnlock, hasFastPathUnlock, type EnforcerEnv,
 } from "./session_state"
-import { getSearchPath, navGateDecision } from "./nav_gate"
+import { getSearchPath, navCacheHint, navGateDecision } from "./nav_gate"
 import {
   guardProtectedPath, guardHarnessReceipt, guardTestsPath,
 } from "./receipt_guard"
@@ -192,7 +192,11 @@ const IMPLS: Record<string, GateImpl> = {
     })
     if (decision === "block") {
       ctx.env.safeLog("warn", `Session ${ctx.session}: blocked ${ctx.tool} (doc search '${ctx.rel || "repo"}') without prior navigation`)
-      throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("nav_required")}`)
+      // meta_harness_7 P0-4 (feature_061.nav_cache_hit): append what the nav
+      // index already knows about the query — message-only; null = the denial
+      // stays byte-identical to the pre-P0-4 text (no policy change).
+      const hint = navCacheHint(ctx.output)
+      throw new OmtBlock(`⛔ OMT++ gate: ${gateMsg("nav_required")}` + (hint ? `\n${hint}` : ""))
     }
   },
   // AGENTS.md NEVER paths; .env* hard, README/uv.lock/LICENSE via scope=all.

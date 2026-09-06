@@ -13,7 +13,7 @@
 | meta_harness_4 | complete | feature_037.tdd_testlist_prose_fallback | 2026-08-30 | 2026-08-30 |
 | meta_harness_5 | active | feature_038.tdd_toolchain_aware | 2026-08-30 | 2026-08-30 |
 | meta_harness_6 | complete | feature_051.ledger_test_isolation, feature_052.opencode_version_canary, feature_053.net_gate_concurrency_predicate, feature_054.small_task_fast_path, feature_055.gate_preflight, feature_056.skip_taxonomy_phase_hygiene, feature_057.gate_budget_ceremony_meter, feature_058.thought_review_gotcha_root_cause, feature_059.harness_tiered_template | 2026-09-06 | 2026-09-06 |
-| meta_harness_7 | active | feature_060.dangling_active_only | 2026-09-06 | 2026-09-06 |
+| meta_harness_7 | active | feature_060.dangling_active_only, feature_061.nav_cache_hit, feature_062.preflight_on_declare | 2026-09-06 | 2026-09-06 |
 | meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor, feature_041.resource_places_concurrency, feature_042.goal_net_synthesis, feature_043.meta_net_dashboard, feature_044.mined_behavioral_net, feature_045.work_md_net_driven, feature_046.omt_net_session_arg_whitelist, feature_047.wip_limited_pool, feature_048.wip_limited_pool, feature_049.session_start_menu | 2026-08-30 | 2026-08-30 |
 | net_enforced_harness | active | feature_050.net_as_gate | 2026-09-05 | 2026-09-05 |
 | petri_net_library | active | feature_031.petri_net_library | 2026-08-22 | 2026-08-22 |

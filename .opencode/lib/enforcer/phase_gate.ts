@@ -16,6 +16,7 @@ import {
 } from "./session_state"
 import { tddGateCheck } from "./tdd_hats"
 import { capturePreEditSnapshot } from "./mvc_after"
+import { preflightProjection, preflightLines } from "./preflight"
 
 const VALID_TASK_TYPES = new Set([
   "bug_fix", "minor_feature", "major_feature", "new_screen", "refactor", "test", "docs",
@@ -353,6 +354,26 @@ export function createPhaseTools(env: EnforcerEnv) {
       }
       lines.push("✅ src/ edits unlocked for this session" +
         (ARTIFACT_REQUIRED.has(tt) ? " once the artifact check passes." : "."))
+
+      // meta_harness_7 P0-1 (feature_062.preflight_on_declare): embed the A4
+      // preflight for the feature's own edit surfaces — the declare response
+      // already has the agent's attention, so the first denial (tests canary,
+      // g.kb consult) is pre-taught instead of paid as a turn. Read-only
+      // (runBeforeGatesDry), live session state but inert $ (dry net verdict),
+      // no schema growth; fail-open — the declare never fails on the embed.
+      try {
+        const featureSlug = String(args.feature || "")
+        if (featureSlug && (newPhase === "Programming" || newPhase === "Testing")) {
+          const targets = [`tests/features/${featureSlug}/test_probe.py`]
+          if (newPhase === "Programming") targets.push("src/feature_probe.py")
+          for (const t of targets) {
+            const proj = await preflightProjection(t, "edit", session, {
+              state: env.state, directory,
+            })
+            lines.push(...preflightLines(proj))
+          }
+        }
+      } catch { /* fail-open: the embed is advisory */ }
       return lines.join("\n")
     },
   })

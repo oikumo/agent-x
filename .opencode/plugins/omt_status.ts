@@ -13,17 +13,16 @@ import { execSync } from "node:child_process"
 // and repo-root live in the shared lib (root injected at plugin-init, F2/F17).
 // R8: tool descriptions resolve from the compiled IR (irToolDescription).
 import {
-  initOmtShared, repoRoot, workMdPath, designRoot, loadIr, relOf,
+  initOmtShared, repoRoot, workMdPath, designRoot, loadIr,
   readLedger as sharedReadLedger, readLedgerAll as sharedReadLedgerAll, resolveFeatureDir, globToRegex, UNLOCK_WINDOW_MS,
   irToolDescription, phaseTransitions,
 } from "../lib/omt_shared"
-// feature_055 A4 gate_preflight: the before-chain projection reuses the SAME
-// dry-run sibling omt_q{op:plan} predicts with (runBeforeGatesDry on a
-// synthetic GateCtx) — no second gate-evaluation engine to drift.
+// feature_055 A4 gate_preflight → feature_062 P0-1: the projection core lives
+// in lib/enforcer/preflight.ts (shared home for this op and the omt_phase
+// declare-embed) — same dry-run sibling, no second gate engine to drift.
 import {
-  createSessionState, hasNavUnlock, type EnforcerEnv,
-} from "../lib/enforcer/session_state"
-import { type GateCtx, runBeforeGatesDry } from "../lib/enforcer/gate_driver"
+  PREFLIGHT_DEFAULT_TOOL, preflightProjection, preflightLines,
+} from "../lib/enforcer/preflight"
 
 const VALID_PHASES = ["Analysis", "Design", "Programming", "Testing"]
 const VALID_TASK_TYPES = ["bug_fix", "minor_feature", "major_feature", "new_screen", "refactor", "test", "docs"]
@@ -209,157 +208,12 @@ function formatDuration(ms: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// feature_055 A4 gate_preflight: omt_status{op:"preflight", tool, path} →
-// the ORDERED gates that will fire for the prospective edit + the clearing
-// action for each (read-only projection of the @gate table — kills the
-// deny-learn-retry loop: ONE call instead of N denials). omt_q{op:plan}
-// already predicts the raw chain; this builds the clearing-action layer on
-// it and surfaces it in the process-context tool.
+// feature_055 A4 gate_preflight / feature_062 P0-1: the projection core
+// (CLEARING_ACTIONS, buildPreflightCtx, preflightProjection, preflightLines)
+// moved to lib/enforcer/preflight.ts — the shared home for this op and the
+// omt_phase declare-embed. This plugin is a thin consumer (op=preflight
+// branch below).
 // ---------------------------------------------------------------------------
-
-// Distilled per-gate "what unblocks this". The .omt @msg records embed the
-// same escapes as prose (meta_harness_5 #9) — this map is the concise
-// actionable form, consistency-pinned by the feature tests. Deliberately NOT
-// a new @gate clear= attribute: nav_index headroom is ~281B (Wave 3/B1).
-const CLEARING_ACTIONS: Record<string, string> = {
-  "g.nav": 'omt_nav{op:"nav"|"list_sections"|"quick_ref"} first (read + src/non-doc exempt); override omt_skip{scope:"nav"}; bug_fix/test phase auto-satisfies (C2)',
-  "g.protect": '.env* is NEVER editable; README/uv.lock/LICENSE → ask the user, then omt_skip{scope:"all"}',
-  "g.receipt": 'refresh the e2e receipt: uv run pytest tests/scripts/omt/test_omt_harness_e2e.py -q (one edit per harness file per round)',
-  "g.tests": 'omt_skip{reason:"approved canary test", scope:"tests"}; own feature test dir auto-approved in RED (C2)',
-  "g.net": 'omt_net{op:"fire", transition:"work_start"} (solo sessions auto-skip per C1); break-glass omt_skip{scope:"all"} — expiring, audited',
-  "g.phase": 'omt_phase{task_type, scope} (bug_fix is enough for trivial fixes; major_feature/new_screen also need a design artifact); override omt_skip{reason:"..."}',
-  "g.think": 'omt_think{op:"list", path:"<file>"} — NOT skip-bypassable',
-  "g.kb": 'omt_kb_nav{op:"nav", query} (CLASS_/CONTRACT_/DEP_/LAYER_ or symbol id); bug_fix/test phase auto-satisfies (C2)',
-  "g.mvc": 'after-edit: fix NEWLY introduced hard MVC++ violations forward (delta vs pre-edit snapshot)',
-  "g.tdd_after": 'after-edit: REFACTOR auto-reverts breaking edits — keep the tests green',
-}
-
-// Gates whose dry-run verdict can diverge from the live enforcer path.
-const DRY_CAVEATS: Record<string, string> = {
-  "g.net": "dry-run cannot verify the live net verdict — under concurrency fire(work_start) first; solo auto-skips (C1)",
-}
-
-const PREFLIGHT_DEFAULT_TOOL = "edit"
-
-// Synthetic GateCtx mirroring the SDK before-hook shape (the omt_q plan
-// idiom): input={tool}, output={args:{filePath}} — the BUG-A pin literal.
-// env.$ stays a non-function so shell-out impls take their dry path.
-function buildPreflightCtx(path: string, toolName: string, session?: string): GateCtx {
-  const { abs, rel } = relOf(path)
-  const env: EnforcerEnv = {
-    state: createSessionState(),
-    directory: repoRoot(),
-    safeLog: () => {},
-    notify: async () => {},
-    client: {},
-    $: {},
-  }
-  if (session) {
-    env.state.nav.set(session, { usedNav: !!hasNavUnlock(session) })
-  }
-  return {
-    env,
-    session,
-    tool: toolName,
-    input: { tool: toolName },
-    output: { args: { filePath: path } },
-    rel,
-    abs,
-    memo: new Map(),
-  }
-}
-
-// After-gate when= projection: path_in(...) forms only (both live after-gates
-// are path_in); anything else fires conservatively — a false "will fire"
-// costs a hint, a miss would cost a surprise.
-function whenPathMatches(when: string, rel: string | null, ir: any): boolean {
-  const spec = String(when || "").trim()
-  const m = spec.match(/^(!?)\s*path_in\((.+)\)$/)
-  if (!m) return true
-  const varRef = m[2].trim().match(/^@var\.([a-z0-9_]+)$/)
-  const raw = varRef ? String(ir?.vars?.[varRef[1]] ?? "") : m[2].trim()
-  const hit = raw.split(",").map((e) => e.trim()).filter(Boolean).some((e) =>
-    e.includes("*") ? globToRegex(e).test(rel || "")
-      : e.endsWith("/") ? (rel || "").startsWith(e) : rel === e)
-  return m[1] === "!" ? !hit : hit
-}
-
-async function preflightProjection(
-  path: string, toolName: string, session?: string,
-): Promise<Record<string, any>> {
-  const ir = loadIr()
-  const ctx = buildPreflightCtx(path, toolName, session)
-  const decisions = await runBeforeGatesDry(ctx)
-  const irGates: any[] = Array.isArray(ir?.gates) ? ir.gates : []
-  const orderOf = new Map<string, number>(
-    irGates.map((g: any) => [String(g.id), Number(g.order ?? 0)]))
-  const before = decisions.map((d) => ({
-    gate_id: d.gate_id,
-    order: orderOf.get(d.gate_id) ?? -1,
-    fired: d.fired !== false,
-    blocked: d.blocked,
-    halts_chain: d.stop === true,
-    skip_ok: d.skip_ok,
-    clearing_action: CLEARING_ACTIONS[d.gate_id] ?? "",
-  }))
-  // After-gates are NOTES, not predictions: g.mvc/g.tdd_after verdicts depend
-  // on the edit content that does not exist yet.
-  const after = irGates
-    .filter((g: any) => g.on === "after")
-    .filter((g: any) => String(g.tools ?? "").split("|").filter(Boolean).includes(toolName))
-    .filter((g: any) => whenPathMatches(String(g.when ?? ""), ctx.rel, ir))
-    .sort((a: any, b: any) => a.order - b.order)
-    .map((g: any) => ({
-      gate_id: String(g.id),
-      order: Number(g.order ?? 0),
-      note: CLEARING_ACTIONS[String(g.id)] ?? "",
-    }))
-  const firedRows = before.filter((r) => r.fired)
-  const blockers = firedRows.filter((r) => r.blocked)
-  return {
-    op: "preflight",
-    path,
-    tool: toolName,
-    rel: ctx.rel,
-    before,
-    after,
-    summary: {
-      before_total: before.length,
-      before_fired: firedRows.length,
-      would_block: blockers.length,
-      first_blocker: blockers[0]?.gate_id ?? null,
-      not_applicable: before.length - firedRows.length,
-    },
-  }
-}
-
-function preflightLines(p: Record<string, any>): string[] {
-  const lines = [
-    `🛫 OMT++ PREFLIGHT — ${p.tool} ${p.path}`,
-    `   before-chain: ${p.summary.before_fired} of ${p.summary.before_total} fire` +
-      `${p.summary.would_block ? ` · ${p.summary.would_block} WOULD BLOCK (first: ${p.summary.first_blocker})` : " · all clear"}` +
-      `${p.summary.not_applicable ? ` · ${p.summary.not_applicable} n/a` : ""}`,
-  ]
-  let n = 0
-  for (const row of p.before) {
-    if (!row.fired) continue
-    n += 1
-    if (row.blocked) {
-      lines.push(`   ${n}. [${row.order}] ${row.gate_id} — WOULD BLOCK`)
-      lines.push(`      clear: ${row.clearing_action}`)
-    } else if (row.halts_chain) {
-      lines.push(`   ${n}. [${row.order}] ${row.gate_id} — fires, halts the chain here`)
-      if (row.clearing_action) lines.push(`      (${row.clearing_action})`)
-    } else {
-      const caveat = DRY_CAVEATS[row.gate_id]
-      lines.push(`   ${n}. [${row.order}] ${row.gate_id} — fires ✓${caveat ? ` (${caveat})` : ""}`)
-    }
-  }
-  for (const row of p.after) {
-    lines.push(`   after [${row.order}] ${row.gate_id} — ${row.note}`)
-  }
-  return lines
-}
 
 // ---------------------------------------------------------------------------
 // feature_056 A2+A3 skip taxonomy + phase hygiene. READ-ONLY (the A4

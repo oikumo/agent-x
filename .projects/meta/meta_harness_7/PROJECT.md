@@ -6,9 +6,9 @@
 
 ## New Session Quick Start
 
-> One line: `meta_harness_7` is the **11-item work-performance program distilled from the 2026-09-06 performing-work analysis** (evidence: `omt_status` + `omt_q state/plan/drift` this session) — 3 waves: quick-wins → structural → productization; **PROGRAM DEFINED, ZERO EXECUTED** (see CURRENT_STATE.md iter 1; verdicts D1–D3 below).
+> One line: `meta_harness_7` is the **11-item work-performance program distilled from the 2026-09-06 performing-work analysis** (evidence: `omt_status` + `omt_q state/plan/drift` this session) — 3 waves: quick-wins → structural → productization; **EXECUTING: Wave 0 3/4 done** (P0-1 feature_062, P0-2 feature_060, P0-4 feature_061; see CURRENT_STATE.md iter 2–4; verdicts D1–D3 below).
 
-**Next:** read §Decision gates → §Execution rules → §Baseline, then scaffold Wave 0 / P0-2 (`dangling-active-only`, minor_feature) per Execution rule 1.
+**Next:** read §Decision gates → §Execution rules → §Baseline, then scaffold Wave 0 / P0-3 (`kb-sticky-per-feature`, minor_feature) per Execution rule 1.
 
 ---
 
@@ -118,11 +118,7 @@
 
 ## Status
 
-- [ ] Wave 0 — P0-1 `preflight-on-declare` · P0-2 `dangling-active-only` ✅ DONE (feature_060, 2026-09-06: active-only ≤10 + expired GC, suite 1981/0) · P0-3 `kb-sticky-per-feature` · P0-4 `nav-cache-hit`
-- [ ] Wave 1 — P1-1 `think-batch-consult` · P1-2 `tdd-same-node-lint` · P1-3 `project-autolink` · P1-4 `budget-diet-bot`
-- [ ] Wave 2 — P2-1 `omt-workflow-index` · P2-2 `subagent-fanout-recipe` · P2-3 `receipt-batch-mode`
-- [ ] End-of-program re-evaluation vs §Baseline (delta report → Decisions log → close program)
-- [x] First linked feature flips this project draft → active (feature_060 linked 2026-09-06)
+- [ ] Wave 0 — P0-1 `preflight-on-declare` ✅ DONE (feature_062, 2026-09-06: declare embed via shared preflight.ts, suite 1992/0) · P0-2 `dangling-active-only` ✅ DONE (feature_060, 2026-09-06: active-only ≤10 + expired GC, suite 1981/0) · P0-3 `kb-sticky-per-feature` · P0-4 `nav-cache-hit` ✅ DONE (feature_061, 2026-09-06: denial appends top-3 nav index hits, message-only, suite 1986/0)
 
 ---
 

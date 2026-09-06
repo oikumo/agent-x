@@ -30,6 +30,10 @@ import pytest
 REPO_ROOT = Path(__file__).parent.parent.parent.parent
 OMT = REPO_ROOT / ".meta" / "META_HARNESS.omt"
 STATUS_PLUGIN = REPO_ROOT / ".opencode" / "plugins" / "omt_status.ts"
+# feature_062 P0-1: the projection core moved here (shared home for the
+# omt_status op and the omt_phase declare-embed) — CLEARING_ACTIONS pins now
+# parse this module instead of the plugin.
+PREFLIGHT_LIB = REPO_ROOT / ".opencode" / "lib" / "enforcer" / "preflight.ts"
 GATE_DRIVER = REPO_ROOT / ".opencode" / "lib" / "enforcer" / "gate_driver.ts"
 SHARED_LIB = REPO_ROOT / ".opencode" / "lib" / "omt_shared.ts"
 E2E_TEST = REPO_ROOT / "tests" / "scripts" / "omt" / "test_omt_harness_e2e.py"
@@ -124,7 +128,7 @@ class TestStaticPins:
         an empty hint, never a wrong one)."""
         gate_ids = set(re.findall(
             r"^@gate (g\.[a-z_]+)", OMT.read_text(encoding="utf-8"), re.M))
-        src = STATUS_PLUGIN.read_text(encoding="utf-8")
+        src = PREFLIGHT_LIB.read_text(encoding="utf-8")
         block = src.split("const CLEARING_ACTIONS", 1)[1].split("\n}", 1)[0]
         covered = set(re.findall(r'"(g\.[a-z_]+)":', block))
         assert gate_ids, "no @gate records parsed — the .omt shape changed?"
@@ -133,7 +137,7 @@ class TestStaticPins:
             f"extra={covered - gate_ids}")
 
     def test_clearing_actions_consistent_with_msg_escapes(self) -> None:
-        src = STATUS_PLUGIN.read_text(encoding="utf-8")
+        src = PREFLIGHT_LIB.read_text(encoding="utf-8")
         block = src.split("const CLEARING_ACTIONS", 1)[1].split("\n}", 1)[0]
 
         def action(gate: str) -> str:

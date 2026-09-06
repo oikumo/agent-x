@@ -10,7 +10,7 @@
 //                       omt_think's digestSessions Tier-1c hook — load-order
 //                       independent, single Set in session_state).
 
-import { loadIr, relOf, thinkDigest, gateMsg } from "../omt_shared"
+import { loadIr, loadNavIndex, relOf, thinkDigest, gateMsg } from "../omt_shared"
 import { type EnforcerEnv } from "./session_state"
 import { execFileSync } from "node:child_process"
 
@@ -91,6 +91,64 @@ export function getSearchPath(output: any): string | null {
     : (typeof raw === "string" ? raw : null)
   if (!rawStr) return null
   return relOf(rawStr).rel
+}
+
+// meta_harness_7 P0-4 (feature_061.nav_cache_hit): query-stem extraction for
+// a blocked doc-scoped search. Reads the search args from the BEFORE-hook
+// output (the SDK contract: args live on output in tool.execute.before — the
+// same object getSearchPath reads). The stem is the longest string-typed
+// pattern-ish arg; regex noise is stripped (anchors/classes/groups/metachars
+// become spaces, lowercased, underscores kept so identifiers like budget or
+// dangling survive). Null when nothing usable — the hint then stays absent.
+export function searchQueryStem(output: any): string | null {
+  const names = ["pattern", "query", "grep", "search", "regex", "term", "q"]
+  let best: string | null = null
+  for (const n of names) {
+    const raw = output?.args?.[n]
+    const s = Array.isArray(raw)
+      ? (raw.find((v: any) => typeof v === "string" && v) ?? null)
+      : (typeof raw === "string" && raw ? raw : null)
+    if (s && (best === null || s.length > best.length)) best = s
+  }
+  if (!best) return null
+  const stem = best.toLowerCase().replace(/[^a-z0-9_]+/g, " ").trim()
+  return stem || null
+}
+
+// P0-4: what the compiled nav index already knows about the stem — appended
+// to the g.nav block text (gate_driver IMPLS["g.nav"]). Message-only: the
+// verdict/policy is untouched, and every failure mode (no stem, missing/empty
+// index, no hits, throw) returns null so the denial stays byte-identical to
+// the pre-P0-4 text. Candidates: full stem first, then individual words
+// (>=3 chars, longest first) — deterministic top-3 in index order. Line texts
+// are whitespace-folded and capped so one verbose record can't flood the
+// block message.
+export function navCacheHint(output: any): string | null {
+  try {
+    const stem = searchQueryStem(output)
+    if (!stem) return null
+    const recs = loadNavIndex()
+    if (!recs || !recs.length) return null
+    const hay = (r: any) =>
+      `${r?.id ?? ""} ${r?.name ?? ""} ${r?.text ?? ""} ${
+        (Array.isArray(r?.tags) ? r.tags : []).join(" ")}`.toLowerCase()
+    const words = stem.split(" ").filter((w) => w.length >= 3)
+      .sort((a, b) => b.length - a.length)
+    const candidates = [stem, ...words].filter((c, i, a) => a.indexOf(c) === i)
+    for (const c of candidates) {
+      const hits = recs.filter((r: any) => hay(r).includes(c))
+      if (!hits.length) continue
+      const lines = hits.slice(0, 3).map((r: any) => {
+        const text = String(r?.text ?? "").replace(/\s+/g, " ").trim()
+        const cut = text.length > 96 ? text.slice(0, 93) + "..." : text
+        return `  ${r?.src ?? "?"}:${r?.line ?? 0}: ${cut}`
+      })
+      return `📎 nav index hits for '${stem.slice(0, 40)}':\n${lines.join("\n")}`
+    }
+    return null
+  } catch {
+    return null // fail-open: the denial text is teaching, never logic
+  }
 }
 
 // improvement007 R8/OPT-G: the block text moved to the IR (@msg nav_required)
