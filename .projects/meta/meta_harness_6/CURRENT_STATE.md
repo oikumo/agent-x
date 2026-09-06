@@ -5,6 +5,49 @@
 
 ---
 
+## 2026-09-06 (auto — feature_055.gate_preflight Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_055.gate_preflight/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-06 (iter 5 — Wave 2/A4 EXECUTED: feature_055.gate_preflight DONE; WAVE 2 COMPLETE; NEXT = Wave 3)
+
+### Done
+
+- **Resumed per PROJECT.md Quick Start + CURRENT_STATE iter 4**: tree verified CLEAN (user committed C2), meta_harness_5 overlap re-check clean (backlog all shipped/rejected — nothing on gate projection/preflight), net dormant (rev 57, work_active=0 — solo, no fire per C1), feature_055 scaffolded + linked, phase declared (Programming, minor_feature).
+- **A4 `feature_055.gate_preflight` SHIPPED** (minor_feature, Programming→Testing→Done):
+  - **`omt_status{op:"preflight", tool, path}`**: ordered gates-that-will-fire + clearing action each — before-chain verdicts REUSE `runBeforeGatesDry` (the omt_q plan sibling — no second gate engine), after-chain (g.mvc/g.tdd_after) as IR-projected notes (verdicts depend on edit content). Read-only, short-circuits before the default path's lint/tdd subprocesses, ledger-write-free.
+  - **`GateDecision` gains optional `fired`/`stop`** (gate_driver.ts, additive — omt_q mapping untouched): when=-miss distinguishable from pass; chain halts (g.protect/g.tests) visible. Think-gate consulted for the TA: file (its one risk thought is STALE — both feature_050 items shipped).
+  - **`CLEARING_ACTIONS`** map (10 gates) in omt_status.ts — concise escapes consistent with the @msg prose (meta_harness_5 #9), completeness-pinned (new @gate w/o action = red suite). NOT a `@gate clear=` attribute (nav_index headroom 174B — Wave 3/B1 owns it). `DRY_CAVEATS` for g.net (dry-run can't shell out).
+  - **Live-canary catch (round 2)**: with `op` describe `"preflight"`, the live opencode model FILLED `op:"preflight"` on a plain omt_status call → fixed via describe `"status (default) | preflight"` + accepted `op:"status"` alias; re-verified live green. Arg-describe lesson: never name a single non-default value without showing the default.
+  - `.omt`: `@tool omt_status` args `op?,tool?,path?` + payload with "(default: full status)" (2 rounds — receipt guard enforced the round-robin on the second); 259 records, check 0 errors, all 12 budgets green (tool_args 2291/2304 — 13B headroom, tightest yet; tool_schemas 1716/1792; nav_index 63826/64000).
+  - Tests: 13 new (`test_gate_preflight.py`: 6 static pins incl. completeness + no-self-think-gate + read-only, 7 bun probes on the REAL plugin — src/harness/tests/search/protected-path scenarios + C2 fast-path integration + default-banner/alias) + e2e check 15.
+  - **Evidence: full suite 1902 passed / 0 failed (1887 + 13 new + 2 probe variants, empty allowlist); live opencode guards green; e2e receipt refreshed.**
+- Artifacts: `5.implementation/.../implementation_notes.md` + `6.testing/.../test_report.md`.
+
+### In progress / Blocked
+
+- _(nothing in-flight — feature_055 fully closed)_
+
+### Next
+
+1. **Wave 3 / A2+A3 `skip_taxonomy_phase_hygiene`** (minor_feature, one feature two behaviors): overlap-check meta_harness_5 backlog → scaffold `uv run scripts/omt/new_feature.py "skip taxonomy phase hygiene" --type minor_feature --project meta_harness_6` (takes number **056**) → omt_phase → `purpose:` arg on omt_skip (canary/emergency/break_glass/override) + friction:evasion report; auto-expire phase records past unlock window + dangling list with abandon/resume per evaluation §5 A2+A3.
+2. Then Wave 3 B1+B2 `gate_budget_ceremony_meter` (takes 057) — owns the tight budgets (tool_args 13B, nav_index 174B headroom).
+3. Then Wave 4 (E2+E1), Wave 5 (D1–D3) — PROJECT.md §The program.
+
+### Notes / context
+
+- Working tree UNCOMMITTED (agent cannot git-commit): feature_055 changes (.omt + omt_status.ts + gate_driver.ts + e2e check 15 + new test dir + 3 artifact dirs + project docs) await user `git commit`.
+- Net: rev 57 (dormant all session — solo per C1), pool pending=0/active=0/done=7.
+- Round discipline: omt_status.ts took 2 rounds (preflight block + live-canary arg fix), .omt took 2 rounds (schema + default-steer) — receipt refreshed between rounds and at suite end; gate_driver.ts 1 edit (think-consulted).
+- New preflight is itself the resume helper: a fresh session can `omt_status{op:"preflight", tool:"edit", path:...}` before its first harness edit (note: this session's own MCP schema predates the change — the next session gets the new args).
+
+---
+
+
 ## 2026-09-06 (auto — feature_054.small_task_fast_path Done)
 
 - shipped: minor_feature · test report @ 6.testing/features/feature_054.small_task_fast_path/test_report.md

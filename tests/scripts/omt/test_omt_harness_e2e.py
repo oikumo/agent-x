@@ -366,5 +366,22 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
         "C2 requires the narrowed-canary note on g.tests")
     checks.append("feature_054 C2: small_task_fast_path wired (phase fast-path + narrowed canary; think/protect untouched)")
 
+    # 15. feature_055 A4 gate_preflight: omt_status{op:"preflight", tool, path}
+    # projects the ordered gates that will fire + a clearing action each —
+    # before-chain via the runBeforeGatesDry sibling (fired/stop flags so
+    # "will fire" distinguishes when=-miss from pass and chain halts), the
+    # after-chain as IR notes; killing the deny-learn-retry loop.
+    assert "preflightProjection" in status, (
+        "A4 requires the preflight projection in omt_status.ts")
+    assert "CLEARING_ACTIONS" in status, (
+        "A4 requires the per-gate clearing-action map in omt_status.ts")
+    assert "runBeforeGatesDry" in status, (
+        "A4 before-chain must reuse the runBeforeGatesDry sibling (no second gate engine)")
+    assert "fired?: boolean" in gate_driver and "stop?: boolean" in gate_driver, (
+        "A4 requires the fired/stop GateDecision flags in gate_driver.ts")
+    assert "op=preflight" in harness_omt, (
+        "A4 requires the op=preflight schema on @tool omt_status")
+    checks.append("feature_055 A4: gate_preflight wired (omt_status op=preflight + runBeforeGatesDry fired/stop + clearing actions)")
+
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

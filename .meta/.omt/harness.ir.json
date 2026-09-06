@@ -524,8 +524,8 @@
       "tags": "CMD_OMT_SKIP"
     },
     "omt_status": {
-      "args": "include_ledger?",
-      "description": "Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task.",
+      "args": "op?,tool?,path?,include_ledger?",
+      "description": "Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task; op=preflight(tool,path) \u2192 ordered gates that will fire + clearing action each (default: full status).",
       "perm": "allow",
       "tags": "CMD_STATUS"
     },

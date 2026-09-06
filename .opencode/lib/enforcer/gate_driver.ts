@@ -336,6 +336,14 @@ export type GateDecision = {
   blocked: boolean
   msg: string
   skip_ok: boolean
+  // feature_055 A4 gate_preflight: fired=false → when= did not match (the
+  // gate is not applicable to this target — a "will fire" projection must
+  // distinguish miss from pass); stop=true → this gate halted the chain
+  // (g.protect override / g.tests) so later gates never evaluated. Both
+  // optional: omt_q's predicted_chain mapping (gate_id/blocked/msg/skip_ok)
+  // is unchanged.
+  fired?: boolean
+  stop?: boolean
 }
 
 export async function runBeforeGatesDry(ctx: GateCtx): Promise<GateDecision[]> {
@@ -349,13 +357,16 @@ export async function runBeforeGatesDry(ctx: GateCtx): Promise<GateDecision[]> {
     const tools = String(gate.tools ?? "").split("|").filter(Boolean)
     if (tools.length && !tools.includes(tool)) continue
     if (ctx.rel !== null && gate.when && !evalPredExpr(gate.when, ctx, ir)) {
-      decisions.push({ gate_id: gate.id, blocked: false, msg: "", skip_ok: !!gate.skip_ok })
+      decisions.push({ gate_id: gate.id, blocked: false, msg: "", skip_ok: !!gate.skip_ok, fired: false })
       continue
     }
     const impl = IMPLS[gate.id] ?? genericImpl
     try {
       const r = await impl(gate, ctx)
-      decisions.push({ gate_id: gate.id, blocked: false, msg: "", skip_ok: !!gate.skip_ok })
+      decisions.push({
+        gate_id: gate.id, blocked: false, msg: "", skip_ok: !!gate.skip_ok, fired: true,
+        ...(r === "stop" ? { stop: true } : {}),
+      })
       if (r === "stop") break
     } catch (e) {
       if (e instanceof OmtBlock) {
@@ -364,6 +375,7 @@ export async function runBeforeGatesDry(ctx: GateCtx): Promise<GateDecision[]> {
           blocked: true,
           msg: e.message,
           skip_ok: !!gate.skip_ok,
+          fired: true,
         })
         // dryRun never propagates — capture and continue (so the agent sees
         // ALL before-gates that would fire, not just the first blocker).
