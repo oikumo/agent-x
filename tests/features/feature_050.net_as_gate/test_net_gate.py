@@ -48,12 +48,24 @@ def _bundle(tmp_path, monkeypatch):
     return tmp_path
 
 
+def _make_concurrent(base) -> None:
+    """Bump a test bundle to real concurrency (C1, feature_053: the gate's
+    fire-receipt requirement engages only when net_marking(active>1))."""
+    from net import state  # noqa: PLC0415
+
+    st = state.load(base)
+    st.live_marking = dict(st.live_marking)
+    st.live_marking["work_active"] = 2
+    state.save(base, st)
+
+
 class TestNetGate:
     def test_blocks_without_fire_receipt(self, tmp_path, monkeypatch) -> None:
         gate = _gate()
-        _bundle(tmp_path, monkeypatch)
+        base = _bundle(tmp_path, monkeypatch)
+        _make_concurrent(base)  # C1: receipt required only when concurrent
         res = gate.check_edit_allowed(
-            tmp_path, path="src/foo.py", has_fire_receipt=False
+            base, path="src/foo.py", has_fire_receipt=False
         )
         assert res["allowed"] is False
         assert res["code"] == "ERR_NET_NOT_ENABLED"
@@ -134,12 +146,13 @@ class TestReceiptFilter:
 
     def test_work_complete_only_ledger_refused(self, tmp_path, monkeypatch) -> None:
         gate = _gate()
-        _bundle(tmp_path, monkeypatch)
+        base = _bundle(tmp_path, monkeypatch)
+        _make_concurrent(base)  # C1: receipt requirement is concurrency-gated
         (tmp_path / "ledger.jsonl").write_text(
             json.dumps(_fire_record("work_complete")) + "\n", encoding="utf-8"
         )
         res = gate.check_edit_allowed(
-            tmp_path, path="src/foo.py", has_fire_receipt=False
+            base, path="src/foo.py", has_fire_receipt=False
         )
         assert res["allowed"] is False
         assert res["code"] == "ERR_NET_NOT_ENABLED"

@@ -106,6 +106,7 @@
 @pred receipt_fresh : receipt_fresh() — e2e receipt timestamp >= target mtime
 @pred fsm_allows : fsm_allows(@fsm.tdd,path) — current TDD hat allows the path
 @pred risk_high : risk_high() — target file carries a TA: risk: thought (drops cross-session window)
+@pred net_marking : net_marking(active>1) — live concurrency probe (wraps omt_net{op:probe} marking); true when 2+ works active (work_active>1 or 2+ f{N}_active holders); solo → g.net skips, phase-gate only (feature_053 C1)
 
 # ============================================================
 # GATE — the enforcer concerns as data (guard order pinned; LOGIC stays TS in HDL-1)
@@ -114,7 +115,7 @@
 @gate g.protect on=before tools=@var.edit_tools when=path_in(@protect.*) msg=@msg.protect_file hard=true skip_ok=true order=10 : NEVER paths; .env* hard (no skip), README/uv.lock/LICENSE via scope=all
 @gate g.receipt on=before tools=@var.edit_tools when=path_in(@var.harness_paths) requires=receipt_fresh() msg=@msg.receipt_stale hard=true skip_ok=false order=20 : second-edit guard on the harness surface (git-dirty + mtime vs receipt)
 @gate g.tests on=before tools=@var.edit_tools when=path_in(tests/) requires=ledger_has(skip,tests_approved=true,@var.unlock_window_ms) msg=@msg.tests_canary hard=true skip_ok=true order=30 : canary approval; TDD hat decides when tdd_mode active
-@gate g.net on=before tools=@var.edit_tools when=path_in(@var.net_paths) msg=@msg.net_required hard=true skip_ok=false order=35 : net permission-to-act (feature_050 Alt A); calls omt_net{op:gate} — fail-closed unless omt_skip{scope:"all"} expiry+audit
+@gate g.net on=before tools=@var.edit_tools when=path_in(@var.net_paths) msg=@msg.net_required hard=true skip_ok=false order=35 : net permission-to-act (feature_050 Alt A; feature_053 C1: engages only when net_marking(active>1) — solo sessions skip to phase-gate only, impl-owned check); calls omt_net{op:gate} — fail-closed unless omt_skip{scope:"all"} expiry+audit
 @gate g.phase on=before tools=@var.edit_tools when=path_in(src/) requires=ledger_has(phase|skip) msg=@msg.no_phase hard=true skip_ok=true order=40 : declared phase; design artifact also required for major_feature/new_screen
 @gate g.think on=before tools=@var.edit_tools when=file_has("TA:") requires=ledger_has(think_consult) msg=@msg.think_gate hard=true skip_ok=false order=50 : consult via omt_think{op:list,path} — NOT skip-bypassable; risk: thoughts drop the cross-session window
 @gate g.tdd_after on=after tools=@var.edit_tools when=path_in(src/) requires=fsm_allows(@fsm.tdd,path) msg=@msg.tdd_revert hard=false skip_ok=false order=70 : REFACTOR auto-revert when tests break + advisories

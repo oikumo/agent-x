@@ -377,12 +377,17 @@ def main(argv: list[str] | None = None) -> int:
             # feature_050 wrap-up: live wiring — drift mirrors _invariant
             # (net rev vs last ledger net-record rev); fail-closed on load
             # error (D3); expected_revision flows through for stale-rev.
+            # feature_053 C1: forward the live marking so gate.py can apply
+            # the net_marking(active>1) concurrency predicate (solo → allow
+            # without a fire receipt; unreadable bundle → fail-closed).
             net_available = True
             drifted = False
             live_revision: int | None = None
+            live_marking: dict | None = None
             try:
                 st = state.load(base)
                 live_revision = st.revision
+                live_marking = dict(st.live_marking)
                 records = state.read_ledger_net_records()
                 ledger_revision = records[-1].get("revision", 0) if records else 0
                 drifted = st.revision != ledger_revision
@@ -396,6 +401,7 @@ def main(argv: list[str] | None = None) -> int:
                 live_revision=live_revision,
                 drifted=drifted,
                 net_available=net_available,
+                live_marking=live_marking,
             )
             if not res["allowed"]:
                 return _emit({"ok": False, "allowed": False, "code": res["code"], "message": res["code"]}, 1)

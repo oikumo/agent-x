@@ -313,5 +313,23 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
         "session_state.ts must declare the per-session kb consult Map")
     checks.append("feature_kb_akb: g.kb consult gate wired (SESSION_FLAGS + kbTrack + state.kb Map)")
 
+    # 13. feature_053 C1 net_gate_concurrency_predicate: g.net engages only
+    # under real concurrency — @pred net_marking in the SSOT, Python solo
+    # bypass in net/gate.py (is_concurrent), live wiring passes the marking
+    # through net/cli.py, TS builtin mirrors it in gate_driver.ts.
+    harness_omt = _read(".meta/META_HARNESS.omt")
+    assert "@pred net_marking" in harness_omt, (
+        "C1 requires @pred net_marking in META_HARNESS.omt")
+    assert "net_marking(active>1)" in harness_omt, (
+        "C1 predicate must document the active>1 concurrency threshold")
+    gate_py = _read("scripts/omt/net/gate.py")
+    assert "def is_concurrent" in gate_py, (
+        "C1 requires is_concurrent helper in net/gate.py")
+    assert "live_marking" in _read("scripts/omt/net/cli.py"), (
+        "C1 requires cli.py gate op to forward the live marking to the predicate")
+    assert "net_marking" in gate_driver or "netMarking" in gate_driver, (
+        "C1 requires a net_marking builtin in gate_driver.ts")
+    checks.append("feature_053 C1: net_gate_concurrency_predicate wired (@pred + solo bypass + TS mirror)")
+
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

@@ -65,7 +65,7 @@ SCHEMA: dict[str, dict[str, set[str]]] = {
 }
 
 PREDS = {"path_in", "cmd_match", "ledger_has", "session_flag", "file_has",
-         "receipt_fresh", "fsm_allows", "risk_high"}
+         "receipt_fresh", "fsm_allows", "risk_high", "net_marking"}
 
 TT_SET = {"bug_fix", "minor_feature", "major_feature", "new_screen",
           "refactor", "test", "docs"}

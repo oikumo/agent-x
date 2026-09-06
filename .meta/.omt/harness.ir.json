@@ -148,7 +148,7 @@
       "paths": "",
       "requires": "",
       "skip_ok": false,
-      "text": "net permission-to-act (feature_050 Alt A); calls omt_net{op:gate} \u2014 fail-closed unless omt_skip{scope:\"all\"} expiry+audit",
+      "text": "net permission-to-act (feature_050 Alt A; feature_053 C1: engages only when net_marking(active>1) \u2014 solo sessions skip to phase-gate only, impl-owned check); calls omt_net{op:gate} \u2014 fail-closed unless omt_skip{scope:\"all\"} expiry+audit",
       "tools": "edit|write|patch|multiedit",
       "when": "path_in(@var.net_paths)"
     },
@@ -426,7 +426,8 @@
     "file_has",
     "receipt_fresh",
     "fsm_allows",
-    "risk_high"
+    "risk_high",
+    "net_marking"
   ],
   "protect": [
     {

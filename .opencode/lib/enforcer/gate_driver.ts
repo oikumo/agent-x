@@ -207,6 +207,11 @@ const IMPLS: Record<string, GateImpl> = {
   "g.kb": undefined,
   // feature_050.net_as_gate: net permission-to-act gate (Alt A Net-as-Gate).
   // Runs after g.tests:30, before g.phase:40. Calls Python net.gate helper.
+  // feature_053 C1 @pred net_marking(active>1): solo sessions skip the shell
+  // entirely and revert to phase-gate only — the gate engages only under real
+  // concurrency (2+ active works). Unreadable bundle → engage (fail-closed;
+  // solo must be proven, never assumed). Python net/gate.is_concurrent is the
+  // authority for the shell path; this fs-read mirrors it for the fast path.
   "g.net": async (_gate, ctx) => {
     const abs = ctx.abs || ""
     const rel = ctx.rel || ""
@@ -216,6 +221,29 @@ const IMPLS: Record<string, GateImpl> = {
     const isTests = rel.startsWith("tests/")
     const isHarness = rel.startsWith(".opencode/") || rel.startsWith("scripts/omt/")
     if (!isSrc && !isTests && !isHarness) return
+    // C1 solo fast-path (net_marking mirror).
+    const soloBypass = ((): boolean => {
+      try {
+        const dir = (typeof process !== "undefined" && (process as any)?.env?.OMT_NET_DIR)
+          || `${ctx.env.directory}/.meta/.omt`
+        const sidecar = JSON.parse(readFileSync(`${dir}/net_state.sidecar.json`, "utf8"))
+        const live: unknown = (sidecar as any)?.live_marking
+        if (!Array.isArray(live)) return false
+        let order: string[] = []
+        try {
+          const netJson = JSON.parse(readFileSync(`${dir}/META_NET.petri.json`, "utf8"))
+          order = Array.isArray((netJson as any)?.places)
+            ? (netJson as any).places.map((p: any) => String(p?.name ?? ""))
+            : []
+        } catch { return false }
+        const marking: Record<string, number> = {}
+        order.forEach((name, i) => { marking[name] = Number((live as any[])[i] ?? 0) })
+        if ((marking["work_active"] ?? 0) > 1) return false
+        const holders = Object.keys(marking).filter((k) => /^f\d+_active$/.test(k) && (marking[k] ?? 0) > 0)
+        return holders.length <= 1
+      } catch { return false }
+    })()
+    if (soloBypass) return
     // Dry-run / synthetic ctx (omt_q op:plan): no SDK shell on env.$ — the
     // gate still fires in the predicted chain, but its verdict needs the
     // live enforcer path (skip the shell-out instead of crashing the fold).

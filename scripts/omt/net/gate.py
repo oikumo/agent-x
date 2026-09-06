@@ -96,13 +96,42 @@ def check_edit_allowed(
     net_available: bool = True,
     break_glass_scope_all: bool = False,
     session: str | None = None,
+    live_marking: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Decide whether an src/tests/harness edit may proceed.
 
     Order mirrors operation_spec_001_net_gate.md: break-glass → availability
-    → drift/conflicts → stale-rev → fire-receipt.
+    → drift/conflicts → stale-rev → C1 concurrency predicate → fire-receipt.
     """
     _ = (base, path, session)
+
+    def is_concurrent() -> bool:
+        """C1 predicate — feature_053.net_gate_concurrency_predicate.
+
+        Mirrors @pred net_marking(active>1): true under real concurrency
+        (work_active>1 or 2+ f{N}_active subnet holders). An explicit
+        live_marking wins; otherwise the bundle at base is loaded (the live
+        cli.py path always forwards it — no double load). Unreadable bundle
+        → True (fail-closed: solo must be proven, never assumed).
+        """
+        marking = dict(live_marking) if isinstance(live_marking, dict) else None
+        if marking is None and base is not None:
+            try:
+                from . import state as _state  # local: bundle layout lives there
+                marking = dict(_state.load(Path(base)).live_marking)
+            except Exception:
+                return True
+        if not marking:
+            return True
+        import re as _re
+        if int(marking.get("work_active", 0) or 0) > 1:
+            return True
+        holders = sum(
+            1
+            for _k, _v in marking.items()
+            if _re.match(r"^f\d+_active$", str(_k)) and (_v or 0) > 0
+        )
+        return holders > 1
     # Break-glass: check ledger for active omt_skip scope=all
     if break_glass_scope_all or _has_active_skip_all():
         return {"allowed": True, "code": "OK", "break_glass": True}
@@ -113,6 +142,10 @@ def check_edit_allowed(
     if expected_revision is not None and live_revision is not None:
         if expected_revision != live_revision:
             return {"allowed": False, "code": "ERR_NET_STALE_REV"}
+    # C1 (feature_053): solo sessions revert to phase-gate only — the
+    # fire-receipt requirement engages only under real concurrency.
+    if not is_concurrent():
+        return {"allowed": True, "code": "OK", "solo": True}
     # Check ledger for fire receipt if not explicitly provided
     if not has_fire_receipt:
         has_fire_receipt = _has_recent_fire_receipt()

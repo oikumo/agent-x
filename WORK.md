@@ -22,12 +22,12 @@
 ---
 
 ## Tasks
-<!-- net_rev:56 -->
-NEXT: work_complete (recommended)
+<!-- net_rev:57 -->
+NEXT: none
 Other enabled: none
 Blocked: none
-Resources: 5/5 free holders:pool
-Pool: pending=0 active=1 done=6 (places 12/15)
+Resources: 5/5 free
+Pool: pending=0 active=0 done=7 (places 12/15)
 ## Projects (synced by `uv run scripts/omt/project.py sync` — do not hand-edit)
 
 | project | state | features |
@@ -37,7 +37,7 @@ Pool: pending=0 active=1 done=6 (places 12/15)
 | meta_harness_3 | active | feature_028.feature_scoped_gating |
 | meta_harness_4 | complete | feature_037.tdd_testlist_prose_fallback |
 | meta_harness_5 | active | feature_038.tdd_toolchain_aware |
-| meta_harness_6 | active | feature_051.ledger_test_isolation, feature_052.opencode_version_canary |
+| meta_harness_6 | active | feature_051.ledger_test_isolation, feature_052.opencode_version_canary, feature_053.net_gate_concurrency_predicate |
 | meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor, feature_041.resource_places_concurrency, feature_042.goal_net_synthesis, feature_043.meta_net_dashboard, feature_044.mined_behavioral_net, feature_045.work_md_net_driven, feature_046.omt_net_session_arg_whitelist, feature_047.wip_limited_pool, feature_048.wip_limited_pool, feature_049.session_start_menu |
 | net_enforced_harness | active | feature_050.net_as_gate |
 | petri_net_library | active | feature_031.petri_net_library |
@@ -51,7 +51,7 @@ Pool: pending=0 active=1 done=6 (places 12/15)
 
 ## Paused (resumable)
 
-- [~] **meta_harness_6 program execution** — paused 2026-09-06 after Wave 1/A1: `feature_051.ledger_test_isolation` DONE (OMT_LEDGER_PATH both clients · hermetic gate probes · KNOWN_SUITE_FAILURES permanently empty · suite 1846/0). NEXT: Wave 1/F1 `opencode_version_canary` (takes number 052). Resume @ `.sandbox/pause_2026-09-06.md` (read `.projects/meta/meta_harness_6/PROJECT.md` §New Session Quick Start first). ⚠ Working tree uncommitted — user commit pending.
+- [~] **meta_harness_6 program execution** — Wave 2/C1 `feature_053.net_gate_concurrency_predicate` DONE 2026-09-06 (Wave 1 A1+F1 already shipped; suite 1879/0; net rev 57, pool done=7). NEXT: Wave 2/C2 `small_task_fast_path` (takes number 054). Resume @ `.projects/meta/meta_harness_6/CURRENT_STATE.md` (2026-09-06 iter 3 entry). ⚠ Working tree uncommitted — user commit pending.
 
 ## Agent Scratchpad (auto-managed, do not edit manually)
 

@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-09-06 (auto — feature_053.net_gate_concurrency_predicate Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_053.net_gate_concurrency_predicate/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-06 (iter 3 — Wave 2/C1 EXECUTED: feature_053.net_gate_concurrency_predicate DONE; NEXT = C2)
+
+### Done
+
+- **Resumed per `.sandbox/pause_2026-09-06.md` + PROJECT.md Quick Start + CURRENT_STATE iter 2**: tree verified CLEAN (user committed F1), meta_harness_5 overlap re-check clean (backlog all shipped/rejected, nothing on net concurrency), net already active (rev 56, `work_active=1` — continued without a new `work_start`).
+- **C1 `feature_053.net_gate_concurrency_predicate` SHIPPED** (minor_feature, Programming→Testing→Done):
+  - `.omt`: `+ @pred net_marking : net_marking(active>1)` (closed vocab; `PREDS += net_marking` in harnessc) + g.net comment (impl-owned predicate — HDL-1 `when=` is single-pred); 259 records, check 0 errors, build OK, all 12 budgets green.
+  - `net/gate.py`: nested `is_concurrent()` (`work_active>1` or 2+ `f{N}_active` holders; unreadable → concurrent/fail-closed) + `live_marking` kwarg; solo → `OK solo` after stale-rev, before receipt. `net/cli.py` gate op forwards `dict(st.live_marking)`.
+  - `gate_driver.ts` g.net impl: solo fast-path fs-read (sidecar + petri place-order, honors `OMT_NET_DIR`) skips the subprocess; unreadable → engage. `bun build` clean (82 modules).
+  - Tests: 13 new (`test_net_concurrency_predicate.py`: solo/idle/explicit-marking allow; concurrent blocks; receipt allows; unreadable/drift/down/stale still block; CLI solo-allow + concurrent-block) + 2 feature_050 contract updates (`_make_concurrent`; stale/drift/conflict/down untouched — fail-closed first).
+  - **Evidence: full suite 1879 passed / 0 failed (1866 + 13 new, empty allowlist); e2e receipt refreshed (round 1, check 13 pins the wiring).**
+  - Solo-session ceremony after C1: no `fire(work_start)` required, no rev advance — net dormant until a second active work appears.
+- Artifacts: `5.implementation/.../implementation_notes.md` + `6.testing/.../test_report.md`.
+
+### In progress / Blocked
+
+- _(nothing in-flight — feature_053 fully closed)_
+
+### Next
+
+1. **Wave 2 / C2 `small_task_fast_path`** (minor_feature): overlap-check meta_harness_5 backlog → scaffold (takes number **054**) → omt_phase → per evaluation §5 C2 (phase record satisfies g.nav+g.kb for bug_fix/test; narrowed canary auto-unlock, RED hat + own test dir only; MUST NOT touch g.think/g.protect).
+2. Then Wave 2 A4, Wave 3 (A2+A3, B1+B2) — PROJECT.md §The program.
+
+### Notes / context
+
+- Working tree UNCOMMITTED (agent cannot git-commit): feature_053 changes (`.omt` + PREDS + gate.py + cli.py + gate_driver.ts + e2e pin + 2 feature test files + new test dir + 2 artifact dirs + project docs) await user `git commit`.
+- Net: rev 56 (no fire this session — C1 makes solo fires unnecessary), pool pending=0/active=1/done=6.
+- Round-discipline note: `.omt` took 2 edit calls in round 1 (pred + gate comment) — guard allowed both; no further `.omt` edits before refresh. No `evalPred` case for `net_marking` (unreachable — no gate routes it generically; impl-owned, documented in implementation_notes.md).
+- No dashboard snapshot regen needed (no rev movement, no drift failures in full suite).
+
+---
+
 ## 2026-09-06 (iter 2 — Wave 1/F1 EXECUTED: feature_052.opencode_version_canary DONE; Wave 1 COMPLETE)
 
 ### Done
