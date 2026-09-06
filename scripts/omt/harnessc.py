@@ -40,6 +40,7 @@ REPORT_PATH = REPO_ROOT / ".meta" / ".omt" / "harness.report"
 WORK_PATH = REPO_ROOT / "WORK.md"
 META_HARNESS_MD_PATH = REPO_ROOT / ".meta" / "META_HARNESS.md"
 META_MD_PATH = REPO_ROOT / ".meta" / "META.md"
+GETTING_STARTED_PATH = REPO_ROOT / "GETTING_STARTED.md"
 
 KINDS = ("version", "var", "deny", "protect", "always", "phase", "fsm", "hat",
          "pred", "gate", "msg", "state", "inject", "doc", "budget", "tool",
@@ -1516,6 +1517,553 @@ def check_ceremony_alarm(c: Corpus) -> None:
             f"reduce pre-phase consults (the C2 fast path already covers bug_fix)")
 
 
+# --- feature_059 D1 tiered template + D2 stack profiles -----------------------
+# Wave 5/D1+D2: TIERS is code (the .omt carries only @var template_default_tier
+# + @var stack_profile — both nav-free, 0 agents_md/tool_args/schemas cost).
+# filter_corpus_for_tier is pure (no fs) — validated by
+# tests/features/feature_059.harness_tiered_template/test_tier_filter.py.
+# Tier rules: T1 deny/protect/phase/TDD/ledger (stack-agnostic core, ~80% of
+# value); T2 +nav/thoughts/KB/budgets/projects/workflows (long-lived repos);
+# T3 +receipt/think-hard/MVC, net ONLY behind with_net=True (DG3 —
+# multi-session concurrency unproven, 051 stays deferred).
+# # D1: comments in the .omt are parser-ignored (0 nav cost, E1 precedent).
+TIER_GATES_DROP = {
+    1: {"g.nav", "g.think", "g.kb", "g.net", "g.receipt", "g.mvc"},
+    2: {"g.net", "g.receipt", "g.mvc"},
+    3: {"g.net"},
+}
+TIER_TOOLS_DROP = {
+    1: {"omt_nav", "omt_think", "omt_kb_nav", "omt_net", "omt_q"},
+    2: {"omt_net"},
+    3: {"omt_net"},
+}
+TIER_PREDS_DROP = {
+    1: {"net_marking", "receipt_fresh", "risk_high"},
+    2: {"net_marking", "receipt_fresh"},
+    3: {"net_marking"},
+}
+TIER_STATE_DROP = {1: {"receipt", "thoughts"}, 2: {"receipt"}, 3: set()}
+TIER_INJECT_DROP = {1: {"kb_bootstrap", "file_thoughts"}, 2: set(), 3: set()}
+# D1: knowledge-layer docs drop at T1 only (T2+ keeps them); the two gate
+# teachings stay at every tier (their @msg payloads reference them — dropping
+# them orphans the refs, caught by the probe in analysis_001).
+TIER_DOC_DROP_PREFIX = ("think.", "nav.")
+TIER_DOC_KEEP_ALWAYS = {"doc.nav.enforcement", "doc.think.gate"}
+TIER_DOC_DROP_IDS = {
+    "comp.nav", "comp.think", "workflows", "comp.workflows",
+    "pth.workflows", "projects_home", "comp.projects", "pth.projects",
+}
+TIER_XREF_DROP = {
+    1: {"kb_compiler", "kb_nav", "nav", "nav_enf", "think", "think_gate", "mvc"},
+    2: {"mvc"},
+    3: set(),
+}
+TIER_FLOW_DROP = {1: {"nav_docs", "lint"}, 2: set(), 3: set()}
+
+TEMPLATE_TIERS = (1, 2, 3)
+STACK_PROFILES = ("mvc_py", "mvc_ts", "none")
+
+
+def filter_corpus_for_tier(c: Corpus, tier: int, with_net: bool = False) -> Corpus:
+    """Pure tier filter: Tier-N capability subset (gates/tools/preds/state).
+
+    Drops per the TIER_*_DROP tables, then applies the @msg closure (a kept
+    @msg must be referenced by a kept record or a TS gateMsg consumer, AND
+    its own @-refs must resolve — fixpoint, so TS-pinned mvc msgs drop with
+    their @msg.err_* targets). Deterministic: same corpus+tier+flag →
+    identical record id list. Never mutates the input corpus.
+    """
+    if tier not in TEMPLATE_TIERS:
+        raise ValueError(f"filter_corpus_for_tier: tier {tier!r} not in {TEMPLATE_TIERS}")
+    gates_drop = set(TIER_GATES_DROP[tier])
+    tools_drop = set(TIER_TOOLS_DROP[tier])
+    preds_drop = set(TIER_PREDS_DROP[tier])
+    if tier == 3 and with_net:
+        gates_drop.discard("g.net")
+        tools_drop.discard("omt_net")
+        preds_drop.discard("net_marking")
+    doc_drop = set(TIER_DOC_DROP_IDS) if tier == 1 else set()
+    keep: list[Record] = []
+    for r in c.records:
+        if r.kind == "gate" and r.rid in gates_drop:
+            continue
+        if r.kind == "tool" and r.rid in tools_drop:
+            continue
+        if r.kind == "pred" and r.rid in preds_drop:
+            continue
+        if r.kind == "state" and r.rid in TIER_STATE_DROP[tier]:
+            continue
+        if r.kind == "inject" and r.rid in TIER_INJECT_DROP[tier]:
+            continue
+        if r.kind == "xref" and r.rid in TIER_XREF_DROP[tier]:
+            continue
+        if r.kind == "flow" and r.rid in TIER_FLOW_DROP[tier]:
+            continue
+        if r.kind == "doc" and r.full_id not in TIER_DOC_KEEP_ALWAYS and (
+                r.rid.startswith(TIER_DOC_DROP_PREFIX) or r.rid in doc_drop):
+            continue
+        keep.append(r)
+    ts = ""
+    for d in (*TOOL_SEED_DIRS, ".opencode/lib"):
+        for p in sorted((REPO_ROOT / d).glob("*.ts")):
+            ts += p.read_text(encoding="utf-8")
+    referenced = {m.group(1) for m in re.finditer(r'gateMsg\("([a-z0-9_]+)"', ts)}
+    for r in keep:
+        if r.kind == "msg":
+            continue
+        for hay in list(r.attrs.values()) + ([r.payload] if r.payload else []):
+            for m in REF_RE.finditer(hay):
+                if m.group(1) == "msg" and m.group(2) and m.group(2) != ".*":
+                    referenced.add(m.group(2).lstrip("."))
+    out = [r for r in keep if r.kind != "msg" or r.rid in referenced]
+    keep_ids = {r.full_id for r in out}
+    changed = True
+    while changed:
+        changed = False
+        survivors = []
+        for r in out:
+            if r.kind != "msg":
+                survivors.append(r)
+                continue
+            dangles = False
+            for hay in list(r.attrs.values()) + ([r.payload] if r.payload else []):
+                for m in REF_RE.finditer(hay):
+                    kind, sub = m.group(1), m.group(2)
+                    if kind not in KINDS or not sub or sub == ".*":
+                        continue
+                    if f"{kind}{sub}" not in keep_ids:
+                        dangles = True
+            if dangles:
+                changed = True
+                keep_ids.discard(r.full_id)
+            else:
+                survivors.append(r)
+        out = survivors
+    return Corpus(out)
+
+
+def check_template_vars(c: Corpus) -> None:
+    """D1+D2: @var template_default_tier in {1,2,3}, @var stack_profile in
+    {mvc_py,mvc_ts,none}. Absent vars are silent (pre-feature corpora);
+    invalid values are check errors (fail-closed)."""
+    var = c.get("var", "template_default_tier")
+    if var is not None and str(var.payload).strip() not in ("1", "2", "3"):
+        c.errors.append(f"{OMT_REL}:{var.line}: @var template_default_tier: "
+                        f"'{var.payload.strip()}' must be 1|2|3")
+    prof = c.get("var", "stack_profile")
+    if prof is not None and str(prof.payload).strip() not in STACK_PROFILES:
+        c.errors.append(f"{OMT_REL}:{prof.line}: @var stack_profile: "
+                        f"'{prof.payload.strip()}' must be {'|'.join(STACK_PROFILES)}")
+
+
+# --- feature_059 D1 init + D3 onboarding --------------------------------------
+# Wave 5/D1: `harnessc init --tier 1|2|3 [--with-net] [--profile P] <dir>`
+# scaffolds a working tiered harness (policy filtered by filter_corpus_for_tier;
+# runtime trees copied verbatim — the runtime is policy-agnostic/IR-driven, so
+# tiering = policy). Wave 5/D3: `harnessc build` emits GETTING_STARTED.md for
+# the active tier. Never clobbers: non-empty dest is exit 1, --force included.
+TIER_DESC = {
+    1: "Stack-agnostic core: deny/protect/phase-gate/TDD-majors/ledger+skip.",
+    2: "Tier 1 plus nav, thoughts, knowledge-base consults, budgets, "
+       "projects, and workflows — for long-lived repos.",
+    3: "Tier 2 plus receipt guard, think-hard, and MVC checks. Net ships "
+       "only behind --with-net (experimental, DG3).",
+}
+
+# (source-rel, min-tier) runtime trees/files copied verbatim by init.
+INIT_COPY_DIRS = [
+    ("scripts/omt", 1),
+    (".opencode/plugins", 1),
+    (".opencode/lib", 1),
+    (".meta/templates", 1),
+    (".meta/software_development_process/2.requirements/features/"
+     "feature_006.opencode_process_enforcement", 1),
+    (".workflows", 2),
+]
+INIT_COPY_FILES = [
+    (".meta/software_development_process/omt_agent_guide.md", 1),
+    (".opencode/package.json", 1),
+]
+INIT_COPY_IGNORE = ("node_modules", "__pycache__", "*.pyc", "*.pyo", "*.bak", ".venv")
+
+
+def render_getting_started(c: Corpus, tier: int) -> str:
+    """D3: pure per-tier onboarding render from the TIER-FILTERED corpus."""
+    if tier not in TEMPLATE_TIERS:
+        raise ValueError(f"render_getting_started: tier {tier!r} not in {TEMPLATE_TIERS}")
+    gates = sorted(c.of("gate"), key=lambda r: int(r.attrs.get("order", "0")))
+    tools = sorted(c.of("tool"), key=lambda r: r.rid)
+    flows = sorted(f.rid for f in c.of("flow"))
+    lines = [
+        f"# Getting started (Tier {tier})",
+        "",
+        f"> {TIER_DESC[tier]}",
+        "",
+        f"Scaffolded by `harnessc init --tier {tier}` (feature_059 D1). "
+        "The policy below is the live tier surface — gates first, then tools.",
+        "",
+        "## Gates",
+        "",
+    ]
+    for g in gates:
+        lines.append(f"- `{g.rid}` — {g.payload}")
+    lines += ["", "## Tools", ""]
+    for t in tools:
+        lines.append(f"- `{t.rid}` — perm {t.attrs.get('perm', 'allow')}")
+    lines += ["", "## Flows", ""]
+    for f in flows:
+        lines.append(f"- `{f}`")
+    lines += [
+        "",
+        "## Next steps",
+        "",
+        "1. Declare your phase before editing src/: omt_phase{task_type, phase, scope}.",
+        "2. Do the work (one concern per phase; keep the suite green).",
+        "3. Close the phase: omt_complete (phase artifacts per the §12 matrix).",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _fallback_agents_md(tier: int, c: Corpus) -> str:
+    """Minimal AGENTS.md when the tier corpus lacks render_agents docs (T1)."""
+    gates = sorted(c.of("gate"), key=lambda r: int(r.attrs.get("order", "0")))
+    tools = sorted(t.rid for t in c.of("tool"))
+    lines = [
+        "# AGENTS.md — System Rules (Tier %d minimal)" % tier,
+        "",
+        "> GENERATED by `harnessc init --tier %d` — do not hand-edit; "
+        "re-init or copy a fuller tier for the complete rules." % tier,
+        "",
+        "## Gates (this tier)",
+        "",
+    ]
+    for g in gates:
+        lines.append(f"- `{g.rid}` — {g.payload}")
+    lines += ["", "## Tools (this tier)", ""]
+    for t in tools:
+        lines.append(f"- `{t}`")
+    lines += ["", "Onboarding: read GETTING_STARTED.md first.", ""]
+    return "\n".join(lines)
+
+
+TEMPLATE_WORK_TASKS = "\n".join([
+    "# WORK",
+    "",
+    "> Single-developer + coding-agent roadmap. Scaffolded by `harnessc init`.",
+    "",
+    "---",
+    "",
+    "## Tasks",
+    "<!-- net_rev:0 -->",
+    "NEXT: none",
+    "Other enabled: none",
+    "Blocked: none",
+    "Resources: 5/5 free",
+    "Pool: pending=0 active=0 done=0",
+    "",
+])
+
+TEMPLATE_OPENCODE_JSONC = "\n".join([
+    "{",
+    '  "$schema": "https://opencode.ai/config.json",',
+    "  // harnessc:begin read",
+    "  // harnessc:end read",
+    "  // harnessc:begin bash",
+    "  // harnessc:end bash",
+    "  // harnessc:begin perm",
+    "  // harnessc:end perm",
+    "}",
+    "",
+])
+
+
+def _template_e2e_py(tier: int) -> str:
+    """Minimal tier e2e (Tier N) — static pins, stdlib pytest only."""
+    pins = [
+        'TEXT = (REPO_ROOT / ".meta" / "META_HARNESS.omt").read_text(encoding="utf-8")',
+        'assert "@gate g.phase " in TEXT',
+        'assert "@gate g.tests " in TEXT',
+    ]
+    if tier == 1:
+        pins += [
+            'assert "@gate g.nav " not in TEXT',
+            'assert "@gate g.think " not in TEXT',
+            'assert "@gate g.net " not in TEXT',
+            'assert "@gate g.receipt " not in TEXT',
+        ]
+    lines = [
+        '"""Template e2e (Tier %d) — minimal harness contract for init output.' % tier,
+        "",
+        "Static pins only (stdlib pytest): the policy parses and the tier",
+        "surface matches; run the compiler for the full check/build.",
+        '"""',
+        "from pathlib import Path",
+        "",
+        "",
+        "REPO_ROOT = Path(__file__).resolve().parents[3]",
+        "",
+        "",
+        "def test_template_tree_complete() -> None:",
+        '    for rel in ("WORK.md", "AGENTS.md", "opencode.jsonc",',
+        '                ".meta/META_HARNESS.omt", "GETTING_STARTED.md"):',
+        "        assert (REPO_ROOT / rel).exists(), rel",
+        "",
+        "",
+        "def test_template_policy_tier() -> None:",
+    ]
+    lines += ["    " + p for p in pins]
+    return "\n".join(lines) + "\n"
+
+
+_PATH_GLOBALS = ("REPO_ROOT", "OMT_PATH", "IR_PATH", "NAV_PATH", "AGENTS_PATH",
+                 "CONFIG_PATH", "REPORT_PATH", "WORK_PATH",
+                 "META_HARNESS_MD_PATH", "META_MD_PATH")
+
+
+def _swap_root(root: Path) -> dict:
+    """Point every root-derived global (harnessc + project_state) at root.
+
+    Returns a restore closure. OMT_NET_DIR/OMT_LEDGER_PATH/OMT_WORK_PATH are
+    honored by net/state + project_state/ledger paths, so set them too.
+    """
+    import os
+
+    import project_state as ps
+
+    saved = {k: globals()[k] for k in _PATH_GLOBALS}
+    saved_ps = ps.REPO_ROOT
+    saved_env = {k: os.environ.get(k) for k in
+                 ("OMT_NET_DIR", "OMT_LEDGER_PATH", "OMT_WORK_PATH")}
+    omt = root / ".meta" / ".omt"
+    globals()["REPO_ROOT"] = root
+    globals()["OMT_PATH"] = root / OMT_REL
+    globals()["IR_PATH"] = omt / "harness.ir.json"
+    globals()["NAV_PATH"] = omt / "nav.index.jsonl"
+    globals()["AGENTS_PATH"] = root / "AGENTS.md"
+    globals()["CONFIG_PATH"] = root / "opencode.jsonc"
+    globals()["REPORT_PATH"] = omt / "harness.report"
+    globals()["WORK_PATH"] = root / "WORK.md"
+    globals()["META_HARNESS_MD_PATH"] = root / ".meta" / "META_HARNESS.md"
+    globals()["META_MD_PATH"] = root / ".meta" / "META.md"
+    ps.REPO_ROOT = root
+    os.environ["OMT_NET_DIR"] = str(omt)
+    os.environ["OMT_LEDGER_PATH"] = str(omt / "ledger.jsonl")
+    os.environ["OMT_WORK_PATH"] = str(root / "WORK.md")
+
+    def _restore() -> None:
+        for k, v in saved.items():
+            globals()[k] = v
+        ps.REPO_ROOT = saved_ps
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    return _restore
+
+
+def check_tree(root: Path | str) -> list[str]:
+    """Fail-closed validation of an init-emitted tree (check, not build)."""
+    root = Path(root)
+    restore = _swap_root(root)
+    try:
+        try:
+            text = (root / ".meta" / "META_HARNESS.omt").read_text(encoding="utf-8")
+        except OSError as exc:
+            return [f"check_tree: {exc}"]
+        c = Corpus(parse(text, []))
+        interpolate(c)
+        derive_records(c, text)
+        try:
+            agents_md = render_agents(c)
+        except SystemExit:
+            agents_md = ""  # T1 lacks render_agents docs — size check n/a
+        ir_text = json.dumps(build_ir(c), indent=2, sort_keys=True) + "\n"
+        nav_text = render_nav_index(c)
+        run_all_checks(c, agents_md, nav_text, ir_text)
+        return list(c.errors)
+    finally:
+        restore()
+
+
+TIER_SKIP_SCOPES = {1: "src|tests|all"}  # tiers 2/3 keep the source payload
+
+
+def _tier_skip_payload(payload: str, tier: int) -> str:
+    """Tier-scoped omt_skip Scopes (single source for emission + seed sync)."""
+    if tier in TIER_SKIP_SCOPES:
+        return re.sub(r"Scopes: [a-z|]+",
+                      "Scopes: " + TIER_SKIP_SCOPES[tier], payload)
+    return payload
+
+
+def _emit_omt_text(src_text: str, filtered: Corpus, tier: int, profile: str) -> str:
+    """Source-line filter: keep comments/blanks + kept source records only.
+
+    Derived records never match a source line (identity is kind+rid), so the
+    target repo re-derives them at its own check/build. Rewrites the two
+    template @var payloads to the init flags.
+    """
+    src_recs = parse(src_text, [])
+    by_line = {}
+    for r in src_recs:
+        by_line.setdefault(r.line, (r.kind, r.rid))
+    keep_ids = {(r.kind, r.rid) for r in filtered.records}
+    out = [
+        f"# TEMPLATE TIER {tier} — emitted by `harnessc init --tier {tier}` "
+        "(feature_059 D1).",
+        "# Source policy filtered by filter_corpus_for_tier; runtime trees "
+        "copied verbatim; budgets = source caps (re-baseline deliberately).",
+    ]
+    for i, raw in enumerate(src_text.splitlines(), 1):
+        key = by_line.get(i)
+        if key is None:
+            out.append(raw)
+            continue
+        if key not in keep_ids:
+            continue
+        if key == ("var", "template_default_tier"):
+            out.append(f"@var template_default_tier : {tier}")
+            continue
+        if key == ("var", "stack_profile"):
+            out.append(f"@var stack_profile : {profile}")
+            continue
+        if key == ("tool", "omt_skip"):
+            # D1: T1 drops g.nav — the derived doc.esc requires every
+            # advertised scope to resolve to a skip_ok gate.
+            scope_m = re.search(r"Scopes: [a-z|]+", raw)
+            if scope_m and tier in TIER_SKIP_SCOPES:
+                out.append(raw.replace(
+                    scope_m.group(0),
+                    "Scopes: " + TIER_SKIP_SCOPES[tier]))
+            else:
+                out.append(raw)
+            continue
+        out.append(raw)
+    return "\n".join(out) + "\n"
+
+
+def _build_tree(dest: Path, src_omt_text: str, filtered: Corpus,
+                tier: int, with_net: bool, profile: str) -> None:
+    """Write the full target tree (sources + copied runtime + projections)."""
+    import shutil
+
+    dest.mkdir(parents=True, exist_ok=True)
+    (dest / ".meta" / ".omt").mkdir(parents=True, exist_ok=True)
+    (dest / ".projects" / "meta").mkdir(parents=True, exist_ok=True)
+    (dest / "tests" / "scripts" / "omt").mkdir(parents=True, exist_ok=True)
+    for rel, min_tier in INIT_COPY_DIRS:
+        if tier < min_tier:
+            continue
+        src = REPO_ROOT / rel
+        if not src.exists():
+            continue
+        shutil.copytree(src, dest / rel, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns(*INIT_COPY_IGNORE))
+    for rel, min_tier in INIT_COPY_FILES:
+        if tier < min_tier:
+            continue
+        src = REPO_ROOT / rel
+        if not src.exists():
+            continue
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, target)
+    skip_tool = filtered.get("tool", "omt_skip")
+    if skip_tool is not None:
+        tier_skip = _tier_skip_payload(skip_tool.payload, tier)
+        if tier_skip != skip_tool.payload:
+            # D1: the TS fallback seed mirrors the .omt payload EXACTLY
+            # (check_tool_seed_sync) — re-point the copy at the tier text.
+            pg = dest / ".opencode" / "lib" / "enforcer" / "phase_gate.ts"
+            if pg.exists():
+                ts = pg.read_text(encoding="utf-8")
+                if skip_tool.payload in ts:
+                    pg.write_text(ts.replace(skip_tool.payload, tier_skip),
+                                    encoding="utf-8")
+    (dest / ".meta" / "META_HARNESS.omt").write_text(
+        _emit_omt_text(src_omt_text, filtered, tier, profile), encoding="utf-8")
+    restore = _swap_root(dest)
+    try:
+        import project_state as ps
+
+        manifest = ps.build_manifest([], {})
+        work_projects = ps.build_work_projects_section([], {})
+    finally:
+        restore()
+    (dest / ".projects" / "meta" / "META.md").write_text(manifest, encoding="utf-8")
+    (dest / "WORK.md").write_text(TEMPLATE_WORK_TASKS + "\n" + work_projects,
+                                  encoding="utf-8")
+    (dest / ".meta" / ".omt" / "ledger.jsonl").write_text("", encoding="utf-8")
+    (dest / ".meta" / ".omt" / "thoughts.jsonl").write_text("", encoding="utf-8")
+    (dest / "opencode.jsonc").write_text(
+        splice_config(TEMPLATE_OPENCODE_JSONC, config_blocks(filtered)),
+        encoding="utf-8")
+    try:
+        agents_md = render_agents(filtered)
+    except SystemExit:
+        agents_md = _fallback_agents_md(tier, filtered)
+    (dest / "AGENTS.md").write_text(agents_md, encoding="utf-8")
+    (dest / "GETTING_STARTED.md").write_text(
+        render_getting_started(filtered, tier), encoding="utf-8")
+    ir_text = json.dumps(build_ir(filtered), indent=2, sort_keys=True) + "\n"
+    nav_text = render_nav_index(filtered)
+    (dest / ".meta" / ".omt" / "harness.ir.json").write_text(ir_text, encoding="utf-8")
+    (dest / ".meta" / ".omt" / "nav.index.jsonl").write_text(nav_text, encoding="utf-8")
+    report = ["# harnessc report — template tier %d%s" % (
+        tier, " +net (experimental)" if with_net else "")]
+    report.append(f"projection harness.ir.json: {len(ir_text.encode())} B")
+    report.append(f"projection nav.index.jsonl: {len(nav_text.encode())} B")
+    report.append(f"projection AGENTS.md: {len(agents_md.encode())} B")
+    (dest / ".meta" / ".omt" / "harness.report").write_text(
+        "\n".join(report) + "\n", encoding="utf-8")
+    (dest / "tests" / "scripts" / "omt" / "test_template_e2e.py").write_text(
+        _template_e2e_py(tier), encoding="utf-8")
+
+
+def cmd_init(argv: list[str]) -> int:
+    """`harnessc init --tier 1|2|3 [--with-net] [--profile P] [--force] <dir>`."""
+    import argparse
+
+    ap = argparse.ArgumentParser(
+        prog="harnessc init",
+        description="Scaffold a tiered harness (feature_059 D1). Never clobbers.")
+    ap.add_argument("--tier", required=True, choices=("1", "2", "3"))
+    ap.add_argument("--with-net", action="store_true",
+                    help="Tier 3 only: include net artefacts (experimental, DG3)")
+    ap.add_argument("--profile", choices=("mvc_py", "mvc_ts", "none"), default=None,
+                    help="stack profile (default: none at Tier 1, mvc_py above)")
+    ap.add_argument("--force", action="store_true",
+                    help="allow an existing EMPTY dir (non-empty is still refused)")
+    ap.add_argument("dest")
+    ns = ap.parse_args(argv)
+    tier = int(ns.tier)
+    dest = Path(ns.dest)
+    if dest.exists() and (not dest.is_dir() or any(dest.iterdir())):
+        print(f"harnessc init: error: {dest} exists and is not empty "
+              "(never clobber)", file=sys.stderr)
+        return 1
+    profile = ns.profile or ("none" if tier == 1 else "mvc_py")
+    if tier == 3 and ns.with_net:
+        print("harnessc init: warn: --with-net is experimental "
+              "(DG3: multi-session concurrency unproven)", file=sys.stderr)
+    omt_text = OMT_PATH.read_text(encoding="utf-8")
+    c = Corpus(parse(omt_text, []))
+    interpolate(c)
+    derive_records(c, omt_text)
+    filtered = filter_corpus_for_tier(c, tier, with_net=ns.with_net)
+    _build_tree(dest, omt_text, filtered, tier, ns.with_net, profile)
+    errors = check_tree(dest)
+    if errors:
+        for e in errors:
+            print(f"harnessc init: error: {e}", file=sys.stderr)
+        return 1
+    print(f"harnessc init: tier {tier} -> {dest}: {len(filtered.records)} "
+          "records, GETTING_STARTED.md")
+    return 0
+
 def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str = "") -> dict[str, tuple[int, int | None]]:
     check_schema(c)
     check_ids(c)
@@ -1539,6 +2087,7 @@ def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str =
     check_skip_override_alarm(c)
     check_gate_retirement(c)
     check_ceremony_alarm(c)
+    check_template_vars(c)
     sizes = measure_budgets(c, agents_md, nav_text, ir_text)
     for rid, (size, cap) in sizes.items():
         if size >= 0 and cap is not None and size > cap:
@@ -1552,12 +2101,15 @@ def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str =
 def main(argv: list[str]) -> int:
     args = argv[1:]
     cmd = args[0] if args and not args[0].startswith("-") else "check"
-    if cmd not in ("check", "build"):
+    if cmd not in ("check", "build", "init"):
         print(__doc__)
         return 2
     if not OMT_PATH.exists():
         print(f"harnessc: error: {OMT_REL} not found", file=sys.stderr)
         return 1
+
+    if cmd == "init":
+        return cmd_init(args[1:])
 
     omt_text = OMT_PATH.read_text(encoding="utf-8")
     c = Corpus(parse(omt_text, []))
@@ -1600,6 +2152,11 @@ def main(argv: list[str]) -> int:
         for rid, (size, cap) in sorted(sizes.items()):
             state = "n/a (TS-pinned)" if size < 0 else ("OK" if cap is None or size <= cap else "OVER")
             report.append(f"budget {rid}: {size if size >= 0 else '-'}/{cap} {state}")
+        gs_text = render_getting_started(
+            filter_corpus_for_tier(c, 3, with_net=True), 3)
+        GETTING_STARTED_PATH.write_text(gs_text, encoding="utf-8")
+        report.append(
+            f"projection GETTING_STARTED.md: {len(gs_text.encode())} B")
         REPORT_PATH.write_text("\n".join(report) + "\n", encoding="utf-8")
         print("\n".join(report[1:]))
         print(f"harnessc: build OK — {len(c.records)} records → 5 projections")

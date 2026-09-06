@@ -37,7 +37,7 @@
 @var search_tools : grep|glob|rg|find
 @var harness_paths : AGENTS.md,opencode.jsonc,.meta/META_HARNESS.omt,.meta/software_development_process/omt_agent_guide.md,.opencode/plugins/omt_,.opencode/lib/omt_,.opencode/lib/enforcer/,scripts/omt/,.meta/templates/,.meta/software_development_process/2.requirements/features/feature_006.opencode_process_enforcement/,tests/scripts/omt/
 @var net_paths : src/,tests/,.opencode/,scripts/omt/
-@var root_allowlist : AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,shared,src,tests,tests_automated,tools,.projects,.workflows,sandbox
+@var root_allowlist : AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,shared,src,tests,tests_automated,tools,.projects,.workflows,sandbox,GETTING_STARTED.md
 @var projects_root : .projects/meta
 @var projects_archive : .projects/archive
 @var project_resume_threshold_bytes : 16384
@@ -46,6 +46,10 @@
 @var opencode_version_range : >=1.18.29,<1.19
 # A2 (feature_056.skip_taxonomy_phase_hygiene): weekly uncategorized-bypass alarm — check warns past this, never blocks
 @var skip_override_warn_per_week : 5
+# D1 (feature_059.harness_tiered_template): tiered-template default — tier table lives in harnessc.py TIERS (code, not records); init/build onboarding uses this
+@var template_default_tier : 1
+# D2 (feature_059.harness_tiered_template): stack profile — mvc_py (current Python/TUI rules) | mvc_ts (TS text-mode rules) | none (mvc_check disabled, exit 0)
+@var stack_profile : mvc_py
 
 # ============================================================
 # DENY — NEVER command rules (→ opencode.jsonc generated blocks)

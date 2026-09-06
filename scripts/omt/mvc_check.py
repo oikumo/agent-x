@@ -52,6 +52,103 @@ RE_EXECUTE = re.compile(r"\.execute(many|script)?\s*\(")
 # statement shape, so prose like "Select RAG repository" does not match.
 RE_SQL = re.compile(r"\b(SELECT\b.+\bFROM|INSERT\s+INTO|DELETE\s+FROM|UPDATE\s+\w+\s+SET|CREATE\s+TABLE)\b")
 RE_CTRL_INSTANTIATION = re.compile(r"\b([A-Z]\w*Controller)\s*\(")
+# --- feature_059 D2 stack_profiles: TS text-mode --------------------------------
+# mvc_ts is a TEXT/REGEX mode over **/*.{ts,tsx} (stdlib-only by design — no TS
+# parser; AST rules are skipped, documented in --help). profile=none disables
+# the check entirely (exit 0). Default profile comes from @var stack_profile
+# when CWD is inside a repo, else mvc_py (backwards compatible).
+TS_SUFFIXES = {".ts", ".tsx"}
+TS_EXCLUDE_DIRS = {"node_modules", "__pycache__", ".venv", "dist", "build"}
+STACK_PROFILES = ("mvc_py", "mvc_ts", "none")
+
+RE_TS_NEW_CONTROLLER = re.compile(r"\bnew\s+([A-Z]\w*Controller)\s*\(")
+RE_TS_IMPORT_MODEL = re.compile(r"\bimport\b.*\b[Mm]odel\b")
+RE_TS_IMPORT_UI = re.compile(r"\bimport\b.*\bui\b|from\s+['\"][^'\"]*\bui\b")
+
+
+def _is_ts_view(path: Path) -> bool:
+    return "view" in path.name.lower()
+
+
+def _is_ts_controller(path: Path) -> bool:
+    return "controller" in path.name.lower()
+
+
+def _is_ts_db(path: Path) -> bool:
+    return path.name.endswith(("_db.ts", "_db.tsx"))
+
+
+def _in_ts_model(path: Path) -> bool:
+    return "/model/" in path.as_posix()
+
+
+def _check_ts_file(path: Path, source: str, rel: str) -> list[Finding]:
+    """Text-mode MVC rules for TS/TSX (mirrors the Python text rules)."""
+    findings: list[Finding] = []
+    is_view = _is_ts_view(path)
+    is_controller = _is_ts_controller(path)
+    is_db = _is_ts_db(path)
+    in_model = _in_ts_model(path)
+    for i, raw in enumerate(source.splitlines(), start=1):
+        line = raw.split("//", 1)[0]  # crude TS comment strip (text-mode)
+        if is_view and RE_TS_IMPORT_MODEL.search(line):
+            findings.append(Finding(
+                "VIEW_IMPORTS_MODEL", "error", rel, i,
+                "View imports Model — View must not know about Model. "
+                "Move the logic to the Controller.",
+            ))
+        if in_model and RE_TS_IMPORT_UI.search(line):
+            findings.append(Finding(
+                "MODEL_IMPORTS_UI", "error", rel, i,
+                "Model imports a UI layer — invert the dependency. "
+                "Model must be UI-independent.",
+            ))
+        if not is_db and (RE_EXECUTE.search(line) or RE_SQL.search(line)):
+            findings.append(Finding(
+                "SQL_OUTSIDE_DP", "warning", rel, i,
+                "SQL / .execute() outside a *_db DP class. "
+                "Encapsulate all SQL in a DP_* class.",
+            ))
+        if is_view:
+            m = RE_TS_NEW_CONTROLLER.search(line)
+            if m:
+                findings.append(Finding(
+                    "VIEW_CREATES_CONTROLLER", "error", rel, i,
+                    f"View instantiates '{m.group(1)}' — Views must receive "
+                    "the partner via constructor injection, never create a Controller.",
+                ))
+        if is_controller and (RE_PRINT.search(line) or RE_CONSOLE.search(line)):
+            findings.append(Finding(
+                "CONTROLLER_UI_CODE", "warning", rel, i,
+                "Controller contains UI code (print/console) — delegate rendering "
+                "to the View.",
+            ))
+    if is_controller:
+        nlines = source.count("\n") + 1
+        if nlines > GOD_CONTROLLER_MAX_LINES:
+            findings.append(Finding(
+                "GOD_CONTROLLER", "warning", rel, 1,
+                f"Controller is {nlines} lines (> {GOD_CONTROLLER_MAX_LINES}) — "
+                "extract sub-controllers.",
+            ))
+    return findings
+
+
+def _default_profile() -> str:
+    """Repo @var stack_profile when CWD is inside a repo, else mvc_py."""
+    cwd = Path.cwd()
+    for base in (cwd, *cwd.parents):
+        omt = base / ".meta" / "META_HARNESS.omt"
+        if omt.exists():
+            try:
+                text = omt.read_text(encoding="utf-8")
+            except OSError:
+                return "mvc_py"
+            m = re.search(r"^@var\s+stack_profile\s*:\s*(\S+)", text, re.M)
+            if m and m.group(1) in STACK_PROFILES:
+                return m.group(1)
+            return "mvc_py"
+    return "mvc_py"
 
 
 @dataclass
@@ -102,6 +199,9 @@ def check_file(path: Path) -> list[Finding]:
         source = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         return [Finding("PARSE_ERROR", "error", rel, 0, f"cannot read: {exc}")]
+
+    if path.suffix in TS_SUFFIXES:
+        return _check_ts_file(path, source, rel)
 
     is_view = name.endswith("_view.py")
     is_controller = name.endswith("_controller.py")
@@ -188,7 +288,19 @@ def check_file(path: Path) -> list[Finding]:
     return findings
 
 
-def collect_targets(args_paths: list[str]) -> list[Path]:
+def collect_targets(args_paths: list[str],
+                      profile: str = "mvc_py") -> list[Path]:
+    if profile == "mvc_ts":
+        roots = [Path(p) for p in args_paths] if args_paths else [REPO_ROOT]
+        out: list[Path] = []
+        for root in roots:
+            if root.is_dir():
+                out.extend(p for p in root.rglob("*")
+                         if p.suffix in TS_SUFFIXES and p.is_file()
+                         and not (TS_EXCLUDE_DIRS & set(p.parts)))
+            elif root.suffix in TS_SUFFIXES:
+                out.append(root)
+        return sorted(out)
     if args_paths:
         paths: list[Path] = []
         for p in args_paths:
@@ -205,9 +317,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="OMT++ MVC++ architecture linter")
     parser.add_argument("paths", nargs="*", help="files or dirs to check (default: src/agentx)")
     parser.add_argument("--json", action="store_true", help="emit JSON for tooling")
+    parser.add_argument("--profile", choices=list(STACK_PROFILES), default=None,
+                        help="stack profile (default: repo @var stack_profile, else mvc_py); "
+                        "mvc_ts = TS text-mode (no AST); none = disabled, exit 0")
     args = parser.parse_args(argv)
 
-    targets = [t for t in collect_targets(args.paths) if "__pycache__" not in t.parts]
+    profile = args.profile or _default_profile()
+    if profile == "none":
+        print("\u2705 MVC++ disabled (profile=none)")
+        if args.json:
+            print(json.dumps({"files_scanned": 0, "errors": 0, "warnings": 0, "findings": []}))
+        return 0
+
+    targets = [t for t in collect_targets(args.paths, profile) if "__pycache__" not in t.parts]
     findings: list[Finding] = []
     for path in targets:
         findings.extend(check_file(path))

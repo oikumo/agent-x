@@ -234,3 +234,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# feature_059 D1-D3: `harnessc build` emits GETTING_STARTED.md per tier —
+# generated onboarding, never committed (same idiom as the ignored .omt state).
+/GETTING_STARTED.md
+

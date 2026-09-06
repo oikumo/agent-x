@@ -5,6 +5,48 @@
 
 ---
 
+## 2026-09-06 (auto — feature_059.harness_tiered_template Done)
+
+- shipped: major_feature · test report @ 6.testing/features/feature_059.harness_tiered_template/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+## 2026-09-06 (iter 9 — Wave 5/D1+D2+D3 EXECUTED: feature_059.harness_tiered_template DONE; PROGRAM COMPLETE; NEXT = re-evaluation)
+
+### Done
+
+- **Resumed per PROJECT.md Quick Start + CURRENT_STATE iter 8**: tree verified CLEAN (user committed feature_058 — `git status` clean, nothing to commit), net dormant (rev 57, work_active=0 — solo, no fire per C1), feature_059 scaffolded + linked (takes number 059), phase declared (Analysis → Design (+ operation_spec, §12 major gate) → Programming with TDD auto-on).
+- **D1+D2+D3 `feature_059.harness_tiered_template` SHIPPED** (major_feature, Analysis→Design→Programming→Testing→Done):
+  - **D1 init**: `harnessc init --tier 1|2|3 [--with-net] [--profile P] <dir>` — `filter_corpus_for_tier` (pure; T1 gates g.phase/g.protect/g.tdd_after/g.tests + 5 core tools; T2 +nav/think/kb; T3 +receipt/mvc, net only with `--with-net` per DG3) + `@msg` closure with fixpoint + `check_tree` fail-closed self-validation + `_build_tree` (filtered .omt, WORK skeleton, ledger/thoughts, opencode.jsonc spliced, runtime copied verbatim, AGENTS.md rendered or T1-fallback, GETTING_STARTED.md, IR/nav/report, template e2e, projects manifest). Never clobbers (non-empty → exit 1, --force included).
+  - **D2 profiles**: `@var stack_profile` (mvc_py|mvc_ts|none — a @var, NOT a new @profile kind; KINDS stays closed) + `mvc_check --profile` (explicit > repo var > mvc_py; none exits 0; mvc_ts = stdlib text/regex mode, documented no-AST limit).
+  - **D3 onboarding**: `render_getting_started` (Tier-1 carries no nav/think/kb/net tokens, pinned) + `build` emits `GETTING_STARTED.md` tier-3-full (gitignored, 2176 B).
+  - **Mirror**: exactly 2 new `@var` (nav-free: nav_index/tool_args/schemas/agents_md untouched, pinned) + `root_allowlist += GETTING_STARTED.md`. 263 records, check 0 errors, all 12 green (ir_json +82B).
+  - Tests: 12 new (4 tier filter, 4 init fs incl. real-tmp `check_tree` green + refuse-clobber + net gating, 3 mvc profiles, 1 budget pin) + e2e check 19.
+  - **Evidence: full suite 1979 passed / 0 failed (1967 + 12 new); build OK; e2e receipt refreshed ×5 (R1 vars, R2 filter, R3 mega-round, R4 esc/collect, R5 seed sync).**
+  - Incidents closed: esc-derive needs skip_ok gates (tier-scoped omt_skip Scopes at emission); TS seed must mirror tier payload (re-pointed at emission); ts-collect ignored explicit paths; render_agents needs 8 docs (T1 fallback); probe derived-then-filtered vs target filters-then-derives (the esc lesson).
+- Artifacts: `3.analysis/.../analysis_001_tiered_template.md` + `4.design/.../design_001_tiered_template.md` + `operation_spec_001_init_ops.md` + `5.implementation/.../implementation_notes.md` + `6.testing/.../test_report.md`.
+- **Wave 5 COMPLETE (D1+D2+D3) → ALL 13 ITEMS SHIPPED (feature_051..059).** PROJECT.md Quick Start rolled forward (next = re-evaluation); Status §Wave 5 flips ✅ at close.
+- Working tree UNCOMMITTED (agent cannot git-commit): feature_059 changes await user `git commit`.
+
+### In progress / Blocked
+
+- _(nothing in-flight — feature_059 fully closed)_
+
+### Next
+
+1. **End-of-program re-evaluation vs §Baseline** (docs task type): ledger deltas (think_consult/phase/skip/q/complete), suite (KNOWN 0 held?), gates 10/12, budgets drift, gotcha count, ceremony medians, skip purpose split, dangling count → delta report → Decisions log → close program (and meta_harness_6 project).
+2. Then user commit (working tree uncommitted).
+
+### Notes / context
+
+- Net: rev 57 (dormant all session — solo per C1), pool pending=0/active=0/done=7.
+- Round discipline: R1 .omt vars → refresh; R2 TIERS+filter → 4/4 → refresh; R3 mega-round (harnessc init + mvc profile + allowlist + gitignore + e2e-19) → 10/12 → refresh; R4 esc-scope + ts-collect (after refresh-first) → 11/12 → refresh; R5 seed sync → 12/12 → refresh → full suite 1979/0.
+- Follow-ups (documented in implementation_notes): per-tier runtime manifests; measure-then-set budget baseline at init; TS scope-arg validation stays source-wide.
+
+---
+
+
 ## 2026-09-06 (auto — feature_058.thought_review_gotcha_root_cause Done)
 
 - shipped: minor_feature · test report @ 6.testing/features/feature_058.thought_review_gotcha_root_cause/test_report.md

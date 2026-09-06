@@ -457,5 +457,29 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
         "E1 requires the cluster map as .omt comments")
     checks.append('feature_058 E2+E1: thought_review_gotcha_root_cause wired (op=review stale>90d + cluster comments)')
 
+    # 19. feature_059 Wave 5/D1+D2+D3 harness_tiered_template: tier filter +
+    # template @vars + init/onboarding entry points + mvc profiles (shape pins).
+    harness_omt = _read(".meta/META_HARNESS.omt")
+    assert "@var template_default_tier" in harness_omt, (
+        "D1 requires the template default-tier @var in META_HARNESS.omt")
+    assert "@var stack_profile" in harness_omt, (
+        "D2 requires the stack-profile @var in META_HARNESS.omt")
+    assert "GETTING_STARTED.md" in harness_omt, (
+        "D3 requires the root allowlist to cover the generated onboarding file")
+    harnessc_py = _read("scripts/omt/harnessc.py")
+    for pin in ("filter_corpus_for_tier", "check_template_vars",
+                "render_getting_started", "cmd_init", "check_tree",
+                "GETTING_STARTED_PATH"):
+        assert pin in harnessc_py, (
+            f"D1+D3 requires {pin} in harnessc.py")
+    mvc_py = _read("scripts/omt/mvc_check.py")
+    assert '"--profile"' in mvc_py, (
+        "D2 requires the --profile flag in mvc_check.py")
+    assert "profile=none" in mvc_py, (
+        "D2 requires the profile=none disable path in mvc_check.py")
+    assert "GETTING_STARTED.md" in _read(".gitignore"), (
+        "D3 requires the generated onboarding file to stay uncommitted")
+    checks.append("feature_059 Wave 5/D1+D2+D3: harness_tiered_template wired (filter + template vars + init/onboarding + mvc profiles)")
+
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

@@ -6,9 +6,9 @@
 
 ## New Session Quick Start
 
-> One line: `meta_harness_6` is the **13-item improvement program distilled from the 2026-09-05 deep evaluation** of the META HARNESS (evidence + full option detail @ `.sandbox/meta_harness_6_evaluation.md`) — 5 waves: integrity → friction → signal → knowledge → productization; Waves 1–3 COMPLETE (A1, F1, C1, C2, A4, A2+A3, B1+B2 → feature_051..057, suite 1951/0); next = Wave 4/E2+E1.
+> One line: `meta_harness_6` is the **13-item improvement program distilled from the 2026-09-05 deep evaluation** of the META HARNESS (evidence + full option detail @ `.sandbox/meta_harness_6_evaluation.md`) — 5 waves: integrity → friction → signal → knowledge → productization; Waves 1–5 COMPLETE (A1, F1, C1, C2, A4, A2+A3, B1+B2, E2+E1, D1+D2+D3 → feature_051..059, suite 1979/0); next = end-of-program re-evaluation vs §Baseline.
 
-**Next:** **Wave 4 / E2+E1 `thought_review_gotcha_root_cause`** — resume from `.projects/meta/meta_harness_6/CURRENT_STATE.md` §Next (2026-09-06 iter 7 entry). Scaffold: `uv run scripts/omt/new_feature.py "thought review gotcha root cause" --type minor_feature --project meta_harness_6` (takes number 058), then `omt_phase{task_type:minor_feature, phase:Programming, scope:"..."}` and execute per §Execution rules. Read §Decision gates + §Execution rules FIRST (net/receipt discipline; solo sessions no longer fire work_start — C1; bug_fix/test phases satisfy g.nav+g.kb in one write — C2; `omt_status{op:"preflight", tool, path}` projects the gate chain + clearing actions before an edit — A4; skips carry purpose, phases expire, `omt_status` shows hygiene — A2+A3; gate budget 10/12 + ceremony medians live — B1+B2).
+**Next:** **end-of-program re-evaluation vs §Baseline** — resume from `.projects/meta/meta_harness_6/CURRENT_STATE.md` §Next (2026-09-06 iter 9 entry). Delta report (ledger counts, suite, gate count, budgets, gotcha clusters, ceremony medians) → Decisions log. Read §Decision gates + §Execution rules FIRST (net/receipt discipline; solo sessions no longer fire work_start — C1; bug_fix/test phases satisfy g.nav+g.kb in one write — C2; `omt_status{op:"preflight", tool, path}` projects the gate chain + clearing actions before an edit — A4; skips carry purpose, phases expire, `omt_status` shows hygiene — A2+A3; gate budget 10/12 + ceremony medians live — B1+B2; `harnessc init --tier 1|2|3` scaffolds tiered harnesses — D1+D2+D3).
 
 ---
 
@@ -133,7 +133,7 @@
 - [x] Wave 2 — C1 ✅ DONE (feature_053.net_gate_concurrency_predicate, 2026-09-06: @pred net_marking(active>1) + Python solo bypass + TS fast-path mirror, suite 1879/0) · C2 ✅ DONE (feature_054.small_task_fast_path, 2026-09-06: bug_fix/test phase satisfies g.nav+g.kb in one ledger write + narrowed own-dir/RED canary auto-unlock, suite 1887/0) · A4 ✅ DONE (feature_055.gate_preflight, 2026-09-06: omt_status op=preflight — ordered gates-that-will-fire + clearing actions via runBeforeGatesDry fired/stop flags, suite 1902/0) — **Wave 2 COMPLETE**
 - [x] Wave 3 — A2+A3 ✅ DONE (feature_056.skip_taxonomy_phase_hygiene, 2026-09-06: purpose taxonomy + friction:evasion report + override/week warning + phase auto-expiry + abandon tombstones + dangling list, suite 1934/0) · B1+B2 ✅ DONE (feature_057.gate_budget_ceremony_meter, 2026-09-06: @budget gates max=12 net-zero + skip-frequency retirement candidates + pre-unlock ceremony medians + bug_fix>3 alarm, suite 1951/0) — **Wave 3 COMPLETE**
 - [x] Wave 4 — E2+E1 ✅ DONE (feature_058.thought_review_gotcha_root_cause, 2026-09-06: omt_think op=review stale>90d advisor + 18-gotcha cluster map, suite 1967/0) — **Wave 4 COMPLETE**
-- [ ] Wave 5 — D1 harness_tiered_template (+ D2 stack_profiles, D3 generated_onboarding)
+- [ ] Wave 5 — D1 ✅ DONE (feature_059.harness_tiered_template, 2026-09-06: `harnessc init --tier 1|2|3` + `@var stack_profile` + `mvc_check --profile` + `build` GETTING_STARTED.md emission, suite 1979/0) — **Wave 5 COMPLETE, PROGRAM COMPLETE**
 - [ ] End-of-program re-evaluation vs §Baseline (delta report → Decisions log)
 - [x] First linked feature flips this project draft → active (feature_051 linked 2026-09-06)
 
