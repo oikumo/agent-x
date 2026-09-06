@@ -1,11 +1,10 @@
 // OMT++ omt_net — meta-harness concurrency net (feature_039.adaptive_net_engine
 // + feature_040.net_composition_supervisor + feature_042.goal_net_synthesis
-// + feature_044.mined_behavioral_net)
+// + feature_044.mined_behavioral_net + feature_050.net_as_gate)
 // Thin proxy around scripts/omt/net_check.py (the state machine lives in
 // Python, scripts/omt/net/; D2 — no src/ import). One registered tool, closed
-// op enum per IDEA-002 v4 §5.0 (probe|fire|splice|sync|synthesize|invariant;
-// synthesize live since feature_042: goal→net template proposal, D4;
-// mine live since feature_044: ledger→net behavioral draft, D4, D7-gated).
+// op enum per IDEA-002 v4 §5.0 (probe|fire|splice|sync|synthesize|invariant|gate;
+// gate live since feature_050: net permission-to-act for enforcer).
 // R8 (OMT-HDL-1): the tool is built inside createNetTool() so its description
 // resolves from the compiled IR AFTER initOmtShared ran (module-level tool()
 // would read the IR under the pre-init cwd — F2/F17).
@@ -14,25 +13,27 @@ import { tool } from "@opencode-ai/plugin"
 import { execFileSync } from "node:child_process"
 import { initOmtShared, repoRoot, irToolDescription } from "../lib/omt_shared"
 
-const OPS = ["probe", "fire", "invariant", "splice", "sync", "synthesize", "mine"]
+const OPS = ["probe", "fire", "invariant", "splice", "sync", "synthesize", "mine", "gate"]
 
 // Per-op argv whitelist mirroring the cli.py subparser declarations
 // (cross-source pinned @ tests/scripts/omt/test_omt_net_plugin_args.py).
 const OP_ARGS: Record<string, readonly string[]> = {
-  probe: [],
+  probe: ["max_states", "expected_revision"],
   fire: ["transition", "reasoning", "session", "expected_revision"],
-  splice: ["mode", "mutation", "subnet", "reasoning", "session", "feature"],
-  sync: ["reasoning", "session", "direction"],
-  invariant: [],
-  synthesize: ["mutation", "reasoning", "session", "feature"],
-  mine: ["mutation", "reasoning", "session", "feature"],
+  splice: ["mode", "mutation", "subnet", "reasoning", "session", "feature", "expected_revision"],
+  sync: ["reasoning", "session", "direction", "dry_run", "work_md", "expected_revision"],
+  invariant: ["expected_revision"],
+  synthesize: ["mutation", "reasoning", "session", "feature", "expected_revision"],
+  mine: ["mutation", "reasoning", "session", "feature", "expected_revision"],
+  gate: ["path", "session", "expected_revision"],
 }
 
 function createNetTool() {
   return tool({
-    description: irToolDescription("omt_net", "Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize(template→splice proposal, D4) | mine(ledger→net draft, D4)."),
+    description: irToolDescription("omt_net", "Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize(template→splice proposal, D4) | mine(ledger→net draft, D4) | gate(path,session?)."),
+// TA: gotcha: gotcha (feature_050 wrap-up): TS fallback seed must BYTE-match the .omt @tool omt_net payload — currently 1B off: seed says gate(path,session). but .omt payload says gate(path,session?). → harnessc "TS fallback seed drifted" error (358 vs 359 B); add the ? to the seed string
     args: {
-      op: tool.schema.string().describe("probe|fire|splice|sync|invariant|synthesize"),
+      op: tool.schema.string().describe("probe|fire|splice|sync|invariant|synthesize|mine|gate"),
       transition: tool.schema.string().optional().describe("fire: transition name"),
       reasoning: tool.schema.string().optional().describe("fire/splice: why (audit, D4)"),
       session: tool.schema.string().optional().describe("session id (default: context)"),
@@ -43,6 +44,8 @@ function createNetTool() {
       feature: tool.schema.string().optional().describe("splice: owning feature slug (audit)"),
       direction: tool.schema.string().optional().describe("sync: proposal|net_to_md|md_to_net_propose"),
       dry_run: tool.schema.boolean().optional().describe("sync: dry-run render/propose without writing"),
+      path: tool.schema.string().optional().describe("gate: target path being edited"),
+      expected_revision: tool.schema.number().optional().describe("all ops: stale-rev guard (feature_050)"),
     },
     async execute(args, context) {
       const op = String(args?.op ?? "")

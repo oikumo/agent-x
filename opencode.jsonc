@@ -63,6 +63,9 @@
       "nl *": "allow",
       "mv *": "allow",
       "stat *": "allow",
+      "mkdir *": "allow",
+      "rmdir *": "allow",
+      "date *": "allow",
       // harnessc:begin bash
         "git commit *": "deny",
         "git push *": "deny",

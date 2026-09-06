@@ -93,9 +93,12 @@ def test_plugins_load_and_tools_execute():
 
     Proves plugins auto-load and register their tools in the real runtime,
     the tools execute to completion, omt_status returns its real banner, and
-    the tool.execute.after hooks inject the nav reminder + TA digest into the
-    first tool result (F14c live path — the first tool here is omt_status, a
-    NON-nav tool, so both injections land on it).
+    the tool.execute.after hooks inject the nav reminder + TA digest (F14c
+    live path). Order-AGNOSTIC (the live LLM occasionally reorders the
+    requested calls): the TA digest lands on the FIRST tool result whatever
+    it is; the nav reminder lands on the first NON-nav tool result (R7 T3
+    defers it off omt_nav results — same contract as
+    test_nav_reminder_deferred_after_nav_first).
     """
     code, events, stderr = _run_opencode(
         "Call exactly these 4 tools in order, then reply DONE: "
@@ -120,15 +123,24 @@ def test_plugins_load_and_tools_execute():
     assert "OMT++ STATUS" in status_out, (
         f"omt_status output wrong: {status_out[:200]!r}")
 
-    # After-hooks fire (F14c): the first tool result carries both injections.
+    # After-hooks fire (F14c + R7 T3): the TA digest fires on the very first
+    # tool result regardless of which tool it is; the nav reminder lands on
+    # the first NON-nav tool result (== uses[0] in the requested order, but
+    # not guaranteed — the LLM sometimes calls omt_nav first).
     assert uses, "no tool calls at all — plugins and built-ins both silent?"
     first_out = _tool_output(uses[0])
-    assert "NAVIGATION TIP" in first_out, (
-        "omt_enforcer after-hook nav reminder missing from the first tool "
-        f"result ({uses[0].get('tool')}): {first_out[:300]!r}")
     assert "💡 TA:" in first_out, (
         "omt_think after-hook TA digest missing from the first tool "
         f"result ({uses[0].get('tool')}): {first_out[:300]!r}")
+    non_nav = [p for p in uses if p.get("tool") != "omt_nav"]
+    assert non_nav, (
+        "every tool call was omt_nav — no non-nav result exists to carry "
+        f"the deferred nav reminder: {seen}")
+    reminder_out = _tool_output(non_nav[0])
+    assert "NAVIGATION TIP" in reminder_out, (
+        "omt_enforcer after-hook nav reminder missing from the first "
+        f"non-nav tool result ({non_nav[0].get('tool')}): "
+        f"{reminder_out[:300]!r}")
 
 
 def test_nav_reminder_deferred_after_nav_first():

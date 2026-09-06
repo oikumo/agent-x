@@ -114,6 +114,7 @@ GATE_NEVER = {
     "g.phase": "`src/` w/o `omt_phase`",
     "g.think": "TA:-carrying files w/o `omt_think_list` consult",
     "g.kb": "`src/` w/o `omt_kb_nav` KB consult",
+    "g.net": "net permission denied — fire(work_start) required",
 }
 GATE_NEVER_EXCLUDE = {"g.protect", "g.nav"}
 
@@ -838,7 +839,87 @@ def check_work_projects_fresh(c: Corpus) -> None:
         c.errors.append("WORK.md `## Projects` section stale — run: uv run scripts/omt/project.py sync")
 
 
-# improvement006/OPT-C: the TS irToolDescription(name, seed) fallback seeds must
+def check_work_tasks_canonical(c: Corpus) -> None:
+    """WORK.md `## Tasks` section mirrors the net projection (feature_050)."""
+    try:
+        sys.path.insert(0, str(REPO_ROOT / "scripts" / "omt"))
+        from net import state
+        from net.sync_md import render_tasks_block, parse_tasks_block, pool_counts, is_pool_net
+    except Exception:
+        c.errors.append("WORK.md Tasks canonical check skipped: net modules unavailable")
+        return
+
+    base = state.net_dir()
+    if not state.is_bootstrapped(base):
+        return  # net not bootstrapped yet, skip check
+
+    try:
+        st = state.load(base)
+    except Exception:
+        return
+
+    # Extract actual Tasks block from WORK.md
+    work_path = REPO_ROOT / "WORK.md"
+    if not work_path.exists():
+        c.errors.append("WORK.md missing — cannot verify Tasks canonicality")
+        return
+    work_text = work_path.read_text(encoding="utf-8")
+    # Find the Tasks section (between "## Tasks" and next "## ")
+    tasks_start = work_text.find("## Tasks")
+    if tasks_start == -1:
+        c.errors.append("WORK.md `## Tasks` section missing")
+        return
+    tasks_end = work_text.find("\n## ", tasks_start + 1)
+    if tasks_end == -1:
+        tasks_text = work_text[tasks_start:]
+    else:
+        tasks_text = work_text[tasks_start:tasks_end]
+
+    if is_pool_net(st.net):
+        # Pool net: check pool counts line
+        pool_counts_actual = pool_counts(st.live_marking)
+        # Look for "Pool: pending=X active=Y done=Z" line in tasks_text
+        import re
+        pool_line_match = re.search(r"Pool: pending=(\d+) active=(\d+) done=(\d+)", tasks_text)
+        if not pool_line_match:
+            c.errors.append("WORK.md `## Tasks` missing Pool line — run: uv run scripts/omt/net_check.py sync --direction net_to_md")
+            return
+        actual_pending = int(pool_line_match.group(1))
+        actual_active = int(pool_line_match.group(2))
+        actual_done = int(pool_line_match.group(3))
+        expected = pool_counts_actual
+        mismatches = []
+        if actual_pending != expected.get("work_pending", 0):
+            mismatches.append(f"pending: actual={actual_pending}, expected={expected.get('work_pending', 0)}")
+        if actual_active != expected.get("work_active", 0):
+            mismatches.append(f"active: actual={actual_active}, expected={expected.get('work_active', 0)}")
+        if actual_done != expected.get("work_done", 0):
+            mismatches.append(f"done: actual={actual_done}, expected={expected.get('work_done', 0)}")
+        if mismatches:
+            c.errors.append(
+                "WORK.md `## Tasks` Pool line drift vs net — "
+                f"run: uv run scripts/omt/net_check.py sync --direction net_to_md\n  "
+                + "; ".join(mismatches)
+            )
+    else:
+        # Per-feature subnet net: check individual task states
+        from net.sync_md import _actual_states, parse_tasks_block
+        actual_states = parse_tasks_block(tasks_text)
+        expected_states = _actual_states(st.net, st.live_marking)
+
+        mismatches = []
+        for n in set(actual_states) | set(expected_states):
+            actual = actual_states.get(n)
+            expected = expected_states.get(n)
+            if actual != expected:
+                mismatches.append(f"feature_{n}: actual={actual}, expected={expected}")
+
+        if mismatches:
+            c.errors.append(
+                "WORK.md `## Tasks` section drift vs net projection — "
+                f"run: uv run scripts/omt/net_check.py sync --direction net_to_md\n  "
+                + "; ".join(mismatches)
+            )
 # mirror the .omt @tool payloads EXACTLY (single source; seed = IR-missing
 # fallback only). Drift (e.g. omt_phase pre-006) = build error here.
 TOOL_SEED_DIRS = (".opencode/plugins", ".opencode/lib/enforcer")
@@ -1206,6 +1287,7 @@ def run_all_checks(c: Corpus, agents_md: str, nav_text: str = "", ir_text: str =
     check_harness_paths(c)
     check_root_hygiene(c)
     check_work_done_max(c)
+    check_work_tasks_canonical(c)
     check_projects_structure(c)
     check_projects_links(c)
     check_projects_resume(c)

@@ -316,10 +316,11 @@ def replay_full(
                 emit(rec, rev)
             elif (kind == "net_splice" and rec.get("mode") in SKIP_MODES) or (
                 kind == "net_sync"
-            ) or (kind == "net_synthesize"):
-                continue  # no state mutation → no snapshot (design §1)
+            ) or (kind == "net_synthesize") or (kind == "net_mine"):
+                continue  # no state mutation → no snapshot (design §1; mine is draft-only, D4)
             else:
                 raise SpliceError("invalid_replay", f"unknown ledger record: {kind}")
+# TA: gotcha: gotcha (feature_050 wrap-up @ .sandbox/pause_2026-09-05c.md): replay raises invalid_replay on kind net_mine (feature_044 added the record kind; only fire/splice/disable/sync/synthesize handled) → TestLiveGolden + 043 dashboard sentinel RED; fix = add net_mine to the no-mutation skip branch (~line 317-319, alongside net_synthesize) — mine is draft-only (D4), no live-bundle mutation
         except (SpliceError, TransitionNotEnabledError, UnknownTransitionError) as exc:
             if isinstance(exc, SpliceError) and exc.code == "invalid_replay":
                 raise

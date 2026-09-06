@@ -36,7 +36,8 @@
 @var edit_tools : edit|write|patch|multiedit
 @var search_tools : grep|glob|rg|find
 @var harness_paths : AGENTS.md,opencode.jsonc,.meta/META_HARNESS.omt,.meta/software_development_process/omt_agent_guide.md,.opencode/plugins/omt_,.opencode/lib/omt_,.opencode/lib/enforcer/,scripts/omt/,.meta/templates/,.meta/software_development_process/2.requirements/features/feature_006.opencode_process_enforcement/,tests/scripts/omt/
-@var root_allowlist : AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,shared,src,tests,tests_automated,tools,.projects,.workflows
+@var net_paths : src/,tests/,.opencode/,scripts/omt/
+@var root_allowlist : AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,shared,src,tests,tests_automated,tools,.projects,.workflows,sandbox
 @var projects_root : .projects/meta
 @var projects_archive : .projects/archive
 @var project_resume_threshold_bytes : 16384
@@ -111,6 +112,7 @@
 @gate g.protect on=before tools=@var.edit_tools when=path_in(@protect.*) msg=@msg.protect_file hard=true skip_ok=true order=10 : NEVER paths; .env* hard (no skip), README/uv.lock/LICENSE via scope=all
 @gate g.receipt on=before tools=@var.edit_tools when=path_in(@var.harness_paths) requires=receipt_fresh() msg=@msg.receipt_stale hard=true skip_ok=false order=20 : second-edit guard on the harness surface (git-dirty + mtime vs receipt)
 @gate g.tests on=before tools=@var.edit_tools when=path_in(tests/) requires=ledger_has(skip,tests_approved=true,@var.unlock_window_ms) msg=@msg.tests_canary hard=true skip_ok=true order=30 : canary approval; TDD hat decides when tdd_mode active
+@gate g.net on=before tools=@var.edit_tools when=path_in(@var.net_paths) msg=@msg.net_required hard=true skip_ok=false order=35 : net permission-to-act (feature_050 Alt A); calls omt_net{op:gate} — fail-closed unless omt_skip{scope:"all"} expiry+audit
 @gate g.phase on=before tools=@var.edit_tools when=path_in(src/) requires=ledger_has(phase|skip) msg=@msg.no_phase hard=true skip_ok=true order=40 : declared phase; design artifact also required for major_feature/new_screen
 @gate g.think on=before tools=@var.edit_tools when=file_has("TA:") requires=ledger_has(think_consult) msg=@msg.think_gate hard=true skip_ok=false order=50 : consult via omt_think{op:list,path} — NOT skip-bypassable; risk: thoughts drop the cross-session window
 @gate g.tdd_after on=after tools=@var.edit_tools when=path_in(src/) requires=fsm_allows(@fsm.tdd,path) msg=@msg.tdd_revert hard=false skip_ok=false order=70 : REFACTOR auto-revert when tests break + advisories
@@ -127,6 +129,7 @@
 @msg protect_env sev=block : '{rel}' is protected (.env / secrets) — NEVER editable, no override (Core Directives #2)
 @msg protect_file sev=block : '{rel}' is protected (README.md / uv.lock / LICENSE). Edit refused; if truly intended ask the user, then omt_skip{scope:"all"}
 @msg tests_canary sev=block : editing '{rel}' requires explicit canary-test approval (Stop Point #4). Unlock: omt_skip{reason:"approved canary test", scope:"tests"}
+@msg net_required sev=block : net permission denied for '{rel}' — fire(work_start) required, stale-rev/drift/conflicts block (feature_050); break-glass: omt_skip{scope:"all",reason:"..."} (expiring, audited)
 @msg no_phase sev=block see=@doc.rule.r1 : declare your OMT++ phase before editing src/ ('{rel}'): omt_phase{task_type, scope}. Trivial fix? task_type:"bug_fix" is enough. Override: omt_skip{reason:"..."}
 @msg artifact sev=block see=@doc.rule.r2 : task_type '{tt}' may not edit src/ until a design artifact exists (guide §12); auto-detected under 4.design/features/ from the feature slug ('{feature}'), or design_doc=; scaffold: {@var.scaffold} "<name>" --type {tt}
 @msg nav_required sev=block see=@doc.nav.enforcement : before grep/glob on META HARNESS docs use omt_nav (op=nav|list_sections|cross_ref|quick_ref) first; read and src/non-doc searches exempt; override omt_skip{scope:"nav"}; examples: omt_nav{op:"nav", query:"SECTION:"} · omt_nav{op:"list_sections"} · omt_nav{op:"quick_ref", workflow:"..."}
@@ -267,7 +270,7 @@
 @tool omt_think perm=allow args="op,path?,thought?,line?,after?,symbol?,category?,query?,top?" tags="CMD_THINK" : TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?).
 @tool omt_kb_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_KB_NAV" : App Knowledge Base nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).
 @tool omt_q perm=allow args="op,feature?,session?,path?,tool?,as_of?,verbose?" tags="CMD_Q" : TA: Interrogative layer — read-only. op=state(feature?,session?,as_of?,verbose?) | plan(path,tool?,session?,as_of?) | drift(as_of?). state default ≤2KB summary; verbose:true = full dump. Returns JSON envelope with as_of_commit=HEAD-sha.
-@tool omt_net perm=allow args="op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?" tags="CMD_NET" : Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize(template→splice proposal, D4) | mine(ledger→net draft, D4).
+@tool omt_net perm=allow args="op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?,direction?,dry_run?,work_md?,path?,expected_revision?" tags="CMD_NET" : Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize(template→splice proposal, D4) | mine(ledger→net draft, D4) | gate(path,session?).
 
 # ============================================================
 # FLOW — QUICK_ workflows (start_*/tdd_* derived from @fsm/@phase/@hat — hand copies = duplicate-id error)

@@ -141,6 +141,19 @@
     },
     {
       "hard": true,
+      "id": "g.net",
+      "msg": "net_required",
+      "on": "before",
+      "order": 35,
+      "paths": "",
+      "requires": "",
+      "skip_ok": false,
+      "text": "net permission-to-act (feature_050 Alt A); calls omt_net{op:gate} \u2014 fail-closed unless omt_skip{scope:\"all\"} expiry+audit",
+      "tools": "edit|write|patch|multiedit",
+      "when": "path_in(@var.net_paths)"
+    },
+    {
+      "hard": true,
       "id": "g.phase",
       "msg": "no_phase",
       "on": "before",
@@ -327,6 +340,11 @@
       "sev": "block",
       "text": "before grep/glob on META HARNESS docs use omt_nav (op=nav|list_sections|cross_ref|quick_ref) first; read and src/non-doc searches exempt; override omt_skip{scope:\"nav\"}; examples: omt_nav{op:\"nav\", query:\"SECTION:\"} \u00b7 omt_nav{op:\"list_sections\"} \u00b7 omt_nav{op:\"quick_ref\", workflow:\"...\"}"
     },
+    "net_required": {
+      "see": "",
+      "sev": "block",
+      "text": "net permission denied for '{rel}' \u2014 fire(work_start) required, stale-rev/drift/conflicts block (feature_050); break-glass: omt_skip{scope:\"all\",reason:\"...\"} (expiring, audited)"
+    },
     "no_phase": {
       "see": "@doc.rule.r1",
       "sev": "block",
@@ -476,8 +494,8 @@
       "tags": "CMD_NAV"
     },
     "omt_net": {
-      "args": "op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?",
-      "description": "Meta-harness concurrency net \u2014 single-net SSOT (IDEA-002 v4 \u00a75.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net\u2194ledger drift) | synthesize(template\u2192splice proposal, D4) | mine(ledger\u2192net draft, D4).",
+      "args": "op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?,direction?,dry_run?,work_md?,path?,expected_revision?",
+      "description": "Meta-harness concurrency net \u2014 single-net SSOT (IDEA-002 v4 \u00a75.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net\u2194ledger drift) | synthesize(template\u2192splice proposal, D4) | mine(ledger\u2192net draft, D4) | gate(path,session?).",
       "perm": "allow",
       "tags": "CMD_NET"
     },
@@ -532,13 +550,14 @@
     "ledger_path": ".meta/.omt/ledger.jsonl",
     "mvc_check": "uv run scripts/omt/mvc_check.py",
     "nav_index_path": ".meta/.omt/nav.index.jsonl",
+    "net_paths": "src/,tests/,.opencode/,scripts/omt/",
     "plugin_dir": ".opencode/plugins/",
     "process_root": ".meta/software_development_process",
     "project_resume_threshold_bytes": 16384,
     "projects_archive": ".projects/archive",
     "projects_root": ".projects/meta",
     "receipt_path": ".meta/.omt/omt_harness_e2e_last_run.json",
-    "root_allowlist": "AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,shared,src,tests,tests_automated,tools,.projects,.workflows",
+    "root_allowlist": "AGENTS.md,LICENSE,README.md,WORK.md,WORK_ARCHIVE.md,opencode.jsonc,pyproject.toml,uv.lock,.gitignore,.python-version,.meta,.opencode,.agents,.agents_prompts,prompts,scripts,shared,src,tests,tests_automated,tools,.projects,.workflows,sandbox",
     "scaffold": "uv run scripts/omt/new_feature.py",
     "search_tools": "grep|glob|rg|find",
     "shared_lib": ".opencode/lib/omt_shared.ts",

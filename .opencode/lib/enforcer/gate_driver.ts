@@ -4,7 +4,7 @@
 // records (compiled into harness.ir.json gates[]) declare on/tools/when/
 // requires/msg/hard/skip_ok/order per gate. This driver iterates the IR
 // before-gates in ascending order=, matches tools=, evaluates when= through
-// the closed @pred registry (HDL-1 builtins), and delegates the gate-specific
+// the closed @pred registry (HDL-1: data only; TS owns builtins), and delegates the gate-specific
 // remainder the DSL does not yet express to the registered impl (IMPLS):
 // design-artifact matrix, TDD-hat deferral, per-file consult, protected
 // override, tests-stop.
@@ -173,6 +173,7 @@ function evalPredExpr(expr: string, ctx: GateCtx, ir: any): boolean {
 type GateImpl = (gate: any, ctx: GateCtx) => Promise<void | "stop">
 
 const IMPLS: Record<string, GateImpl> = {
+// TA: risk: risk (feature_050 wrap-up @ .sandbox/pause_2026-09-05c.md): (1) g.net impl carries a // DEBUG block writing /tmp/gate_debug.log — remove with its require("node:fs"); (2) .omt @gate g.net skip_ok=true contradicts TS fallback skip_ok:false + design_001 — IR is the functional source so ANY session skip bypasses the net gate; fix .omt to skip_ok=false (break-glass scope=all only, net_enforced_harness D3) + harnessc rebuild
   // feature_020: block doc-scoped searches until a nav tool was used.
   "g.nav": async (_gate, ctx) => {
     if (!ctx.session) return
@@ -204,6 +205,26 @@ const IMPLS: Record<string, GateImpl> = {
   "g.think": async (_gate, ctx) => { await guardThoughts(ctx.env, ctx.session, ctx.rel!, ctx.abs!) },
   // KB consult gate: src/ edits need prior omt_kb_nav consult (genericImpl handles requires=).
   "g.kb": undefined,
+  // feature_050.net_as_gate: net permission-to-act gate (Alt A Net-as-Gate).
+  // Runs after g.tests:30, before g.phase:40. Calls Python net.gate helper.
+  "g.net": async (_gate, ctx) => {
+    const abs = ctx.abs || ""
+    const rel = ctx.rel || ""
+    if (!abs || !rel) return
+    // Only gate src/, tests/, and harness-surface paths.
+    const isSrc = rel.startsWith("src/")
+    const isTests = rel.startsWith("tests/")
+    const isHarness = rel.startsWith(".opencode/") || rel.startsWith("scripts/omt/")
+    if (!isSrc && !isTests && !isHarness) return
+    // Dry-run / synthetic ctx (omt_q op:plan): no SDK shell on env.$ — the
+    // gate still fires in the predicted chain, but its verdict needs the
+    // live enforcer path (skip the shell-out instead of crashing the fold).
+    if (typeof ctx.env.$ !== "function") return
+    // Call net.gate to check permission.
+    const res = await ctx.env.$`uv run scripts/omt/net_check.py gate --path ${rel} --session ${ctx.session || ""}`.cwd(ctx.env.directory).quiet().nothrow()
+    const data = JSON.parse(res.stdout.toString() || '{"allowed":false,"code":"ERR_NET_NOT_ENABLED"}')
+    if (!data.allowed) throw new OmtBlock(`⛔ OMT++ gate (g.net): ${data.message || data.code}`)
+  },
 }
 
 // Generic impl: a before-gate with NO registered impl is fully pred-composed —
@@ -229,6 +250,7 @@ const FALLBACK_GATES = [
   { id: "g.protect", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(@protect.*)", requires: "", msg: "protect_file", hard: true, skip_ok: true, order: 10 },
   { id: "g.receipt", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(@var.harness_paths)", requires: "receipt_fresh()", msg: "receipt_stale", hard: true, skip_ok: false, order: 20 },
   { id: "g.tests", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(tests/)", requires: "", msg: "tests_canary", hard: true, skip_ok: true, order: 30 },
+  { id: "g.net", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(@var.net_paths)", requires: "", msg: "net_required", hard: true, skip_ok: false, order: 35 },
   { id: "g.phase", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(src/)", requires: "", msg: "no_phase", hard: true, skip_ok: true, order: 40 },
   { id: "g.think", on: "before", tools: "edit|write|patch|multiedit", when: 'file_has("TA:")', requires: "", msg: "think_gate", hard: true, skip_ok: false, order: 50 },
   { id: "g.kb", on: "before", tools: "edit|write|patch|multiedit", when: "path_in(src/)", requires: "session_flag(kb_consulted)", msg: "kb_required", hard: true, skip_ok: false, order: 55 },

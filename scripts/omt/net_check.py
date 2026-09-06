@@ -9,9 +9,10 @@ The implementation lives in the scripts/omt/net/ package:
     net/conformance.py  shared-vector runner (9 vectors, analysis-v1)
     net/state.py        three-file net-bundle store (sidecar/overlay, D6/D11)
     net/cli.py          omt_net ops probe|fire|invariant (IDEA-002 v4 §5.0)
+    net/gate.py         g.net permission-to-act helper (feature_050)
 
 Call site:
-  - CLI: uv run scripts/omt/net_check.py probe|fire|invariant ...
+  - CLI: uv run scripts/omt/net_check.py probe|fire|invariant|gate ...
          (the .opencode/plugins/omt_net.ts proxy invokes this shim).
 """
 from __future__ import annotations

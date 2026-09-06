@@ -244,12 +244,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_probe = sub.add_parser("probe", help="Observe marking + enabled + analyzer advice.")
     p_probe.add_argument("--max-states", type=int, default=DEFAULT_MAX_STATES)
+    p_probe.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="Stale-rev guard.")
 
     p_fire = sub.add_parser("fire", help="Fire an enabled transition (marking-only).")
     p_fire.add_argument("--transition", required=True)
     p_fire.add_argument("--reasoning", required=True)
     p_fire.add_argument("--session", default="")
-    p_fire.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="D19 stale-rev guard.")
+    p_fire.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="Stale-rev guard.")
 
     p_splice = sub.add_parser(
         "splice", help="Atomic structural transaction (conformance-gated, §3)."
@@ -262,6 +263,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_splice.add_argument("--reasoning", required=True)
     p_splice.add_argument("--session", default="")
     p_splice.add_argument("--feature", default="")
+    p_splice.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="Stale-rev guard.")
 
     p_sync = sub.add_parser(
         "sync", help="net↔reality bootstrap + resync (proposal-only, D4)."
@@ -274,8 +276,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_sync.add_argument("--dry-run", action="store_true")
     p_sync.add_argument("--work-md", default="")
+    p_sync.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="Stale-rev guard.")
 
-    sub.add_parser("invariant", help="Invariants + net-vs-ledger drift (D7).")
+    p_inv = sub.add_parser("invariant", help="Invariants + net-vs-ledger drift (D7).")
+    p_inv.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="Stale-rev guard.")
+# TA: gotcha: gotcha (feature_050 wrap-up): invariant subparser lacks --expected-revision while omt_net.ts OP_ARGS whitelists it → test_omt_net_plugin_args::TestWhitelistMirrorsCli RED; add the flag mirroring probe/fire/splice/sync/synthesize/mine/gate
 
     p_synth = sub.add_parser(
         "synthesize", help="Goal→net template proposal (D4, feature_042)."
@@ -284,6 +289,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_synth.add_argument("--reasoning", required=True)
     p_synth.add_argument("--session", default="")
     p_synth.add_argument("--feature", default="")
+    p_synth.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="Stale-rev guard.")
 
     p_mine = sub.add_parser(
         "mine", help="Ledger→net behavioral mining (read-only draft, D4, feature_044)."
@@ -292,6 +298,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p_mine.add_argument("--reasoning", required=True)
     p_mine.add_argument("--session", default="")
     p_mine.add_argument("--feature", default="")
+    p_mine.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="Stale-rev guard.")
+
+    p_gate = sub.add_parser("gate", help="g.net permission-to-act check (feature_050).")
+    p_gate.add_argument("--path", required=True, help="Target path being edited.")
+    p_gate.add_argument("--session", default="")
+    p_gate.add_argument("--expected-revision", "--expected_revision", type=int, default=None, help="Stale-rev guard.")
 
     for op in RESERVED_OPS:
         sub.add_parser(op, help="Reserved — future.")
@@ -300,6 +312,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+# TA: risk: risk (feature_050 wrap-up @ .sandbox/pause_2026-09-05c.md): gate op passes net_available=True hardcoded and never passes drifted/expected_revision/live_revision → ERR_NET_DRIFT_CONFLICT + ERR_NET_STALE_REV + ERR_NET_DOWN unreachable in the LIVE enforcer path; fix = load state, drifted = st.revision != read_ledger_net_records()[-1].revision (same as _invariant), NetNotBootstrappedError/Exception → net_available=False (fail-closed D3)
     args = _build_parser().parse_args(argv)
     op: str = args.op
 
@@ -311,6 +324,15 @@ def main(argv: list[str] | None = None) -> int:
         ))
 
     base = state.net_dir()
+    # Stale-rev check for all ops (feature_050: extend feat_046 to all ops)
+    expected_rev = getattr(args, "expected_revision", None)
+    if expected_rev is not None:
+        try:
+            st = state.load(base)
+            if st.revision != expected_rev:
+                return _emit(*_error("revision_mismatch", op, f"expected revision {expected_rev}, current is {st.revision}"))
+        except state.NetNotBootstrappedError:
+            pass  # net not bootstrapped yet, let the op handler deal with it
     try:
         if op == "probe":
             return _emit(*_probe(base, args.max_states))
@@ -350,6 +372,34 @@ def main(argv: list[str] | None = None) -> int:
             return _emit(*_mine(base, args, params))
         if op == "invariant":
             return _emit(*_invariant(base))
+        if op == "gate":
+            from . import gate  # local import
+            # feature_050 wrap-up: live wiring — drift mirrors _invariant
+            # (net rev vs last ledger net-record rev); fail-closed on load
+            # error (D3); expected_revision flows through for stale-rev.
+            net_available = True
+            drifted = False
+            live_revision: int | None = None
+            try:
+                st = state.load(base)
+                live_revision = st.revision
+                records = state.read_ledger_net_records()
+                ledger_revision = records[-1].get("revision", 0) if records else 0
+                drifted = st.revision != ledger_revision
+            except Exception:
+                net_available = False  # net-down / unbootstrapped → BLOCK (D3)
+            res = gate.check_edit_allowed(
+                base,
+                path=args.path,
+                has_fire_receipt=False,  # gate.py reads the ledger itself
+                expected_revision=getattr(args, "expected_revision", None),
+                live_revision=live_revision,
+                drifted=drifted,
+                net_available=net_available,
+            )
+            if not res["allowed"]:
+                return _emit({"ok": False, "allowed": False, "code": res["code"], "message": res["code"]}, 1)
+            return _emit({"ok": True, "allowed": True, "code": "OK"}, 0)
     except state.SpliceError as exc:
         return _emit(*_error(exc.code, op, str(exc)))
     except state.NetNotBootstrappedError as exc:
