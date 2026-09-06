@@ -538,7 +538,7 @@
     },
     "omt_think": {
       "args": "op,path?,thought?,line?,after?,symbol?,category?,query?,top?",
-      "description": "TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?).",
+      "description": "TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?) | review(stale>90d).",
       "perm": "allow",
       "tags": "CMD_THINK"
     }

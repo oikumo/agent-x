@@ -437,5 +437,25 @@ def test_omt_meta_harness_end_to_end_contract() -> None:
         "B2 requires the ceremony median line in omt_status.ts")
     checks.append("feature_057 B1+B2: gate_budget_ceremony_meter wired (@budget gates + retirement candidates + ceremony meter + status lines)")
 
+    # 18. feature_058 E2+E1 thought_review_gotcha_root_cause: read-only
+    # omt_think{op:review} stale>90d advisor (reused args, +7B tool_args) +
+    # E1 cluster map as .omt comments (0 nav cost, no renames/retags).
+    harness_omt = _read(".meta/META_HARNESS.omt")
+    assert "| review(stale>90d)." in harness_omt, (
+        "E2 requires the review schema text on @tool omt_think")
+    think = _read(".opencode/plugins/omt_think.ts")
+    assert "STALE_AFTER_DAYS = 90" in think, (
+        "E2 requires the hardcoded 90d policy pin in omt_think.ts")
+    assert 'case "review": return omt_think_review.execute(args, context)' in think, (
+        "E2 requires the review case in the omt_think dispatcher")
+    assert "add|list|remove|verify|suggest|review" in think, (
+        "E2 requires the review op in the advertised enum")
+    assert "recordConsult(session," in think.split(
+        "const omt_think_review")[1].split("const omt_think = tool(")[0], (
+        "E2 review IS a consult (clears think-gate)")
+    assert "# E1 (feature_058): cluster map" in harness_omt, (
+        "E1 requires the cluster map as .omt comments")
+    checks.append('feature_058 E2+E1: thought_review_gotcha_root_cause wired (op=review stale>90d + cluster comments)')
+
     _write_receipt(checks)
     assert RECEIPT_PATH.exists()

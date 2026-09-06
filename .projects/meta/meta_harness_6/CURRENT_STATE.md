@@ -5,6 +5,47 @@
 
 ---
 
+## 2026-09-06 (auto — feature_058.thought_review_gotcha_root_cause Done)
+
+- shipped: minor_feature · test report @ 6.testing/features/feature_058.thought_review_gotcha_root_cause/test_report.md
+- logged by omt_complete; expand by hand if resume needs more.
+
+---
+
+
+## 2026-09-06 (iter 8 — Wave 4/E2+E1 EXECUTED: feature_058.thought_review_gotcha_root_cause DONE; WAVE 4 COMPLETE; NEXT = Wave 5)
+
+### Done
+
+- **Resumed per PROJECT.md Quick Start + CURRENT_STATE iter 7**: tree verified CLEAN (user committed feature_057, HEAD 9bc0051), meta_harness_5 overlap re-check clean (backlog all shipped/rejected — nothing on thought review/gotcha), net dormant (rev 57, work_active=0 — solo, no fire per C1), feature_058 scaffolded + linked, phase declared (Programming, minor_feature).
+- **E2+E1 `feature_058.thought_review_gotcha_root_cause` SHIPPED** (minor_feature, Programming→Testing→Done):
+  - **E2 review**: `omt_think{op:review}` read-only stale-thought advisor (STALE_AFTER_DAYS=90 hardcoded policy pin) — alive adds ∩ live grep, latest add/verify ts > 90d, exact one-call `omt_think{op:remove}` commands + verify pointer (A3 idiom, never auto-deletes). Reuses path?/category?/query?/top? (no new args). Records think_consult (IS a consult). Unknown-index → NOT stale (fail-open). Live repo returns 0 stale (correct — oldest add 51d).
+  - **E1 clusters**: 18-id partition SDK 4 / ISOLATION 3 / RECEIPT 4 / TOOLCHAIN 3 / MISC 4 (analysis_001) + `# E1:` comments in the .omt (0 nav cost). No renames/retags/demotions — A1/F1/A3 already root-caused those classes; 17 survivors stay GOTCHA.
+  - **Mirror**: NO new @tool/@doc/@msg. Budgets: tool_args 2271→2278 (+7B op enum), tool_schemas 1750→1770 (+20B), nav_index 63900→63920 (+20B via @tool record), ir_json +20B. All 12 green, no diet needed. 261 records, check 0 errors.
+  - Tests: 16 new (8 static pins incl. arg-reuse + read-only + 18-partition, 7 hermetic bun probes on the REAL plugin incl. old/fresh/unknown/verify-rescue/filter/consult, 1 live smoke) + e2e check 18.
+  - **Evidence: full suite 1967 passed / 0 failed (1951 + 16 new); build OK; e2e receipt refreshed twice (R1 first-edits, R2 dispatcher+comments).**
+  - Incidents closed: dispatcher split across R1/R2 (receipt second-edit guard — impl+seed R1, case R2); 2 test-expectation bugs (describe count 9 not 10, ^@tool anchor); live-review invisibility in-session (GOTCHA_TS_NO_RELOAD class — covered by hermetic probes, same as feature_057).
+- Artifacts: `3.analysis/.../analysis_001_gotcha_clusters.md` + `5.implementation/.../implementation_notes.md` + `6.testing/.../test_report.md`.
+- **Wave 4 COMPLETE (E2+E1).** PROJECT.md Quick Start rolled forward (Waves 1–3 COMPLETE, next = Wave 4 → now Wave 5); Status §Wave 4 flips ✅ at close.
+- Working tree UNCOMMITTED (agent cannot git-commit): feature_058 changes await user `git commit`.
+
+### In progress / Blocked
+
+- _(nothing in-flight — feature_058 fully closed)_
+
+### Next
+
+1. **Wave 5 / D1+D2+D3 `harness_tiered_template`** (major_feature + 2 riding minors): scaffold `uv run scripts/omt/new_feature.py "harness tiered template" --type major_feature --project meta_harness_6` (takes number **059**, design doc + TDD auto-on) → omt_phase → `harnessc init --tier 1|2|3` + stack profiles + generated onboarding per evaluation §5 D1–D3 (Tier 3 excludes net per DG1/DG3).
+2. Then end-of-program re-evaluation vs §Baseline (delta report → Decisions log).
+
+### Notes / context
+
+- Net: rev 57 (dormant all session — solo per C1), pool pending=0/active=0/done=7.
+- Round discipline: R1 = think.ts (impl+seed) + .omt payload → check green → e2e refresh; R2 = think.ts dispatcher + .omt comments → check green → 14/16 → 2 test fixes → 16/16 → e2e check 18 → build + full suite 1967/0.
+- PROJECT.md Status §Wave 4 line needs the ✅ flip (hand-edit at close or next resume).
+
+---
+
 ## 2026-09-06 (auto — feature_057.gate_budget_ceremony_meter Done)
 
 - shipped: minor_feature · test report @ 6.testing/features/feature_057.gate_budget_ceremony_meter/test_report.md

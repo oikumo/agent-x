@@ -556,12 +556,75 @@ function createThinkTools() {
     },
   })
 
+  // --- omt_think_review: stale-thought advisor (feature_058 E2) ------------
+  // Read-only batch review: alive thoughts (foldThoughtEvents) ∩ live grep
+  // hits whose latest add/verify event is older than STALE_AFTER_DAYS, with
+  // exact one-call archive commands (the A3 dangling-list idiom — safe
+  // direction, never auto-deletes). Reuses path?/category?/query?/top? (no
+  // new args → tool_args +7B op-enum only). Records a think_consult for the
+  // shown files (it IS a consult → clears think-gate). Unknown-index thoughts
+  // (no add/verify ts) read as NOT stale (fail-open — never flag unknown).
+  const STALE_AFTER_DAYS = 90
+  const omt_think_review = tool({
+    description: "op=review impl (unregistered; dispatched via omt_think).",
+    args: {
+      path: tool.schema.string().optional().describe("restrict to a file/dir (default: whole repo)"),
+      category: tool.schema.string().optional().describe("filter `TA: <category>:`"),
+      query: tool.schema.string().optional().describe("extra substring filter"),
+      top: tool.schema.number().optional().describe("max stale shown (default 20, clamped 1..20)"),
+    },
+    async execute(args, context) {
+      const session = context?.sessionID
+      const pathArg = args?.path
+      const category = args?.category
+      const query = args?.query
+      let pattern = thoughtPattern()
+      const cat = category ? category.trim().toLowerCase() : ""
+      if (cat) pattern += "\\s*" + escapeRegex(cat) + ":"
+      if (query) pattern += ".*" + escapeRegex(query)
+      const target = pathArg || "."
+      const hits = grepThoughts(pattern, target)
+      const { latestAddTsByText, latestVerifyByText } = foldThoughtEvents(readThoughtsIndex())
+      const cutoff = Date.now() - STALE_AFTER_DAYS * 24 * 3600 * 1000
+      const stale: { file: string; line: number; content: string; ageDays: number }[] = []
+      for (const h of hits) {
+        const p = parseThoughtLine(h.content)
+        if (!p) continue
+        const addTs = latestAddTsByText.get(p.text) || 0
+        const verTs = latestVerifyByText.get(p.text)?.ts || 0
+        const latest = Math.max(addTs, verTs)
+        if (!latest) continue // unknown-index → NOT stale (fail-open)
+        if (latest < cutoff) {
+          stale.push({ ...h, ageDays: Math.floor((Date.now() - latest) / (24 * 3600 * 1000)) })
+        }
+      }
+      stale.sort((a, b) => b.ageDays - a.ageDays || (a.file < b.file ? -1 : 1))
+      const consultedFiles = [...new Set(stale.map(h => h.file))]
+      recordConsult(session, consultedFiles)
+      const top = Math.min(20, Math.max(1, Math.floor(args?.top ?? 20)))
+      const shown = stale.slice(0, top)
+      const filesChecked = new Set(hits.map(h => h.file)).size
+      if (stale.length === 0) {
+        return `💡 TA: review — 0 stale thoughts (untouched >${STALE_AFTER_DAYS}d) across ${filesChecked} file${filesChecked === 1 ? "" : "s"} checked (${hits.length} thought${hits.length === 1 ? "" : "s"} live). Nothing to archive.`
+      }
+      const items = shown.map((h, i) =>
+        ` ${i + 1}. ${h.file}:${h.line} (${h.ageDays}d): ${h.content}\n    → omt_think{op:"remove", path:"${h.file}", line:${h.line}}`)
+      let out = `💡 TA: review — ${stale.length} stale thought${stale.length === 1 ? "" : "s"} (untouched >${STALE_AFTER_DAYS}d), showing ${shown.length}:\n` +
+        items.join("\n") +
+        `\n→ re-check survivors with omt_think{op:"verify", path, line}.`
+      if (stale.length > top) {
+        out += ` … (+${stale.length - top} more: omt_think{op:"review", top:${top}} with path:/category: filters)`
+      }
+      return out
+    },
+  })
+
   // improvement006/OPT-H: ONE registered think tool; op dispatches to the
   // impls above (18 → 7 registered omt_* tools — smaller schema block).
   const omt_think = tool({
-    description: irToolDescription("omt_think", "TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?)."),
+    description: irToolDescription("omt_think", "TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?) | review(stale>90d)."),
     args: {
-      op: tool.schema.string().describe("add|list|remove|verify|suggest"),
+      op: tool.schema.string().describe("add|list|remove|verify|suggest|review"),
       path: tool.schema.string().optional().describe("repo-relative file (add: must exist; suggest: .py)"),
       thought: tool.schema.string().optional().describe("add: thought text (single line; newlines stripped)"),
       line: tool.schema.number().optional().describe("add: insert AFTER (default EOF) · remove/verify: TA: line"),
@@ -578,7 +641,8 @@ function createThinkTools() {
         case "remove": return omt_think_remove.execute(args, context)
         case "verify": return omt_think_verify.execute(args, context)
         case "suggest": return omt_think_suggest.execute(args, context)
-        default: return `⛔ omt_think: unknown op '${args?.op}' — want add|list|remove|verify|suggest`
+        case "review": return omt_think_review.execute(args, context)
+        default: return `⛔ omt_think: unknown op '${args?.op}' — want add|list|remove|verify|suggest|review`
       }
     },
   })

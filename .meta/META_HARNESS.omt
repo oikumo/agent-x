@@ -223,6 +223,12 @@
 # ============================================================
 # GOTCHA — costly re-discoveries, nav-indexed (improvement002/OPT-B;
 # relocated from the WORK.md scratchpad — query: omt_nav "GOTCHA_")
+# E1 (feature_058): cluster map — SDK(loader_exports,sdk_contract,live_binary,
+# ts_no_reload) ISOLATION(env_flaky_fixed+red_runnable,tdd_node) RECEIPT(
+# receipt_second_edit,receipt_round_robin,bugb_recipe,write_large) TOOLCHAIN(
+# testlist_json,tdd_toolchain,plugin_probe) MISC(done_reachable,think_gated,
+# tests_canary_shadow,plugin_ctx). A1/F1/A3 root-caused isolation/SDK/canary
+# classes; 17 survivors stay GOTCHA (demote only when root-caused).
 # ============================================================
 @doc gotcha.loader_exports tags="GOTCHA_LOADER_EXPORTS" : opencode plugin loader requires ALL named exports of a plugin .ts be functions (tool objects aren't) → plugins export ONLY `export default async () => ({tool:{...}})`; guard test pins omt_think only.
 @doc gotcha.done_reachable tags="GOTCHA_DONE_REACHABLE" : omt_tdd{op:done} reachable post-R4 (opencode_live excluded; allowlist permanently empty since feature_051/A1 — any failure blocks); default phase exit stays omt_complete{advance_to:Testing→Done}.
@@ -274,7 +280,7 @@
 @tool omt_status perm=allow args="op?,tool?,path?,include_ledger?" tags="CMD_STATUS" : Process context: phase, unlock, artifacts, lint, valid next phases, WORK.md next task; op=preflight(tool,path) → ordered gates that will fire + clearing action each (default: full status).
 @tool omt_tdd perm=allow args="op,behaviors?,feature?,test_node?,target_src?" tags="CMD_TDD" : TDD cycle driver. op=testlist(behaviors,feature; JSON array or prose) | red(test_node,target_src,feature) | green(test_node,feature) | refactor(test_node,feature) | done(feature). Toolchain-aware: .py→pytest, .ts/.tsx→vitest (GOTCHA_TDD_TOOLCHAIN).
 @tool omt_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_NAV" : Harness doc nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).
-@tool omt_think perm=allow args="op,path?,thought?,line?,after?,symbol?,category?,query?,top?" tags="CMD_THINK" : TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?).
+@tool omt_think perm=allow args="op,path?,thought?,line?,after?,symbol?,category?,query?,top?" tags="CMD_THINK" : TA: thought-tags. op=add(path,thought,line?,after?,symbol?,category?) | list(path?,category?,query?) | remove(path,line) | verify(path,line) | suggest(path,top?) | review(stale>90d).
 @tool omt_kb_nav perm=allow args="op,query?,file?,tag_type?,include_context?,xref?,workflow?" tags="CMD_KB_NAV" : App Knowledge Base nav. op=nav(query,file?,tag_type?,include_context?) | list_sections(file?) | cross_ref(xref) | quick_ref(workflow?).
 @tool omt_q perm=allow args="op,feature?,session?,path?,tool?,as_of?,verbose?" tags="CMD_Q" : TA: Interrogative layer — read-only. op=state(feature?,session?,as_of?,verbose?) | plan(path,tool?,session?,as_of?) | drift(as_of?). state default ≤2KB summary; verbose:true = full dump. Returns JSON envelope with as_of_commit=HEAD-sha.
 @tool omt_net perm=allow args="op,transition?,reasoning?,session?,max_states?,mode?,mutation?,subnet?,feature?,direction?,dry_run?,work_md?,path?,expected_revision?" tags="CMD_NET" : Meta-harness concurrency net — single-net SSOT (IDEA-002 v4 §5.0 closed enum). op=probe(marking+enabled+advice) | fire(transition,reasoning,session?) | splice(mode,mutation?,subnet?,reasoning) | sync(bootstrap+proposal, D4) | invariant(invariants+net↔ledger drift) | synthesize(template→splice proposal, D4) | mine(ledger→net draft, D4) | gate(path,session?).
