@@ -5,6 +5,52 @@
 
 ---
 
+## 2026-09-06 (iter 10 — END-OF-PROGRAM RE-EVALUATION vs §Baseline: PROGRAM COMPLETE; project closed)
+
+### Delta report (baseline 2026-09-05 → close)
+
+- **Ledger cumulative** (all `.meta/.omt/ledger*.jsonl`, n=2282): think_consult 696→**759** (+63) · phase 327→**368** (+41) · skip 266→**309** (+43) · q 191→**267** (+76) · complete 173→**195** (+22) · tdd 179 + tdd_testlist 32 (new visibility post-TDD-hygiene). 499 records since 09-05 (q 104 / think_consult 97 / phase 66 / skip 63 / complete 33 / net_* 72 / tdd 18 / project* 15).
+- **Suite**: KNOWN_SUITE_FAILURES 6→**0 held** (empty since A1, shape-pinned) · full suite **1979 passed / 0 failed** (verified this session, 181s; +134 feature tests 051..059: 4+17+13+10+13+32+17+16+12) · build OK · e2e receipt fresh.
+- **Gates/tools**: gates "12"→**10 listed** (the eval miscounted — feature_057 notes count was always 10; `@budget gates max=12` now enforces net-zero) · tools 10→**10** · `@gate` table unchanged in membership, enriched (fired/stop, preflight projection, concurrency predicate, fast-path flags).
+- **Budgets**: all 12 green at close (tightest: tool_args 2278/2304 −26B, tool_schemas 1770/1792 −22B, nav_index 63923/64000 −77B) · records 256→**263** (+7) · 263 records, check 0 errors.
+- **LOC**: scripts/omt 8991→**9956** (+965) · .opencode TS 5008→**5775** (+767) · app src **22794→22794 (zero drift ✅)**.
+- **Gotchas**: 18→**18 net 0 by design** (A1 demoted tdd.env_flaky_fixed→root-caused doc; E2 mapped 18-id partition SDK4/ISOLATION3/RECEIPT4/TOOLCHAIN3/MISC4 with `# E1:` comments; no renames/deletions — root-cause-don't-delete).
+- **Ceremony**: baseline invisible → medians live, all task_types **0** (bug_fix 0 ≤ 3 ✅ — alarm armed, no bug_fix sessions measured yet).
+- **Skips**: purpose taxonomy live since 056 — post-taxonomy: **override 7, canary 3** (299 pre-taxonomy unlabeled); 7d window: 81 (friction 26 · nav-escapes 52 · evasion 3, warn>5/week).
+- **Dangling**: lifetime 100 records (**91 expired** → 9 unexpired, all >45d-old sessions predating A2+A3) vs baseline "327 declared vs 173 completed". Criterion ≤5 NOT met literally → closed-with-verdict (D5).
+- **Thought staleness**: `omt_think{op:review}` live; live repo **0 stale** (nothing to prune) ✅.
+- **Net**: rev 53→**57** (cycled work_start/complete per feature; dormant at close — solo per C1), places 12/15 unchanged, pool pending=0/active=0/done=7.
+
+### Success criteria verdict (§Scope)
+
+1. ✅ All 13 items shipped (051..059: A1,F1,C1,C2,A4,A2+A3,B1+B2,E2+E1,D1+D2+D3).
+2. ✅ KNOWN_SUITE_FAILURES = 0 and stays 0.
+3. ✅ g.net solo-only (C1); bug_fix median 0 ≤ 3.
+4. ✅ gates 10/12 net-zero enforced; all byte budgets green after every feature.
+5. ✅ `harnessc init --tier 1` works (D1 fs/init tests + template e2e green).
+6. ⚠ PARTIAL → verdict D5: skip-purpose live ✅; dangling 9 active (≤5 missed — historical, mechanism live); gotcha −5 missed (net 0 — deliberate no-delete); staleness pruned-via-mechanism ✅ (0 stale live).
+
+### Done
+
+- Delta report (above) → Decisions log D4–D6 @ PROJECT.md → Status Wave 5 + re-evaluation flipped ✅ → `project.py close meta_harness_6` + `sync` → tree clean for user commit.
+- Evidence: full suite 1979/0 re-verified this session; `harnessc check` 263 records 0 errors; build OK.
+
+### In progress / Blocked
+
+- _(nothing — program closed)_
+
+### Next
+
+1. User `git commit` (working tree: program-close docs + project state).
+2. Future harness work (if any) = NEW project; DG1–DG3 + D4–D6 verdicts stand — do not re-litigate without new evidence.
+
+### Notes / context
+
+- Net rev 57 dormant all session (solo per C1 — no fire). No harness-surface edits (docs only: CURRENT_STATE + PROJECT + WORK Paused) — no receipt round consumed.
+- Standing instruction: tombstone (`omt_phase{phase:"abandoned"}`) any of the 9 residual dangling phases on encounter; never grow KNOWN_SUITE_FAILURES (shape-pinned empty).
+
+---
+
 ## 2026-09-06 (auto — feature_059.harness_tiered_template Done)
 
 - shipped: major_feature · test report @ 6.testing/features/feature_059.harness_tiered_template/test_report.md

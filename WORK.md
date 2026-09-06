@@ -37,7 +37,7 @@ Pool: pending=0 active=0 done=7 (places 12/15)
 | meta_harness_3 | active | feature_028.feature_scoped_gating |
 | meta_harness_4 | complete | feature_037.tdd_testlist_prose_fallback |
 | meta_harness_5 | active | feature_038.tdd_toolchain_aware |
-| meta_harness_6 | active | feature_051.ledger_test_isolation, feature_052.opencode_version_canary, feature_053.net_gate_concurrency_predicate, feature_054.small_task_fast_path, feature_055.gate_preflight, feature_056.skip_taxonomy_phase_hygiene, feature_057.gate_budget_ceremony_meter, feature_058.thought_review_gotcha_root_cause, feature_059.harness_tiered_template |
+| meta_harness_6 | complete | feature_051.ledger_test_isolation, feature_052.opencode_version_canary, feature_053.net_gate_concurrency_predicate, feature_054.small_task_fast_path, feature_055.gate_preflight, feature_056.skip_taxonomy_phase_hygiene, feature_057.gate_budget_ceremony_meter, feature_058.thought_review_gotcha_root_cause, feature_059.harness_tiered_template |
 | meta_harness_concurrent | active | feature_039.adaptive_net_engine, feature_040.net_composition_supervisor, feature_041.resource_places_concurrency, feature_042.goal_net_synthesis, feature_043.meta_net_dashboard, feature_044.mined_behavioral_net, feature_045.work_md_net_driven, feature_046.omt_net_session_arg_whitelist, feature_047.wip_limited_pool, feature_048.wip_limited_pool, feature_049.session_start_menu |
 | net_enforced_harness | active | feature_050.net_as_gate |
 | petri_net_library | active | feature_031.petri_net_library |
@@ -51,7 +51,7 @@ Pool: pending=0 active=0 done=7 (places 12/15)
 
 ## Paused (resumable)
 
-- [~] **meta_harness_6 program execution** — Wave 4/E2+E1 COMPLETE `feature_058.thought_review_gotcha_root_cause` DONE 2026-09-06 (omt_think op=review stale>90d advisor + 18-gotcha cluster map; suite 1967/0; net rev 57, pool done=7). NEXT: Wave 5/D1+D2+D3 `harness_tiered_template` (takes number 059 — major_feature, design doc + TDD auto-on). Resume @ `.projects/meta/meta_harness_6/CURRENT_STATE.md` (2026-09-06 iter 8 entry). ⚠ Working tree uncommitted — user commit pending.
+- [x] **meta_harness_6 program execution** — PROGRAM COMPLETE + CLOSED 2026-09-06 (feature_051..059, all 13 items; suite 1979/0, KNOWN=0 held; delta report @ `.projects/meta/meta_harness_6/CURRENT_STATE.md` iter 10; verdicts D4–D6 @ PROJECT.md Decisions log). ⚠ Working tree uncommitted — user commit pending.
 
 ## Agent Scratchpad (auto-managed, do not edit manually)
 
